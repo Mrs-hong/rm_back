@@ -46,3 +46,4 @@ target_link_libraries(qifeng_scmd PRIVATE qifeng_framework::qifeng_framework sys
 
 add_executable(qifeng_scmctl ${SCMCTL_SOURCES} ${IPC_SOURCES})
 target_include_directories(qifeng_scmctl PRIVATE ${CLI11_INCLUDE_DIR})
+target_link_libraries(qifeng_scmctl PRIVATE qifeng_framework::qifeng_framework)

@@ -127,3 +127,39 @@ add_dependencies(test_sd_bus testa_dbus)
 
 # 注册测试
 gtest_discover_tests(test_sd_bus)
+
+# ==============================================================================
+# UDS IPC 通信测试
+# ==============================================================================
+
+set(UDS_IPC_TEST_SOURCES test_uds_coc.cpp)
+
+set(UDS_IPC_SOURCES_UNDER_TEST
+    ${CMAKE_SOURCE_DIR}/src/ipc/protocil.cpp
+    ${CMAKE_SOURCE_DIR}/src/ipc/uds.cpp
+)
+
+add_executable(test_uds_coc ${UDS_IPC_TEST_SOURCES} ${UDS_IPC_SOURCES_UNDER_TEST})
+
+target_include_directories(test_uds_coc PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${GTEST_INCLUDE_DIR}
+)
+
+target_link_libraries(test_uds_coc PRIVATE
+    gtest
+    gtest_main
+    qifeng_framework::qifeng_framework
+    pthread
+)
+
+target_compile_options(test_uds_coc PRIVATE
+    -Wno-switch-default
+    -Wno-switch-enum
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-old-style-cast
+    -Wno-stack-usage
+)
+
+gtest_discover_tests(test_uds_coc)
