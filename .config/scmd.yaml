@@ -1,0 +1,17 @@
+scmd:
+  log:
+    level: info
+    max_file_size: 52428800
+    max_files: 7
+    path: ./.logs
+  uds:
+    socket_path: ./scmd.sock
+  health_check:
+    default_interval_sec: 20
+    default_timeout_sec: 3
+    default_retry_count: 3
+    enable: true
+  opt_timeout_sec: 10
+  service_dir: ./.services
+  back_dir: ./.backup
+  data_dir: ./.data

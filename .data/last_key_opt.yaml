@@ -1,0 +1,4 @@
+# 操作 服务名 状态
+opt: install
+service: qifeng-scm
+status: 0   # 0: 成功 1: 失败

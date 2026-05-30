@@ -1,0 +1,10 @@
+[Unit]
+Description=DBusManager Test Service A
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/testa
+Restart=no
+
+[Install]
+WantedBy=multi-user.target

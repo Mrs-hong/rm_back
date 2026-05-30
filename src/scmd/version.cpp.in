@@ -1,0 +1,21 @@
+/*
+ * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
+ */
+
+#include "common/version.hpp"
+#include <ctime>
+
+namespace qifeng {
+namespace scm {
+
+const VersionInfo& getVersionInfo() {
+    static VersionInfo info = {
+        "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@",  // 版本号
+        "@BUILD_TIMESTAMP@",  // 编译时间
+        "@GIT_COMMIT@"        // Git commit hash
+    };
+    return info;
+}
+
+}  // namespace scm
+}  // namespace qifeng
