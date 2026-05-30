@@ -233,40 +233,22 @@ namespace qifeng::scm {
             return MakeSuccess();
         }
 
-        // 使用 utils::CheckDependenciesMap 进行完整依赖检查（循环依赖、缺失、版本冲突）
-        auto allServices = mConfigLoader->GetAllServices();
-        std::map<std::string, ServiceDefinition> servicesMap;
-        for (const auto &s : allServices) {
-            servicesMap[s.serviceName] = s;
+        // EnsureSequenceUpdated 内部已调用 CheckDependenciesMap 进行完整依赖检查
+        // 若存在循环依赖，序列计算会失败，此处直接返回
+        auto seqResult = EnsureSequenceUpdated();
+        if (!seqResult.IsDefalutSuccess()) {
+            return seqResult;
         }
 
-        auto errors = utils::CheckDependenciesMap(servicesMap);
-        if (!errors.empty()) {
-            for (const auto &err : errors) {
-                // 只关注与当前服务相关的错误
-                if (err.serviceName == serviceName) {
-                    switch (err.status) {
-                        case CheckDependencyError::Status::MISSING:
-                            return MakeError("Missing dependency for service: " + serviceName);
-                        case CheckDependencyError::Status::VERSION_CONFLICT:
-                            return MakeError("Dependency version conflict for service: " + serviceName);
-                        case CheckDependencyError::Status::CIRCULAR:
-                            return MakeError("Circular dependency detected involving service: " + serviceName);
-                        case CheckDependencyError::Status::IMPACTED:
-                            SLOG_INFO << "Service " << serviceName << " is impacted by indirect dependency";
-                            break;
-                        default:
-                            break;
-                    }
-                }
-            }
-        }
-
-        // 额外检查：当前服务的直接依赖是否都已安装
-        for (const auto &dep : svc->dependencies) {
-            auto* depSvc = mConfigLoader->GetServiceByName(dep.first);
+        // 对当前服务做精确的缺失和版本冲突检查
+        for (const auto &[depName, depVersion] : svc->dependencies) {
+            auto* depSvc = mConfigLoader->GetServiceByName(depName);
             if (!depSvc) {
-                return MakeError("Missing dependency service: " + dep.first);
+                return MakeError("Missing dependency for service " + serviceName + ": " + depName);
+            }
+            if (depSvc->version != depVersion) {
+                return MakeError("Dependency version conflict for service " + serviceName + ": " + depName +
+                                 " expected " + depVersion + " but got " + depSvc->version);
             }
         }
 
@@ -466,16 +448,16 @@ namespace qifeng::scm {
     }
 
     std::vector<std::string> ServiceManager::GetDependentServices(const std::string &serviceName) {
-        std::vector<std::string> dependents;
-
-        auto allServices = mConfigLoader->GetAllServices();
-        for (const auto &svc : allServices) {
-            if (svc.dependencies.count(serviceName)) {
-                dependents.push_back(svc.serviceName);
+        // 优先使用缓存的反向邻接表，避免每次线性扫描所有服务
+        auto seqResult = EnsureSequenceUpdated();
+        if (seqResult.IsDefalutSuccess()) {
+            auto it = mServiceSequence.reverseAdj.find(serviceName);
+            if (it != mServiceSequence.reverseAdj.end()) {
+                return it->second;
             }
         }
 
-        return dependents;
+        return {};
     }
 
     // --- 公共接口 ---

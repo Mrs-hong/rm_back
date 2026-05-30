@@ -166,6 +166,9 @@ namespace qifeng {
         struct ServiceSequence {
             std::vector<std::string> startOrder;  // 启动顺序（被依赖的在前）
             std::vector<std::string> stopOrder;   // 停止顺序（依赖别人的在前，即启动顺序的逆序）
+            // 反向邻接表：reverseAdj[A] = {B, C} 表示 B 和 C 依赖 A
+            // 用于快速查找依赖指定服务的所有服务（GetDependentServices）
+            std::map<std::string, std::vector<std::string>> reverseAdj;
         };
 
         struct CheckDependencyError {

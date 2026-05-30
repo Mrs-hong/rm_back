@@ -9,7 +9,6 @@
 #include <queue>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 
 namespace {
     using qifeng::scm::CheckDependencyError;
@@ -384,16 +383,23 @@ namespace qifeng::scm::utils {
             return result;
         }
 
+        // 先用 CheckDependenciesMap 检查循环依赖，避免重复构建依赖图
+        auto errors = CheckDependenciesMap(services);
+        for (const auto &err : errors) {
+            if (err.status == CheckDependencyError::Status::CIRCULAR) {
+                return result;
+            }
+        }
+
         std::unordered_map<std::string, std::vector<std::string>> adj;
         std::unordered_map<std::string, int> inDegree;
         BuildDependencyGraph(services, adj, inDegree);
 
         result.startOrder = DoTopologicalSort(adj, inDegree);
 
-        if (result.startOrder.size() != services.size()) {
-            result.startOrder.clear();
-            result.stopOrder.clear();
-            return result;
+        // 缓存反向邻接表（谁依赖了谁），供 GetDependentServices 使用
+        for (const auto &[depName, dependents] : adj) {
+            result.reverseAdj[depName] = dependents;
         }
 
         result.stopOrder = result.startOrder;
