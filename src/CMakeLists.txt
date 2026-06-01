@@ -30,6 +30,16 @@ configure_file(
     @ONLY
 )
 
+
+# 获得common 的所有.cpp
+file(GLOB_RECURSE COMMON_SOURCES "common/*.cpp")
+
+# 获得dbinit 的所有.cpp
+file(GLOB_RECURSE DBINIT_SOURCES "dbinit/*.cpp")
+
+# 获得service_manger 的所有.cpp
+file(GLOB_RECURSE SERVICE_MANAGER_SOURCES "service_manger/*.cpp")
+
 # 获得scmd 的所有.cpp
 file(GLOB_RECURSE SCMD_SOURCES "scmd/*.cpp")
 
@@ -38,12 +48,11 @@ file(GLOB_RECURSE SCMCTL_SOURCES "scmctl/*.cpp")
 
 
 
-
-add_executable(qifeng_scmd ${SCMD_SOURCES} ${IPC_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/version_generated.cpp)
+add_executable(qifeng_scmd ${SCMD_SOURCES} ${COMMON_SOURCES} ${DBINIT_SOURCES} ${SERVICE_MANAGER_SOURCES} ${IPC_SOURCES} ${CMAKE_CURRENT_BINARY_DIR}/version_generated.cpp)
 target_include_directories(qifeng_scmd PRIVATE ${CLI11_INCLUDE_DIR})
 target_link_libraries(qifeng_scmd PRIVATE qifeng_framework::qifeng_framework systemd)
 
 
-add_executable(qifeng_scmctl ${SCMCTL_SOURCES} ${IPC_SOURCES})
+add_executable(qifeng_scmctl ${SCMCTL_SOURCES} ${IPC_SOURCES} ${COMMON_SOURCES})
 target_include_directories(qifeng_scmctl PRIVATE ${CLI11_INCLUDE_DIR})
-target_link_libraries(qifeng_scmctl PRIVATE qifeng_framework::qifeng_framework)
+target_link_libraries(qifeng_scmctl PRIVATE qifeng_framework::qifeng_framework systemd)

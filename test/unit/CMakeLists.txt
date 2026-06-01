@@ -23,9 +23,9 @@ set(TEST_SOURCES
 
 # 被测试的源文件
 set(SOURCES_UNDER_TEST
-    ${CMAKE_SOURCE_DIR}/src/scmd/config.cpp
-    ${CMAKE_SOURCE_DIR}/src/scmd/utils.cpp
-    ${CMAKE_SOURCE_DIR}/src/scmd/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/config.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
 )
 
 # 构建测试可执行文件
@@ -91,8 +91,8 @@ set(DBUS_TEST_SOURCES
 
 # DBusManager 被测试的源文件
 set(DBUS_SOURCES_UNDER_TEST
-    ${CMAKE_SOURCE_DIR}/src/scmd/dbus_manager.cpp
-    ${CMAKE_SOURCE_DIR}/src/scmd/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/ipc/dbus_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
 )
 
 # 构建测试可执行文件
@@ -163,3 +163,43 @@ target_compile_options(test_uds_coc PRIVATE
 )
 
 gtest_discover_tests(test_uds_coc)
+
+# ==============================================================================
+# DatabaseInit 单元测试
+# ==============================================================================
+
+set(DATABASE_TEST_SOURCES
+    test_database.cpp
+)
+
+set(DATABASE_SOURCES_UNDER_TEST
+    ${CMAKE_SOURCE_DIR}/src/dbinit/database_init.cpp
+    ${CMAKE_SOURCE_DIR}/src/dbinit/mysql_backend.cpp
+    ${CMAKE_SOURCE_DIR}/src/dbinit/opengauss_backend.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
+)
+
+add_executable(test_database ${DATABASE_TEST_SOURCES} ${DATABASE_SOURCES_UNDER_TEST})
+
+target_include_directories(test_database PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${GTEST_INCLUDE_DIR}
+)
+
+target_link_libraries(test_database PRIVATE
+    gtest
+    gtest_main
+    qifeng_framework::qifeng_framework
+    pthread
+)
+
+target_compile_options(test_database PRIVATE
+    -Wno-switch-default
+    -Wno-switch-enum
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-old-style-cast
+)
+
+gtest_discover_tests(test_database)

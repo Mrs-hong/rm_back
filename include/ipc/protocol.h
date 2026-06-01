@@ -24,22 +24,24 @@ namespace qifeng::scm {
         ControlProtocol() = default;
         ~ControlProtocol() = default;
 
-        ControlProtocol(const ControlProtocol&) = delete;
-        ControlProtocol& operator=(const ControlProtocol&) = delete;
+        ControlProtocol(const ControlProtocol &) = delete;
+        ControlProtocol &operator=(const ControlProtocol &) = delete;
+        ControlProtocol(ControlProtocol &&) = delete;
+        ControlProtocol &operator=(ControlProtocol &&) = delete;
 
         /**
          * @brief 编码请求为JSON字符串 + '\n'
          * @param request 请求结构体
          * @return 编码后的字符串（含\n结束符）
          */
-        static std::string EncodeRequest(const ScmRequest& request);
+        static std::string EncodeRequest(const ScmRequest &request);
 
         /**
          * @brief 编码响应为JSON字符串 + '\n'
          * @param response 响应结构体
          * @return 编码后的字符串（含\n结束符）
          */
-        static std::string EncodeResponse(const ScmResponse& response);
+        static std::string EncodeResponse(const ScmResponse &response);
 
         /**
          * @brief 解码请求：从JSON字符串解析为ScmRequest
@@ -47,7 +49,7 @@ namespace qifeng::scm {
          * @param request 输出参数，解析后的请求
          * @return 是否解析成功
          */
-        static bool DecodeRequest(const std::string& jsonStr, ScmRequest& request);
+        static bool DecodeRequest(const std::string &jsonStr, ScmRequest &request);
 
         /**
          * @brief 解码响应：从JSON字符串解析为ScmResponse
@@ -55,7 +57,7 @@ namespace qifeng::scm {
          * @param response 输出参数，解析后的响应
          * @return 是否解析成功
          */
-        static bool DecodeResponse(const std::string& jsonStr, ScmResponse& response);
+        static bool DecodeResponse(const std::string &jsonStr, ScmResponse &response);
 
         /**
          * @brief 从缓冲区中提取完整的消息（以'\n'分隔）
@@ -63,7 +65,7 @@ namespace qifeng::scm {
          * @param buffer 数据缓冲区，调用后保留未完成的数据
          * @return 提取出的完整消息列表（每条消息不含\n）
          */
-        static std::vector<std::string> ExtractMessages(std::string& buffer);
+        static std::vector<std::string> ExtractMessages(std::string &buffer);
     };
 
 }  // namespace qifeng::scm

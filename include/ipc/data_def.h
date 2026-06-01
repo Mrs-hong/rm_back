@@ -16,16 +16,16 @@ namespace qifeng::scm {
      * 定义scmctl支持的所有命令类型，用于scmctl和scmd之间的通信
      */
     enum class ScmCommand {
-        VERSION = 0,   // --version / -v 查看版本
-        INSTALL,       // install --name [--tar_dir] 安装服务
-        START,         // start --name [--version] 启动服务
-        STOP,          // stop --name 停止服务
-        RESTART,       // restart --name 重启服务
-        RESTART_ALL,   // restart -a 重启全部
-        UPGRADE,       // upgrade --name --tar_dir 升级服务
-        LIST,          // list 查看所有服务
-        INFO,          // info --name 查看服务详情
-        LOG            // log --type -n 查看操作日志
+        VERSION = 0,  // --version / -v 查看版本
+        INSTALL,      // install --name [--tar_dir] 安装服务
+        START,        // start --name [--version] 启动服务
+        STOP,         // stop --name 停止服务
+        RESTART,      // restart --name 重启服务
+        RESTART_ALL,  // restart -a 重启全部
+        UPGRADE,      // upgrade --name --tar_dir 升级服务
+        LIST,         // list 查看所有服务
+        INFO,         // info --name 查看服务详情
+        LOG           // log --type -n 查看操作日志
     };
 
     /**
@@ -40,27 +40,28 @@ namespace qifeng::scm {
      */
     struct ScmRequest {
         ScmCommand command {ScmCommand::VERSION};
-        std::string serviceName;   // 可选，服务名称
-        std::string version;       // 可选，服务版本
-        std::string tarDir;        // 可选，install/upgrade时指定tar包目录
-        int logLevel {0};          // 可选，log命令的日志级别
-        int logCount {0};          // 可选，log命令的日志条数
+        std::string serviceName;  // 可选，服务名称
+        std::string version;      // 可选，服务版本
+        std::string tarDir;       // 可选，install/upgrade时指定tar包目录
+        int logLevel {0};         // 可选，log命令的日志级别
+        int logCount {0};         // 可选，log命令的日志条数
 
         BEGIN_JSON_PARSER
-            ADD_MEMBER(command)
-            ADD_MEMBER(serviceName)
-            ADD_MEMBER(version)
-            ADD_MEMBER(tarDir)
-            ADD_MEMBER(logLevel)
-            ADD_MEMBER(logCount)
+        ADD_MEMBER(command)
+        ADD_MEMBER(serviceName)
+        ADD_MEMBER(version)
+        ADD_MEMBER(tarDir)
+        ADD_MEMBER(logLevel)
+        ADD_MEMBER(logCount)
         END_JSON_PARSER
 
         /**
          * @brief const版本的JSON序列化
          * 宏生成的toJson()是非const方法，此处提供const版本用于const对象序列化
          */
-        Json::Value toJsonConst() const {
-            ScmRequest& mutableThis = const_cast<ScmRequest&>(*this);
+        Json::Value ToJsonConst() const {
+            ScmRequest &mutableThis = const_cast<ScmRequest &>(*this);  // NOLINT (readability-const-cast)
+            // 宏全的const_cast，因为ScmRequest的toJson()方法是const的
             return mutableThis.toJson();
         }
     };
@@ -71,22 +72,23 @@ namespace qifeng::scm {
      * 使用json_utils.h宏实现JSON序列化/反序列化
      */
     struct ScmResponse {
-        int code {0};              // 0:成功, -1:失败, 1:警告
-        std::string message;       // 结果消息
-        Json::Value data;          // 灵活的数据载荷（服务列表、运行时信息等）
+        int code {0};         // 0:成功, -1:失败, 1:警告
+        std::string message;  // 结果消息
+        Json::Value data;     // 灵活的数据载荷（服务列表、运行时信息等）
 
         BEGIN_JSON_PARSER
-            ADD_MEMBER(code)
-            ADD_MEMBER(message)
-            ADD_MEMBER(data)
+        ADD_MEMBER(code)
+        ADD_MEMBER(message)
+        ADD_MEMBER(data)
         END_JSON_PARSER
 
         /**
          * @brief const版本的JSON序列化
          * 宏生成的toJson()是非const方法，此处提供const版本用于const对象序列化
          */
-        Json::Value toJsonConst() const {
-            ScmResponse& mutableThis = const_cast<ScmResponse&>(*this);
+        Json::Value ToJsonConst() const {
+            ScmResponse &mutableThis = const_cast<ScmResponse &>(*this);  // NOLINT (readability-const-cast)
+            // 宏全的const_cast，因为ScmResponse的toJson()方法是const的
             return mutableThis.toJson();
         }
     };

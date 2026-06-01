@@ -34,12 +34,14 @@ namespace qifeng::scm {
          * @param socketPath .sock文件路径
          * @param maxConnections 服务端最大连接数（仅SERVER模式有效，默认1）
          */
-        explicit UdsWrapper(UdsMode mode, const std::string& socketPath, int maxConnections = 1);
+        explicit UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections = 1);
 
         ~UdsWrapper();
 
-        UdsWrapper(const UdsWrapper&) = delete;
-        UdsWrapper& operator=(const UdsWrapper&) = delete;
+        UdsWrapper(const UdsWrapper &) = delete;
+        UdsWrapper &operator=(const UdsWrapper &) = delete;
+        UdsWrapper(UdsWrapper &&) = delete;
+        UdsWrapper &operator=(UdsWrapper &&) = delete;
 
         /**
          * @brief 初始化
@@ -73,7 +75,7 @@ namespace qifeng::scm {
          * @param data 发送的数据
          * @return 发送的字节数，-1表示错误
          */
-        ssize_t Send(int fd, const std::string& data);
+        ssize_t Send(int fd, const std::string &data);
 
         /**
          * @brief 接收数据（阻塞模式，自动重试EINTR）
@@ -94,7 +96,7 @@ namespace qifeng::scm {
         /**
          * @brief 获取socket路径
          */
-        const std::string& GetSocketPath() const;
+        const std::string &GetSocketPath() const;
 
         /**
          * @brief 获取socket fd

@@ -13,12 +13,17 @@
 #include <cstring>
 #include <iostream>
 
+// 对系统接口调用、需要使用c-style和reinterpret_cast，避免使用c++的类型转换符
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-vararg)
 namespace qifeng::scm {
 
-    UdsWrapper::UdsWrapper(UdsMode mode, const std::string& socketPath, int maxConnections)
-        : mMode(mode), mSocketPath(socketPath), mMaxConnections(maxConnections), mSocketFd(-1) {}
+    UdsWrapper::UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections)
+        : mMode(mode), mSocketPath(socketPath), mMaxConnections(maxConnections), mSocketFd(-1) {
+    }
 
-    UdsWrapper::~UdsWrapper() { Close(); }
+    UdsWrapper::~UdsWrapper() {
+        Close();
+    }
 
     bool UdsWrapper::Initialize() {
         if (mSocketFd >= 0) {
@@ -128,7 +133,7 @@ namespace qifeng::scm {
         return true;
     }
 
-    ssize_t UdsWrapper::Send(int fd, const std::string& data) {
+    ssize_t UdsWrapper::Send(int fd, const std::string &data) {
         ssize_t totalSent = 0;
         size_t remaining = data.size();
         const char* ptr = data.data();
@@ -179,9 +184,13 @@ namespace qifeng::scm {
         return true;
     }
 
-    const std::string& UdsWrapper::GetSocketPath() const { return mSocketPath; }
+    const std::string &UdsWrapper::GetSocketPath() const {
+        return mSocketPath;
+    }
 
-    int UdsWrapper::GetSocketFd() const { return mSocketFd; }
+    int UdsWrapper::GetSocketFd() const {
+        return mSocketFd;
+    }
 
     bool UdsWrapper::PrepareSocketPath() {
         struct sockaddr_un addr {};
@@ -202,3 +211,5 @@ namespace qifeng::scm {
     }
 
 }  // namespace qifeng::scm
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-vararg)

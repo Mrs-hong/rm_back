@@ -40,7 +40,7 @@ namespace qifeng {
         /**
          * @brief 数据库类型枚举
          */
-        enum class DatabaseType { MYSQL, POSTGRESQL, OPENGAUSS };
+        enum class DatabaseType { MYSQL, OPENGAUSS };
 
         /**
          * @brief 执行配置信息

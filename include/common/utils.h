@@ -23,47 +23,48 @@ namespace qifeng::scm::utils {
 
     /**
      * @description: 创建符号软连接
-     * @param {string} &target
-     * @param {string} &linkPath
+     * @param {string} &target 目标路径
+     * @param {string} &linkPath 链接路径
+     * @param {string} &linkPath 链接路径
      * @return {ResultMsg} 创建结果
      */
     ResultMsg CreateSymbolicLink(const std::string &target, const std::string &linkPath);
 
     /**
      * @description: 删除符号软连接
-     * @param {string} &linkPath
+     * @param {string} &linkPath 链接路径
      * @return {ResultMsg} 删除结果
      */
     ResultMsg DeleteSymbolicLink(const std::string &linkPath);
 
     /**
      * @description: 解压tar包到指定目录
-     * @param {string} &tarPath
-     * @param {string} &extractDir
+     * @param {string} &tarPath tar包路径
+     * @param {string} &extractDir 解压目录路径
      * @return {ResultMsg} 解压结果
      */
     ResultMsg ExtractTar(const std::string &tarPath, const std::string &extractDir);
 
     /**
      * @description: 压缩目录为tar包
-     * @param {string} &dir
-     * @param {string} &tarPath
+     * @param {string} &dir 目录路径
+     * @param {string} &tarPath tar包路径
      * @return {ResultMsg} 压缩结果
      */
     ResultMsg CompressDirToTar(const std::string &dir, const std::string &tarPath);
 
     /**
      * @description: 验证tar包是否和sha256文件匹配
-     * @param {string} &tarPath
-     * @param {string} &sha256Path
+     * @param {string} &tarPath tar包路径
+     * @param {string} &sha256Path sha256文件路径
      * @return {ResultMsg} 验证结果
      */
     ResultMsg VerifyTarWithSha256(const std::string &tarPath, const std::string &sha256Path);
 
     /**
      * @description: 移动目录
-     * @param {string} &src
-     * @param {string} &dst
+     * @param {string} &src 源目录路径
+     * @param {string} &dst 目标目录路径
      * @return {ResultMsg} 移动结果
      */
     ResultMsg MoveDirectory(const std::string &src, const std::string &dst);
@@ -92,8 +93,8 @@ namespace qifeng::scm::utils {
 
     /**
      * @brief 检查服务依赖关系是否版本冲突、缺失的服务、循环依赖影响的所有服务
-     * @param services 所有的服务
-     * @return CheckDependencyError 检查结果
+     * @param services 所有服务的 map
+     * @return std::vector<CheckDependencyError> 检查结果列表
      */
     std::vector<CheckDependencyError> CheckDependenciesMap(const std::map<std::string, ServiceDefinition> &services);
 
