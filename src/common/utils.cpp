@@ -215,6 +215,10 @@ namespace qifeng::scm::utils {
         if (!fs::exists(tarPath)) {
             return MakeError("Tar file does not exist: " + tarPath);
         }
+        // 检查是否为文件
+        if (!fs::is_regular_file(tarPath)) {
+            return MakeError("Tar file is not a regular file: " + tarPath);
+        }
 
         if (auto result = CreateDirectory(extractDir); !result.IsDefalutSuccess()) {
             return result;
@@ -233,8 +237,9 @@ namespace qifeng::scm::utils {
         }
 
         int status = pclose(pipe);
-        if (status != 0) {
-            return MakeError("Failed to extract tar: " + output);
+        if (!WIFEXITED(status) || WEXITSTATUS(status) != 0) {
+            return MakeError("Failed to extract tar (exit code: " +
+                             std::to_string(WIFEXITED(status) ? WEXITSTATUS(status) : -1) + "): " + output);
         }
         return MakeSuccess();
     }

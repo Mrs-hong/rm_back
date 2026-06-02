@@ -50,7 +50,7 @@ namespace {  // 工具函数拆分、降低单函数复杂度
         oss << "Type=simple\n";
 
         // ExecStart: 可执行文件路径 + 命令行参数
-        oss << "ExecStart=" << def.execInfo.command;
+        oss << "ExecStart=" << def.currentServiceDir + "/" + def.execInfo.command;
         for (const auto &arg : def.execInfo.args) {
             oss << " " << arg;
         }
@@ -58,7 +58,7 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 
         // WorkingDirectory: 工作目录
         if (!def.execInfo.workDir.empty()) {
-            oss << "WorkingDirectory=" << def.execInfo.workDir << "\n";
+            oss << "WorkingDirectory=" << def.currentServiceDir + "/" + def.execInfo.workDir << "\n";
         }
 
         // User: 运行用户
@@ -76,7 +76,7 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 
         // Environment: 数据目录作为 DATA_DIR 环境变量
         if (!def.execInfo.dataDir.empty()) {
-            oss << "Environment=DATA_DIR=" << def.execInfo.dataDir << "\n";
+            oss << "Environment=DATA_DIR=" << def.currentServiceDir + "/" + def.execInfo.dataDir << "\n";
         }
 
         // Environment: 当前服务目录作为 SERVICE_DIR 环境变量
@@ -129,7 +129,7 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 
         // 校验可执行命令路径存在性
         namespace fs = std::filesystem;
-        if (!fs::exists(def.execInfo.command)) {
+        if (!fs::exists(def.currentServiceDir + "/" + def.execInfo.command)) {
             return qifeng::scm::MakeError("Exec command does not exist: " + def.execInfo.command);
         }
 

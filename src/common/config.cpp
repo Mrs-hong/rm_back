@@ -421,7 +421,7 @@ namespace qifeng {
                     try {
                         auto def = InitServiceDefinitionFromYAML(yamlPath, mConfigInfo);
                         if (def.useful && mServices.find(def.serviceName) == mServices.end()) {
-                            def.currentServiceDir = entry.path().filename();
+                            def.currentServiceDir = mConfigInfo.serviceDir + "/" + entry.path().filename().string();
                             mServices[def.serviceName] = def;
                         }
                     } catch (const std::exception &e) {
@@ -476,7 +476,7 @@ namespace qifeng {
             try {
                 auto def = InitServiceDefinitionFromYAML(yamlPath, mConfigInfo);
                 if (def.useful && mServices.find(def.serviceName) == mServices.end()) {
-                    def.currentServiceDir = fs::path(softwareDir).filename().string();
+                    def.currentServiceDir = mConfigInfo.serviceDir + "/" + fs::path(softwareDir).filename().string();
                     mServices[def.serviceName] = def;
                     std::cout << "Added service: " << def.serviceName << " from " << yamlPath << std::endl;
                     return MakeSuccess();

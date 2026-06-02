@@ -169,6 +169,14 @@ namespace qifeng::scm {
          */
         ResultMsg DeleteServiceSymlink(const std::string &serviceName);
 
+        /**
+         * @brief 更新systemd软链接
+         * @details 若链接存在、则覆盖创建新链接、若不存在则创建新链接
+         * @param serviceName 服务名称
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg FreshServiceSymlink(const std::string &serviceName);
+
         // --- 数据目录管理------
 
         /**

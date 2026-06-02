@@ -105,6 +105,12 @@ namespace qifeng {
              */
             std::string GetServiceRootDir(const std::string &serviceName) const;
 
+            /**
+             * @brief 获取scmd自身配置信息
+             * @return const ConfigInfo& 配置信息引用
+             */
+            const ConfigInfo &GetConfigInfo() const { return mConfigInfo; }
+
         private:
             /**
              * @brief 加载SCMD自己的配置文件

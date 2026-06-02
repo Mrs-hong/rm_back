@@ -147,12 +147,14 @@ namespace qifeng::scm {
 
     private:
         /**
-         * @brief 解压软件tar包
+         * @brief 解压软件tar包到指定目录并可选指定解压后的文件名
          * @param tarPath tar包路径
          * @param extractDir 输出参数，解压目录路径
+         * @param newName 可选，指定解压后的目录名，默认为空字符串表示不处理
          * @return ResultMsg 操作结果
          */
-        ResultMsg ExtractSoftwareTar(const std::string &tarPath, std::string &extractDir);
+        ResultMsg ExtractSoftwareTar(const std::string &tarPath, std::string &extractDir,
+                                     const std::string &newName = "");
 
         /**
          * @brief 检查服务依赖关系

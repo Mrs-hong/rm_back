@@ -78,6 +78,25 @@ namespace {
         return (fs::temp_directory_path() / GenerateTempDirName()).string();
     }
 
+    // 执行解压操作（独立函数减少 ExtractSoftwareTar 的栈使用）
+    qifeng::scm::ResultMsg DoExtract(const std::string &tarPath, const std::string &tempDir) {
+        auto result = qifeng::scm::utils::ExtractTar(tarPath, tempDir);
+        if (!result.IsDefalutSuccess()) {
+            qifeng::scm::utils::ForceDeleteDirectory(tempDir);
+            return qifeng::scm::MakeError("Failed to extract tar file: " + result.msg);
+        }
+
+        return result;
+    }
+    // 将解压后的第一个目录重命名为指定名称
+    void RenameDirFirstDir(const std::string &extractDir, const std::string &newName) {
+        for (auto &entry : fs::directory_iterator(extractDir)) {
+            if (entry.is_directory()) {
+                fs::rename(entry.path(), entry.path().parent_path() / newName);
+                break;
+            }
+        }
+    }
 }  // namespace
 
 namespace qifeng::scm {
@@ -169,31 +188,17 @@ namespace qifeng::scm {
         return std::string(ScmdServicePrefix) + serviceName;
     }
 
-    // 执行解压操作（独立函数减少 ExtractSoftwareTar 的栈使用）
-    ResultMsg DoExtract(const std::string &tarPath, const std::string &tempDir) {
-        if (!fs::exists(tarPath)) {
-            return MakeError("Software tar file does not exist: " + tarPath);
-        }
-
-        auto result = utils::CreateDirectory(tempDir);
-        if (!result.IsDefalutSuccess()) {
-            return MakeError("Failed to create temp directory: " + result.msg);
-        }
-
-        result = utils::ExtractTar(tarPath, tempDir);
-        if (!result.IsDefalutSuccess()) {
-            utils::ForceDeleteDirectory(tempDir);
-            return MakeError("Failed to extract tar file: " + result.msg);
-        }
-
-        return MakeSuccess();
-    }
-
-    ResultMsg ServiceManager::ExtractSoftwareTar(const std::string &tarPath, std::string &extractDir) {
+    ResultMsg ServiceManager::ExtractSoftwareTar(const std::string &tarPath, std::string &extractDir,
+                                                 const std::string &newName) {
         std::string tempDir = GenerateTempExtractDir();
         auto result = DoExtract(tarPath, tempDir);
         if (!result.IsDefalutSuccess()) {
             return result;
+        }
+
+        // 重命名解压后的第一个目录
+        if (!newName.empty()) {
+            RenameDirFirstDir(tempDir, newName);
         }
 
         extractDir = std::move(tempDir);
@@ -345,9 +350,9 @@ namespace qifeng::scm {
             }
         }
 
-        auto linkResult = mFileManager->CreateServiceSymlink(serviceName);
+        auto linkResult = mFileManager->FreshServiceSymlink(serviceName);
         if (!linkResult.IsDefalutSuccess()) {
-            return MakeError("Failed to create service symlink: " + linkResult.msg);
+            return MakeError("Failed to fresh/update service symlink: " + linkResult.msg);
         }
 
         auto reloadResult = mDBusManager->ReloadDaemon();
@@ -469,7 +474,7 @@ namespace qifeng::scm {
         }
 
         std::string extractDir;
-        auto result = ExtractSoftwareTar(softwareTarPath, extractDir);
+        auto result = ExtractSoftwareTar(softwareTarPath, extractDir, serviceName);
         if (!result.IsDefalutSuccess()) {
             return result;
         }
@@ -782,7 +787,7 @@ namespace qifeng::scm {
         }
 
         std::string extractDir;
-        auto result = ExtractSoftwareTar(softwareTarPath, extractDir);
+        auto result = ExtractSoftwareTar(softwareTarPath, extractDir, serviceName);
         if (!result.IsDefalutSuccess()) {
             return result;
         }

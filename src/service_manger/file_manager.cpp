@@ -1,6 +1,7 @@
 /*
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
+#include "common/scmd_types.h"
 #include "service_manger/file_manager.h"
 
 #include "common/utils.h"
@@ -144,13 +145,13 @@ namespace qifeng::scm {
         }
 
         // 验证软件包完整性
-        auto ret = VerifySoftwarePackage(softwareDir);
+        auto ret = VerifySoftwarePackage(softwareDir + "/" + serviceName);
         if (!ret.IsDefalutSuccess()) {
             return MakeError("Software package verification failed: " + ret.msg);
         }
 
         // 复制软件包到服务目录
-        auto copyRet = utils::CopyDirectory(softwareDir, serviceDir);
+        auto copyRet = utils::CopyDirectory(softwareDir + "/" + serviceName, serviceDir);
         if (!copyRet.IsDefalutSuccess()) {
             // 失败时清理已创建的目录
             utils::ForceDeleteDirectory(serviceDir);
@@ -437,6 +438,23 @@ namespace qifeng::scm {
         std::string linkPath = std::string(SystemdUnitDir) + "/" + ServiceFilePrefix + serviceName + ServiceFileSuffix;
 
         return utils::DeleteSymbolicLink(linkPath);
+    }
+
+    ResultMsg FileManager::FreshServiceSymlink(const std::string &serviceName) {
+        std::string linkPath = std::string(SystemdUnitDir) + "/" + ServiceFilePrefix + serviceName + ServiceFileSuffix;
+        // 检查软链接是否存在
+        ResultMsg ret;
+        if (fs::exists(linkPath)) {
+            ret = DeleteServiceSymlink(serviceName);
+        }
+        if (!ret.IsDefalutSuccess()) {
+            return ret;
+        }
+        ret = CreateServiceSymlink(serviceName);
+        if (!ret.IsDefalutSuccess()) {
+            return ret;
+        }
+        return ret;
     }
 
     // --- 数据目录管理------

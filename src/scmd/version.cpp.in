@@ -8,7 +8,7 @@
 namespace qifeng {
 namespace scm {
 
-const VersionInfo& getVersionInfo() {
+const VersionInfo& GetVersionInfo() {
     static VersionInfo info = {
         "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@",  // 版本号
         "@BUILD_TIMESTAMP@",  // 编译时间

@@ -1,0 +1,15 @@
+# MariaDB Service
+# Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
+
+serviceName: mariadb
+version: 10.3.39
+autoStart: false
+
+execution:
+  command: ./bin/mysqld
+  workDir: .
+  dataDir: ./data
+  args: ["--datadir=./data", "--port=3306", "--bind-address=127.0.0.1"]
+
+resources:
+  ports: [3306]
