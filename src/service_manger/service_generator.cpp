@@ -2,6 +2,7 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 #include "common/scmd_types.h"
+#include "common/utils.h"
 #include "service_manger/service_generator.h"
 #include <filesystem>
 #include <sstream>
@@ -9,22 +10,22 @@ namespace {  // 工具函数拆分、降低单函数复杂度
     using qifeng::scm::ServiceDefinition;
 
     // 将依赖列表格式化为空格分隔的 service 单元名列表
-    std::string FormatDependencyList(const std::map<std::string, std::string> &deps) {
+    std::string FormatDependencyList(const std::map<std::string, std::string> &deps, const std::string &unitPrefix) {
         std::ostringstream oss;
         bool first = true;
         for (const auto &dep : deps) {
             if (!first) {
                 oss << " ";
             }
-            // 依赖格式：<服务名称, 版本号>，映射为 service_name.service
-            oss << dep.first << ".service";
+            // 依赖格式：<服务名称, 版本号>，映射为 prefix_service_name.service
+            oss << unitPrefix << dep.first << ".service";
             first = false;
         }
         return oss.str();
     }
 
     // 写入 [Unit] 段
-    void WriteUnitSection(std::ostringstream &oss, const ServiceDefinition &def) {
+    void WriteUnitSection(std::ostringstream &oss, const ServiceDefinition &def, const std::string &unitPrefix) {
         oss << "[Unit]\n";
         // Description: 服务名称 + 版本号
         oss << "Description=" << def.serviceName;
@@ -36,9 +37,13 @@ namespace {  // 工具函数拆分、降低单函数复杂度
         // After: 依赖服务启动顺序（确保依赖服务先启动）
         // Requires: 强制依赖，依赖服务必须成功启动
         if (!def.dependencies.empty() && def.useful) {
-            oss << "After=" << FormatDependencyList(def.dependencies) << "\n";
-            oss << "Requires=" << FormatDependencyList(def.dependencies) << "\n";
+            oss << "After=" << FormatDependencyList(def.dependencies, unitPrefix) << "\n";
+            oss << "Requires=" << FormatDependencyList(def.dependencies, unitPrefix) << "\n";
         }
+
+        // StartLimitIntervalSec / StartLimitBurst: 60 秒内最多重启 3 次，防止无限循环
+        oss << "StartLimitIntervalSec=60s\n";
+        oss << "StartLimitBurst=3\n";
 
         oss << "\n";
     }
@@ -61,9 +66,13 @@ namespace {  // 工具函数拆分、降低单函数复杂度
             oss << "WorkingDirectory=" << def.currentServiceDir + "/" + def.execInfo.workDir << "\n";
         }
 
-        // User: 运行用户
-        if (!def.execInfo.user.empty()) {
-            oss << "User=" << def.execInfo.user << "\n";
+        // User: 运行用户，若配置未指定则使用当前系统用户，避免 root 启动被拒绝
+        std::string effectiveUser = def.execInfo.user;
+        if (effectiveUser.empty()) {
+            effectiveUser = qifeng::scm::utils::GetCurrentUserName();
+        }
+        if (!effectiveUser.empty()) {
+            oss << "User=" << effectiveUser << "\n";
         }
     }
 
@@ -92,6 +101,8 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 
         // Restart: 服务异常退出时自动重启
         oss << "Restart=on-failure\n";
+        // RestartSec: 重启间隔 5 秒，避免过快重启消耗资源
+        oss << "RestartSec=5\n";
 
         // 资源限制：内存
         if (def.resourcesInfo.memoryMB > 0) {
@@ -107,12 +118,11 @@ namespace {  // 工具函数拆分、降低单函数复杂度
     }
 
     // 写入 [Install] 段
-    void WriteInstallSection(std::ostringstream &oss, const ServiceDefinition &def) {
+    void WriteInstallSection(std::ostringstream &oss) {
         oss << "[Install]\n";
-        // WantedBy: 自动启动目标（isAutoStart 为 true 时启用）
-        if (def.isAutoStart) {
-            oss << "WantedBy=multi-user.target\n";
-        }
+        // WantedBy: 自动启动目标，与 isAutoStart 解耦
+        // isAutoStart 控制 scmd init 时是否自动启动，systemd enable/disable 由独立 API 控制
+        oss << "WantedBy=multi-user.target\n";
     }
 
     // 校验输入参数合法性
@@ -138,7 +148,7 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 }  // namespace
 
 namespace qifeng::scm {
-    ResultMsg ServiceGenerator::GenerateContent(const ServiceDefinition &serviceDef) {
+    ResultMsg ServiceGenerator::GenerateContent(const ServiceDefinition &serviceDef, const std::string &unitPrefix) {
         try {
             // 参数校验
             auto validateRet = ValidateParams(serviceDef);
@@ -148,11 +158,11 @@ namespace qifeng::scm {
 
             // 生成 service 文件内容
             std::ostringstream oss;
-            WriteUnitSection(oss, serviceDef);
+            WriteUnitSection(oss, serviceDef, unitPrefix);
             WriteServiceExecConfig(oss, serviceDef);
             WriteServiceEnvironment(oss, serviceDef);
             WriteServiceResourceConfig(oss, serviceDef);
-            WriteInstallSection(oss, serviceDef);
+            WriteInstallSection(oss);
             return ResultMsg {0, oss.str()};
         } catch (const std::exception &e) {
             return MakeError("Failed to generate systemd service file: " + std::string(e.what()));

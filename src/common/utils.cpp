@@ -2,12 +2,17 @@
 
 #include <algorithm>
 #include <array>
+#include <cerrno>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <pwd.h>
 #include <queue>
 #include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 #include <unordered_map>
 
 namespace {
@@ -75,7 +80,7 @@ namespace {
                 auto depIt = services.find(depName);
                 if (depIt == services.end()) {
                     errors.push_back({CheckDependencyError::Status::MISSING, serviceName});
-                } else if (depIt->second.version != depVersion) {
+                } else if (!qifeng::scm::utils::SatisfiesVersionConstraint(depIt->second.version, depVersion)) {
                     errors.push_back({CheckDependencyError::Status::VERSION_CONFLICT, serviceName});
                 }
             }
@@ -412,6 +417,162 @@ namespace qifeng::scm::utils {
         std::reverse(result.stopOrder.begin(), result.stopOrder.end());
 
         return result;
+    }
+
+    /**
+     * @brief 将版本号字符串拆分为数字段
+     * @param version 版本号字符串，如 "1.2.3"
+     * @return std::vector<int> 各段数字
+     */
+    static std::vector<int> ParseVersionParts(const std::string &version) {
+        std::vector<int> parts;
+        std::stringstream ss(version);
+        std::string token;
+        while (std::getline(ss, token, '.')) {
+            try {
+                parts.push_back(std::stoi(token));
+            } catch (...) {
+                parts.push_back(0);
+            }
+        }
+        return parts;
+    }
+
+    /**
+     * @brief 比较两个版本号
+     * @param lhs 左操作数版本号
+     * @param rhs 右操作数版本号
+     * @return int lhs < rhs 返回 -1，lhs == rhs 返回 0，lhs > rhs 返回 1
+     */
+    static int CompareVersion(const std::string &lhs, const std::string &rhs) {
+        auto leftParts = ParseVersionParts(lhs);
+        auto rightParts = ParseVersionParts(rhs);
+        size_t maxLen = std::max(leftParts.size(), rightParts.size());
+        for (size_t i = 0; i < maxLen; ++i) {
+            int l = (i < leftParts.size()) ? leftParts[i] : 0;
+            int r = (i < rightParts.size()) ? rightParts[i] : 0;
+            if (l < r) {
+                return -1;
+            }
+            if (l > r) {
+                return 1;
+            }
+        }
+        return 0;
+    }
+
+    bool SatisfiesVersionConstraint(const std::string& actualVersion, const std::string& constraint) {
+        if (actualVersion.empty() || constraint.empty()) {
+            return false;
+        }
+
+        // 解析约束条件中的操作符和版本号
+        std::string op;
+        std::string expectedVersion;
+        if (constraint.rfind(">=", 0) == 0) {
+            op = ">=";
+            expectedVersion = constraint.substr(2);
+        } else if (constraint.rfind("<=", 0) == 0) {
+            op = "<=";
+            expectedVersion = constraint.substr(2);
+        } else if (constraint.rfind(">", 0) == 0) {
+            op = ">";
+            expectedVersion = constraint.substr(1);
+        } else if (constraint.rfind("<", 0) == 0) {
+            op = "<";
+            expectedVersion = constraint.substr(1);
+        } else if (constraint.rfind("=", 0) == 0) {
+            op = "=";
+            expectedVersion = constraint.substr(1);
+        } else {
+            // 无操作符前缀，默认精确匹配
+            op = "=";
+            expectedVersion = constraint;
+        }
+
+        int cmp = CompareVersion(actualVersion, expectedVersion);
+        if (op == ">=") {
+            return cmp >= 0;
+        }
+        if (op == ">") {
+            return cmp > 0;
+        }
+        if (op == "<=") {
+            return cmp <= 0;
+        }
+        if (op == "<") {
+            return cmp < 0;
+        }
+        // 精确匹配
+        return cmp == 0;
+    }
+
+}  // namespace qifeng::scm::utils
+
+namespace qifeng::scm::utils {
+    /**
+     * @brief 检查用户是否为 root 用户
+     * @return bool 是否为 root 用户
+     */
+    bool IsRootUser() {
+        return geteuid() == 0;
+    }
+
+    /**
+     * @brief 检查用户是否存在
+     * @param user 用户名
+     * @return bool 是否存在
+     */
+    bool ExistUser(const std::string &user) {
+        return getpwnam(user.c_str()) != nullptr;
+    }
+
+    /**
+     * @brief 获取当前用户
+     * @return std::string 当前用户
+     */
+    std::string GetCurrentUserName() {
+        struct passwd* pw = getpwuid(geteuid());
+        if (pw != nullptr) {
+            return std::string(pw->pw_name);
+        }
+        return "";
+    }
+
+    /**
+     * @brief 设置文件（目录或者文件）权限，完全归属指定用户和 root 组
+     * @param path 文件或目录路径
+     * @param user 目标用户名
+     * @param mode 文件权限模式（如 0750），默认为 DefaultMode
+     * @return ResultMsg 操作结果
+     */
+    ResultMsg SetFilePermission(const std::string &path, const std::string &user, int mode) {
+        namespace fs = std::filesystem;
+        if (!fs::exists(path)) {
+            return MakeError("Path does not exist: " + path);
+        }
+
+        struct passwd* pw = getpwnam(user.c_str());
+        if (pw == nullptr) {
+            return MakeError("User does not exist: " + user);
+        }
+
+        // root 组的 gid 通常为 0，此处通过查询 root 用户获取其主组 gid
+        gid_t rootGid = 0;
+        struct passwd* rootPw = getpwnam("root");
+        if (rootPw != nullptr) {
+            rootGid = rootPw->pw_gid;
+        }
+
+        if (chown(path.c_str(), pw->pw_uid, rootGid) != 0) {
+            return MakeError("Failed to chown " + path + " to " + user + ": " + strerror(errno));
+        }
+
+        if (chmod(path.c_str(), static_cast<mode_t>(mode)) != 0) {
+            return MakeError("Failed to chmod " + path + ": " + strerror(errno));
+        }
+
+        return MakeSuccess();
     }
 
 }  // namespace qifeng::scm::utils

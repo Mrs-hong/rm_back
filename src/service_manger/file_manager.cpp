@@ -158,6 +158,13 @@ namespace qifeng::scm {
             return MakeError("Failed to copy software package: " + copyRet.msg);
         }
 
+        // 设置服务目录权限
+        ret = utils::SetFilePermission(serviceDir, utils::GetCurrentUserName());
+        if (!ret.IsDefalutSuccess()) {
+            utils::ForceDeleteDirectory(serviceDir);
+            return MakeError("Failed to set service directory permission: " + ret.msg);
+        }
+
         // 验证安装后结构
         std::string installedYaml = serviceDir + "/" + ServiceYamlName;
         if (!fs::exists(installedYaml)) {
@@ -258,9 +265,6 @@ namespace qifeng::scm {
             return MakeError("Service not installed: " + serviceName);
         }
 
-        // 备份旧版本（安全措施，防止误删）
-        BackupOldVersion(serviceName);
-
         // 删除 .init 中的 service 文件
         DeleteServiceFile(serviceName);
 
@@ -336,6 +340,12 @@ namespace qifeng::scm {
         }
         ofs << fileData;
         ofs.close();
+
+        // 设置服务文件权限
+        ret = utils::SetFilePermission(filePath, utils::GetCurrentUserName());
+        if (!ret.IsDefalutSuccess()) {
+            return MakeError("Failed to set service file permission: " + ret.msg);
+        }
 
         return MakeSuccess();
     }
@@ -700,6 +710,17 @@ namespace qifeng::scm {
         }
 
         return MakeSuccess();
+    }
+
+    void FileManager::CleanupService(const std::string &serviceName) {
+        // 删除服务目录
+        RemoveSoftwarePackage(serviceName);
+
+        // 删除systemd服务文件
+        DeleteServiceFile(serviceName);
+
+        // 删除软链接
+        DeleteServiceSymlink(serviceName);
     }
 
 }  // namespace qifeng::scm

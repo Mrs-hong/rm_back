@@ -42,7 +42,7 @@ namespace qifeng::scm {
          *
          * @param softwareTarPath 软件tar包路径
          * @param serviceName 服务名称（可选，默认从tar包中读取）
-         * @return ResultMsg
+         * @return ResultMsg 成功时包含实际服务名称
          */
         ResultMsg InstallService(const std::string &softwareTarPath, const std::string &serviceName);
 
@@ -231,7 +231,7 @@ namespace qifeng::scm {
         static std::string ToSystemdUnitName(const std::string &serviceName);
 
         /**
-         * @brief 解析服务名（若为空则从解压目录的 service.yaml 中读取）
+         * @brief 解析服务名（从解压目录的 service.yaml 中读取）
          * @param serviceName 传入的服务名称
          * @param extractDir 解压目录路径
          * @return std::string 解析后的服务名称，失败返回空字符串

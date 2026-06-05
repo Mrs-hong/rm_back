@@ -30,7 +30,7 @@ namespace qifeng {
              * @param configDir 配置文件目录
              * @return ResultMsg 初始化结果
              */
-            ResultMsg Initialize();
+            ResultMsg Initialize(bool isScanServices = true);
 
             /**
              * @brief 扫描服务目录，加载所有服务配置
@@ -110,6 +110,12 @@ namespace qifeng {
              * @return const ConfigInfo& 配置信息引用
              */
             const ConfigInfo &GetConfigInfo() const { return mConfigInfo; }
+
+            /**
+             * @brief 获取scmd自身配置文件路径
+             * @return const std::string& 配置文件路径引用
+             */
+            std::string GetKeyOptFilePath() const;
 
         private:
             /**

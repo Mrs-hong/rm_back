@@ -9,7 +9,7 @@ execution:
   command: ./bin/mysqld
   workDir: .
   dataDir: ./data
-  args: ["--datadir=./data", "--port=3306", "--bind-address=127.0.0.1"]
+  args: ["--defaults-file=./data/my.cnf  --datadir=./data", "--port=3306", "--bind-address=127.0.0.1"]
 
 resources:
   ports: [3306]

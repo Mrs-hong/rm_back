@@ -124,10 +124,16 @@ namespace qifeng {
             ResultMsg ExecuteInitScripts();
 
             /**
-             * @brief 获取当前配置
-             * @return const DatabaseConfig& 配置引用
-             */
-            const DatabaseConfig &GetConfig() const;
+         * @brief 设置管理员密码（用于初始化后更新连接凭证）
+         * @param password 新密码
+         */
+        void SetAdminPassword(const std::string &password);
+
+        /**
+         * @brief 获取当前配置
+         * @return const DatabaseConfig& 配置引用
+         */
+        const DatabaseConfig &GetConfig() const;
 
         private:
             /**

@@ -68,24 +68,11 @@ namespace {
         addr.sin_port = htons(static_cast<uint16_t>(port));
         inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 
-        // NOLINT: POSIX connect() 要求 sockaddr_in* 转 sockaddr*，属于标准类型双关
-        bool connected = (connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) >=
-                          0);  // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast)
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+        bool connected = (connect(sock, reinterpret_cast<struct sockaddr*>(&addr), sizeof(addr)) >= 0);
         close(sock);
 
         return connected;
-    }
-
-    // 通过 TCP 连接探测端口是否可达，用于判断数据库是否就绪
-    bool WaitForPort(int port, int timeoutSec) {
-        auto start = std::chrono::steady_clock::now();
-        while (std::chrono::steady_clock::now() - start < std::chrono::seconds(timeoutSec)) {
-            if (TcpConnect(port)) {
-                return true;
-            }
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-        return false;
     }
 
     // 将内容写入指定文件
@@ -114,6 +101,25 @@ namespace {
             ifs.read(&content[0], static_cast<std::streamsize>(sz));
         }
         return content;
+    }
+
+    // 读取mysqld日志中最近的错误信息
+    std::string ReadMysqldLogError(const std::string &logFile) {
+        if (!fs::exists(logFile)) {
+            return "";
+        }
+        std::ifstream ifs(logFile);
+        std::string line;
+        std::string lastError;
+        while (std::getline(ifs, line)) {
+            if (line.find("[ERROR]") != std::string::npos || line.find("Fatal error") != std::string::npos) {
+                lastError = line;
+            }
+        }
+        if (!lastError.empty()) {
+            return ". Recent error: " + lastError;
+        }
+        return "";
     }
 
     // 通过临时文件执行 SQL，防止 shell 注入
@@ -294,13 +300,21 @@ namespace qifeng {
                 return MakeError("Failed to start mysqld");
             }
 
-            // 等待端口就绪，超时 60 秒
+            // 同时检测 socket 文件和 TCP 端口，避免残留进程导致误判
             int port = GetEffectivePort(config);
-            if (!WaitForPort(port, 60)) {
-                return MakeError("MySQL start timeout, port " + std::to_string(port) + " not ready");
+            std::string socketPath = GetSocketPath(config);
+            for (int i = 0; i < 120; ++i) {
+                if (fs::exists(socketPath) && TcpConnect(port)) {
+                    return MakeSuccess();
+                }
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
             }
 
-            return MakeSuccess();
+            // 超时后读取日志最新错误，辅助定位问题
+            std::string errMsg =
+                "MySQL start timeout, socket " + socketPath + " or port " + std::to_string(port) + " not ready";
+            errMsg += ReadMysqldLogError(logFile);
+            return MakeError(errMsg);
         }
 
         ResultMsg MySQLBackend::Stop(const DatabaseConfig &config) {
@@ -331,7 +345,9 @@ namespace qifeng {
 
         bool MySQLBackend::IsRunning(const DatabaseConfig &config) const {
             int port = GetEffectivePort(config);
-            return TcpConnect(port);
+            std::string socketPath = GetSocketPath(config);
+            // 必须同时满足TCP可达和socket文件存在，避免误判其他mysqld实例
+            return TcpConnect(port) && fs::exists(socketPath);
         }
 
         ResultMsg MySQLBackend::ExecuteSQL(const DatabaseConfig &config, const std::string &sql,

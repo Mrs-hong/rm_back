@@ -6,6 +6,7 @@
 
 #include <fcntl.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/un.h>
 #include <unistd.h>
 
@@ -17,14 +18,16 @@
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast,cppcoreguidelines-pro-type-vararg)
 namespace qifeng::scm {
 
-    UdsWrapper::UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections)
-        : mMode(mode), mSocketPath(socketPath), mMaxConnections(maxConnections), mSocketFd(-1) {
+    UdsWrapper::UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections, int socketMode)
+        : mMode(mode), mSocketPath(socketPath), mMaxConnections(maxConnections), mSocketMode(socketMode),
+          mSocketFd(-1) {
     }
 
     UdsWrapper::~UdsWrapper() {
         Close();
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     bool UdsWrapper::Initialize() {
         if (mSocketFd >= 0) {
             Close();
@@ -55,6 +58,15 @@ namespace qifeng::scm {
                 std::cerr << "UdsWrapper::Initialize bind failed: " << std::strerror(errno) << std::endl;
                 close(mSocketFd);
                 mSocketFd = -1;
+                return false;
+            }
+
+            // 设置socket文件权限，允许普通用户连接（scmd以sudo运行时需要）
+            if (chmod(mSocketPath.c_str(), static_cast<mode_t>(mSocketMode)) < 0) {
+                std::cerr << "UdsWrapper::Initialize chmod failed: " << std::strerror(errno) << std::endl;
+                close(mSocketFd);
+                mSocketFd = -1;
+                RemoveSocketFile();
                 return false;
             }
 

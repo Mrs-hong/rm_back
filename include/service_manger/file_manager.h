@@ -87,7 +87,7 @@ namespace qifeng::scm {
 
         /**
          * @brief 删除软件包
-         * @details 备份旧版本、删除软件包目录、删除systemd服务文件、删除软链接
+         * @details 删除服务目录、删除systemd服务文件、删除软链接
          * @param serviceName 服务名称
          * @return ResultMsg 操作结果
          */
@@ -202,6 +202,25 @@ namespace qifeng::scm {
          * @return FileDirInfo 当前目录配置信息
          */
         const FileDirInfo &GetCurDirConfig() const;
+
+        /**
+         * @brief 清理服务的所有内容
+         * @details 清理服务运行时目录，备份目录、数据目录、.service文件、软链接
+         * @param serviceName 服务名称
+         */
+        void CleanupService(const std::string &serviceName);
+
+        /**
+         * @brief 获取 systemd 服务文件前缀
+         * @return const char* 前缀，如 "scmd_"
+         */
+        static constexpr const char* GetServiceFilePrefix() { return ServiceFilePrefix; }
+
+        /**
+         * @brief 获取 systemd 服务文件后缀
+         * @return const char* 后缀，如 ".service"
+         */
+        static constexpr const char* GetServiceFileSuffix() { return ServiceFileSuffix; }
 
     private:
         // --路径辅助方法

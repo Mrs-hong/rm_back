@@ -19,6 +19,7 @@ namespace qifeng {
                     return std::make_unique<MySQLBackend>();
                 case DatabaseType::OPENGAUSS:
                     return std::make_unique<OpenGaussBackend>();
+                case DatabaseType::NONE:
                 default:
                     return nullptr;
             }
@@ -115,6 +116,10 @@ namespace qifeng {
                 return MakeError("不支持的数据库类型，执行初始化脚本失败");
             }
             return mBackend->ExecuteInitScripts(mConfig);
+        }
+
+        void DatabaseInit::SetAdminPassword(const std::string &password) {
+            mConfig.adminPwd = password;
         }
 
         const DatabaseConfig &DatabaseInit::GetConfig() const {

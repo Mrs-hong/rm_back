@@ -1,0 +1,18 @@
+# GetTableRow Service
+# 定时查询 MySQL 数据库表行数的测试服务程序
+
+serviceName: get_table_row
+version: 1.0.0
+autoStart: true
+
+execution:
+  command: ./build/get_table_row
+  workDir: .
+  dataDir: ./data
+  exitSignal: 15
+initDB_sql_dir: ./sql
+# 声明依赖的数据库服务
+resources:
+  requires:
+    - serviceName: mariadb
+      version: ">=10.3.0"

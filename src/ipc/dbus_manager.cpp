@@ -7,6 +7,7 @@
 
 #include <systemd/sd-bus.h>
 
+#include <cerrno>
 #include <cstring>
 
 namespace {
@@ -198,7 +199,38 @@ namespace qifeng::scm {
         if (ret < 0) {
             std::string errMsg = error.message ? error.message : std::strerror(-ret);
             sd_bus_error_free(&error);
-            return MakeError("Failed to reload systemd daemon: " + errMsg);
+
+            // 检测DBus连接断开，尝试重连一次
+            if (-ret == ENOTCONN || -ret == ECONNRESET || -ret == EPIPE) {
+                SLOG_WARN << "DBus connection lost in ReloadDaemon (" << errMsg << "), attempting to reconnect...";
+
+                if (mBus) {
+                    sd_bus_unref(mBus);
+                    mBus = nullptr;
+                }
+                mConnected = false;
+
+                ret = sd_bus_open_system(&mBus);
+                if (ret < 0) {
+                    SLOG_ERROR << "DBus reconnect failed: " << std::strerror(-ret);
+                    mBus = nullptr;
+                    return MakeError("DBus connection lost and reconnect failed: " + errMsg);
+                }
+                mConnected = true;
+                SLOG_INFO << "DBus reconnected successfully";
+
+                error = SD_BUS_ERROR_NULL;
+                reply = nullptr;
+                ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
+                                         "Reload", &error, &reply, "");
+                if (ret < 0) {
+                    errMsg = error.message ? error.message : std::strerror(-ret);
+                    sd_bus_error_free(&error);
+                    return MakeError("Failed to reload systemd daemon after reconnect: " + errMsg);
+                }
+            } else {
+                return MakeError("Failed to reload systemd daemon: " + errMsg);
+            }
         }
 
         sd_bus_message_unref(reply);
@@ -224,7 +256,41 @@ namespace qifeng::scm {
         if (ret < 0) {
             std::string errMsg = error.message ? error.message : std::strerror(-ret);
             sd_bus_error_free(&error);
-            return MakeError("Failed to " + method + " unit " + unitName + ": " + errMsg);
+
+            // 检测DBus连接断开（ENOTCONN/ECONNRESET），尝试重连一次
+            if (-ret == ENOTCONN || -ret == ECONNRESET || -ret == EPIPE) {
+                SLOG_WARN << "DBus connection lost (" << errMsg << "), attempting to reconnect...";
+
+                // 关闭旧连接
+                if (mBus) {
+                    sd_bus_unref(mBus);
+                    mBus = nullptr;
+                }
+                mConnected = false;
+
+                // 重新打开系统总线连接
+                ret = sd_bus_open_system(&mBus);
+                if (ret < 0) {
+                    SLOG_ERROR << "DBus reconnect failed: " << std::strerror(-ret);
+                    mBus = nullptr;
+                    return MakeError("DBus connection lost and reconnect failed: " + errMsg);
+                }
+                mConnected = true;
+                SLOG_INFO << "DBus reconnected successfully";
+
+                // 重试调用
+                error = SD_BUS_ERROR_NULL;
+                reply = nullptr;
+                ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
+                                         method.c_str(), &error, &reply, "ss", unitName.c_str(), mode.c_str());
+                if (ret < 0) {
+                    errMsg = error.message ? error.message : std::strerror(-ret);
+                    sd_bus_error_free(&error);
+                    return MakeError("Failed to " + method + " unit " + unitName + " after reconnect: " + errMsg);
+                }
+            } else {
+                return MakeError("Failed to " + method + " unit " + unitName + ": " + errMsg);
+            }
         }
 
         sd_bus_message_unref(reply);
@@ -324,5 +390,87 @@ namespace qifeng::scm {
         sd_bus_message_unref(reply);
         sd_bus_error_free(&error);
         return result;
+    }
+
+    ResultMsg DBusManager::GetUint64Property(const std::string &objectPath, const std::string &interface,
+                                             const std::string &property) {
+        sd_bus_error error = SD_BUS_ERROR_NULL;
+        sd_bus_message* reply = nullptr;
+
+        // 通过sd_bus_get_property读取uint64属性
+        int ret = sd_bus_get_property(mBus, SystemdDestination, objectPath.c_str(), interface.c_str(), property.c_str(),
+                                      &error, &reply, "t");
+
+        if (ret < 0) {
+            std::string errMsg = error.message ? error.message : std::strerror(-ret);
+            sd_bus_error_free(&error);
+            return MakeError("Failed to get property " + property + ": " + errMsg);
+        }
+
+        // 读取属性值
+        uint64_t value = 0;
+        ret = sd_bus_message_read(reply, "t", &value);
+        if (ret < 0) {
+            sd_bus_message_unref(reply);
+            sd_bus_error_free(&error);
+            return MakeError("Failed to read property " + property + ": " + std::strerror(-ret));
+        }
+
+        ResultMsg result = ResultMsg {0, std::to_string(value)};
+        sd_bus_message_unref(reply);
+        sd_bus_error_free(&error);
+        return result;
+    }
+
+    ResultMsg DBusManager::GetUnitActiveEnterTimestamp(const std::string &serviceName) {
+        if (!IsConnected()) {
+            return MakeError("DBus is not connected");
+        }
+
+        std::string unitPath = GetUnitPath(serviceName);
+        if (unitPath.empty()) {
+            return MakeError("Failed to get unit path for: " + serviceName);
+        }
+
+        return GetUint64Property(unitPath, SystemdUnitInterface, "ActiveEnterTimestamp");
+    }
+
+    ResultMsg DBusManager::GetServiceMemoryCurrent(const std::string &serviceName) {
+        if (!IsConnected()) {
+            return MakeError("DBus is not connected");
+        }
+
+        std::string unitPath = GetUnitPath(serviceName);
+        if (unitPath.empty()) {
+            return MakeError("Failed to get unit path for: " + serviceName);
+        }
+
+        return GetUint64Property(unitPath, SystemdServiceInterface, "MemoryCurrent");
+    }
+
+    ResultMsg DBusManager::GetServiceCPUUsageNSec(const std::string &serviceName) {
+        if (!IsConnected()) {
+            return MakeError("DBus is not connected");
+        }
+
+        std::string unitPath = GetUnitPath(serviceName);
+        if (unitPath.empty()) {
+            return MakeError("Failed to get unit path for: " + serviceName);
+        }
+
+        return GetUint64Property(unitPath, SystemdServiceInterface, "CPUUsageNSec");
+    }
+
+    ResultMsg DBusManager::GetServiceNRestarts(const std::string &serviceName) {
+        if (!IsConnected()) {
+            return MakeError("DBus is not connected");
+        }
+
+        std::string unitPath = GetUnitPath(serviceName);
+        if (unitPath.empty()) {
+            return MakeError("Failed to get unit path for: " + serviceName);
+        }
+
+        return GetUint32Property(unitPath, SystemdServiceInterface, "NRestarts");
     }
 }  // namespace qifeng::scm

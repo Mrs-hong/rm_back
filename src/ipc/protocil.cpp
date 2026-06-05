@@ -33,6 +33,12 @@ namespace qifeng::scm {
                 return "INFO";
             case ScmCommand::LOG:
                 return "LOG";
+            case ScmCommand::UNINSTALL:
+                return "UNINSTALL";
+            case ScmCommand::RELOAD:
+                return "RELOAD";
+            case ScmCommand::KILL:
+                return "KILL";
             default:
                 return "UNKNOWN";
         }

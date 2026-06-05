@@ -33,8 +33,10 @@ namespace qifeng::scm {
          * @param mode SERVER或CLIENT模式
          * @param socketPath .sock文件路径
          * @param maxConnections 服务端最大连接数（仅SERVER模式有效，默认1）
+         * @param socketMode socket文件权限（仅SERVER模式有效，默认0666允许所有用户连接）
          */
-        explicit UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections = 1);
+        explicit UdsWrapper(UdsMode mode, const std::string &socketPath, int maxConnections = 1,
+                            int socketMode = 0666);
 
         ~UdsWrapper();
 
@@ -119,6 +121,7 @@ namespace qifeng::scm {
         UdsMode mMode;
         std::string mSocketPath;
         int mMaxConnections;
+        int mSocketMode;
         int mSocketFd {-1};
     };
 

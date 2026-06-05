@@ -25,7 +25,10 @@ namespace qifeng::scm {
         UPGRADE,      // upgrade --name --tar_dir 升级服务
         LIST,         // list 查看所有服务
         INFO,         // info --name 查看服务详情
-        LOG           // log --type -n 查看操作日志
+        LOG,          // log --type -n 查看操作日志
+        UNINSTALL,    // uninstall --name 卸载服务
+        RELOAD,       // reload --name/-a 重载服务配置
+        KILL          // kill 使scmd优雅退出
     };
 
     /**

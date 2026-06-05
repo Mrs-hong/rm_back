@@ -5,6 +5,7 @@
 #include "common/config.h"
 #include "common/scmd_def.h"
 #include "common/scmd_types.h"
+#include "common/utils.h"
 
 #include <filesystem>
 #include <fstream>
@@ -30,13 +31,35 @@ namespace {  // 辅助函数
     }
 
     /**
+     * @brief 根据服务名称获取数据库类型
+     * @param serviceName 服务名称
+     * @return qifeng::scm::DatabaseType 数据库类型
+     */
+    [[maybe_unused]] qifeng::scm::DatabaseType GetDbTypeFromServiceName(const std::string &serviceName) {
+        // 使用模糊匹配带有mariadb、mysql、gauss字符串、不区分大小写
+        std::string lowerName;
+        lowerName.reserve(serviceName.size());
+        for (char ch : serviceName) {
+            lowerName.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(ch))));
+        }
+
+        if (lowerName.find("mariadb") != std::string::npos || lowerName.find("mysql") != std::string::npos) {
+            return qifeng::scm::DatabaseType::MYSQL;
+        }
+        if (lowerName.find("gauss") != std::string::npos) {
+            return qifeng::scm::DatabaseType::OPENGAUSS;
+        }
+        return qifeng::scm::DatabaseType::NONE;
+    }
+
+    /**
      * @brief 从YAML文件初始化服务定义
      * @param yamlPath YAML文件路径
      * @param scmdConfig SCMD配置信息
      * @return qifeng::scm::ServiceDefinition 服务定义
      */
     // 函数大小和复杂度超过阈值，但符合业务逻辑
-    // NOLINTBEGIN(readability-function-size, readability-function-cognitive-complexity)
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     qifeng::scm::ServiceDefinition InitServiceDefinitionFromYAML(const std::string &yamlPath,
                                                                  const qifeng::scm::ConfigInfo &scmdConfig) {
         YAML::Node config = YAML::LoadFile(yamlPath);
@@ -92,19 +115,20 @@ namespace {  // 辅助函数
                 def.execInfo.args.push_back(arg.as<std::string>());
             }
         }
+        if (execution["exitSignal"]) {
+            def.execInfo.gracefulStopSignal = execution["exitSignal"].as<int>(15);
+        }
 
         def.isAutoStart = config["autoStart"].as<bool>(false);
 
         // 解析数据库配置
-        if (config["needInitDB"] && config["needInitDB"].as<bool>()) {
-            def.dbInfo.dbType = qifeng::scm::DatabaseType::MYSQL;  // 默认MYSQL
-            if (config["sqlDir"]) {
-                std::string sqlDir = config["sqlDir"].as<std::string>();
-                if (!IsValidRelativePath(sqlDir)) {
-                    throw std::runtime_error("Invalid sqlDir: cannot contain '..'");
-                }
-                def.dbInfo.sqlDir = sqlDir;
+
+        if (config["initDB_sql_dir"]) {
+            std::string sqlDir = config["initDB_sql_dir"].as<std::string>();
+            if (!IsValidRelativePath(sqlDir)) {
+                throw std::runtime_error("Invalid sqlDir: cannot contain '..'");
             }
+            def.dbInfo.sqlDir = sqlDir;
         }
 
         // 解析健康检查配置
@@ -162,10 +186,24 @@ namespace {  // 辅助函数
                 }
             }
         }
+
+        // 检查是否为数据库服务
+        def.dbInfo.dbType = GetDbTypeFromServiceName(def.serviceName);
+        def.isDatabaseService = def.dbInfo.dbType != qifeng::scm::DatabaseType::NONE;
+        if (!def.isDatabaseService) {  // 不是
+            // 查看是否由对数据库的依赖
+            qifeng::scm::DatabaseType dbType {qifeng::scm::DatabaseType::NONE};
+            auto it = std::find_if(def.dependencies.begin(), def.dependencies.end(), [&dbType](const auto &dep) {
+                dbType = GetDbTypeFromServiceName(dep.first);
+                return dbType != qifeng::scm::DatabaseType::NONE;
+            });
+            if (it != def.dependencies.end()) {
+                def.dbInfo.dbType = dbType;
+            }
+        }
         def.useful = true;
         return def;
     }
-    // NOLINTEND(readability-function-size, readability-function-cognitive-complexity)
 }  // namespace
 
 namespace qifeng {
@@ -189,7 +227,7 @@ namespace qifeng {
             mInitialized = false;
         }
 
-        ResultMsg ConfigLoader::Initialize() {
+        ResultMsg ConfigLoader::Initialize(bool isScanServices) {
             // 加载自己配置项
             auto ret = LoadSelfConfigFile();
             if (!ret.IsDefalutSuccess()) {
@@ -199,7 +237,10 @@ namespace qifeng {
 
             mInitialized = true;
             // 扫描services目录
-            return ScanServicesDirectory(mConfigInfo.serviceDir);
+            if (isScanServices) {
+                return ScanServicesDirectory(mConfigInfo.serviceDir);
+            }
+            return MakeSuccess();
         }
         // NOLINTBEGIN(readability-function-size, readability-function-cognitive-complexity)
         // 函数大小和复杂度超过阈值，但符合业务逻辑
@@ -260,8 +301,15 @@ namespace qifeng {
                 }
 
                 // 解析UDS配置
-                if (scmd["uds"] && scmd["uds"]["socket_path"]) {
-                    mConfigInfo.udsSocketPath = scmd["uds"]["socket_path"].as<std::string>();
+                if (scmd["uds"]) {
+                    if (scmd["uds"]["socket_path"]) {
+                        mConfigInfo.udsSocketPath = scmd["uds"]["socket_path"].as<std::string>();
+                    }
+                    if (scmd["uds"]["socket_mode"]) {
+                        // 支持八进制格式如 0666 或十进制格式
+                        std::string modeStr = scmd["uds"]["socket_mode"].as<std::string>();
+                        mConfigInfo.udsSocketMode = std::stoi(modeStr, nullptr, 8);
+                    }
                 }
 
                 // 解析健康检查配置
@@ -422,6 +470,7 @@ namespace qifeng {
                         auto def = InitServiceDefinitionFromYAML(yamlPath, mConfigInfo);
                         if (def.useful && mServices.find(def.serviceName) == mServices.end()) {
                             def.currentServiceDir = mConfigInfo.serviceDir + "/" + entry.path().filename().string();
+                            def.execInfo.user = utils::GetCurrentUserName();
                             mServices[def.serviceName] = def;
                         }
                     } catch (const std::exception &e) {
@@ -493,9 +542,11 @@ namespace qifeng {
             if (!svc) {
                 return MakeError("Service not found: " + serviceName);
             }
+            // 先保存目录路径，再移除服务，避免 svc 指针在 RemoveService 后失效
+            std::string currentDir = svc->currentServiceDir;
             RemoveService(serviceName);
-            std::string fileDir = mConfigInfo.serviceDir + "/" + svc->currentServiceDir;
-            return AddService(fileDir);
+            // currentServiceDir 存储的是绝对路径，直接使用即可
+            return AddService(currentDir);
         }
 
         ResultMsg ConfigLoader::RemoveService(const std::string &serviceName) {
@@ -523,7 +574,14 @@ namespace qifeng {
             if (!svc) {
                 return "";
             }
-            return mConfigInfo.serviceDir + "/" + svc->currentServiceDir;
+            return svc->currentServiceDir;
+        }
+
+        std::string ConfigLoader::GetKeyOptFilePath() const {
+            if (!mInitialized) {
+                return "";
+            }
+            return mConfigInfo.dataDir + "/" + KeyOptFileName;
         }
 
     }  // namespace scm

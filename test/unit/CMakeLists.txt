@@ -25,7 +25,7 @@ set(TEST_SOURCES
 set(SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/common/config.cpp
     ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
 
 # 构建测试可执行文件
@@ -92,7 +92,7 @@ set(DBUS_TEST_SOURCES
 # DBusManager 被测试的源文件
 set(DBUS_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/ipc/dbus_manager.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
 
 # 构建测试可执行文件
@@ -176,7 +176,7 @@ set(DATABASE_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/dbinit/database_init.cpp
     ${CMAKE_SOURCE_DIR}/src/dbinit/mysql_backend.cpp
     ${CMAKE_SOURCE_DIR}/src/dbinit/opengauss_backend.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/types.cpp
     ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
 )
 

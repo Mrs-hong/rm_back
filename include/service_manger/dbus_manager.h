@@ -86,6 +86,34 @@ namespace qifeng::scm {
         ResultMsg GetServiceMainPID(const std::string &serviceName);
 
         /**
+         * @brief 获取服务最后一次进入active状态的时间戳（微秒）
+         * @param serviceName 服务名称（不含.service后缀）
+         * @return ResultMsg 成功时msg为时间戳字符串
+         */
+        ResultMsg GetUnitActiveEnterTimestamp(const std::string &serviceName);
+
+        /**
+         * @brief 获取服务当前内存使用量（字节）
+         * @param serviceName 服务名称（不含.service后缀）
+         * @return ResultMsg 成功时msg为内存字节数字符串
+         */
+        ResultMsg GetServiceMemoryCurrent(const std::string &serviceName);
+
+        /**
+         * @brief 获取服务CPU累计使用时间（纳秒）
+         * @param serviceName 服务名称（不含.service后缀）
+         * @return ResultMsg 成功时msg为纳秒数字符串
+         */
+        ResultMsg GetServiceCPUUsageNSec(const std::string &serviceName);
+
+        /**
+         * @brief 获取服务重启次数
+         * @param serviceName 服务名称（不含.service后缀）
+         * @return ResultMsg 成功时msg为重启次数字符串
+         */
+        ResultMsg GetServiceNRestarts(const std::string &serviceName);
+
+        /**
          * @brief 启用服务开机自启
          * @param serviceName 服务名称（不含.service后缀）
          * @return ResultMsg 操作结果
@@ -146,6 +174,16 @@ namespace qifeng::scm {
          * @return ResultMsg 成功时msg为属性值字符串
          */
         ResultMsg GetUint32Property(const std::string &objectPath, const std::string &interface,
+                                    const std::string &property);
+
+        /**
+         * @brief 读取uint64类型的DBus属性
+         * @param objectPath DBus对象路径
+         * @param interface DBus接口名
+         * @param property 属性名
+         * @return ResultMsg 成功时msg为属性值字符串
+         */
+        ResultMsg GetUint64Property(const std::string &objectPath, const std::string &interface,
                                     const std::string &property);
 
     private:

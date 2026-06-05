@@ -22,7 +22,7 @@ set(FUNCTION_TEST_SOURCES
 set(FUNCTION_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/common/config.cpp
     ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
-    ${CMAKE_SOURCE_DIR}/src/common/scmd_types.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/types.cpp
     ${CMAKE_SOURCE_DIR}/src/dbinit/database_init.cpp
     ${CMAKE_SOURCE_DIR}/src/dbinit/mysql_backend.cpp
     ${CMAKE_SOURCE_DIR}/src/dbinit/opengauss_backend.cpp
@@ -60,3 +60,35 @@ target_compile_options(test_mariadb PRIVATE
 )
 
 gtest_discover_tests(test_mariadb)
+
+# test_mariadb_all: 完整流程测试（安装→初始化→启动→数据库操作→升级→卸载）
+set(TEST_MARIADB_ALL_SOURCES
+    test_mariadb_all.cpp
+    ${CMAKE_SOURCE_DIR}/src/scmd/service_ctl.cpp
+    ${CMAKE_BINARY_DIR}/src/version_generated.cpp
+    ${FUNCTION_SOURCES_UNDER_TEST}
+)
+
+add_executable(test_mariadb_all ${TEST_MARIADB_ALL_SOURCES})
+
+target_include_directories(test_mariadb_all PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/third_part/cli11/install/include
+    ${YAMLCPP_INCLUDE_DIR}
+)
+
+target_link_libraries(test_mariadb_all PRIVATE
+    qifeng_framework::qifeng_framework
+    "${YAMLCPP_LIB_DIR}/libyaml-cpp.so"
+    systemd
+    pthread
+)
+
+target_compile_options(test_mariadb_all PRIVATE
+    -Wno-switch-default
+    -Wno-switch-enum
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-old-style-cast
+    -Wno-stack-usage
+)

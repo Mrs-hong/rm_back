@@ -4,43 +4,29 @@
 
 #pragma once
 
+#include "types.h"
+
 #include <cstdint>
 #include <map>
-#include <string>
 #include <vector>
 
 namespace qifeng {
     namespace scm {
 
-        // ResultMsg前向声明
-        struct ResultMsg;
-
-        // 辅助函数声明
-        ResultMsg MakeResult(int code, const std::string &msg);
-        // code: 0 成功
-        ResultMsg MakeSuccess();
-        // code: -1 失败
-        ResultMsg MakeError(const std::string &msg);
-        // code: 1 警告
-        ResultMsg MakeWarning(const std::string &msg);
+        /**
+         * @brief 服务状态枚举
+         */
+        enum class ServiceStatus { UNKNOWN, INSTALLED, STOPPED, RUNNING, FAILED, ERROR };
 
         /**
-         * @brief 操作结果封装
+         * @brief 日志级别枚举
          */
-        struct ResultMsg {
-            int code {0};     // 0: success, non-zero: failure
-            std::string msg;  // 错误信息
-
-            ResultMsg() = default;
-            ResultMsg(int c, const std::string &m) : code(c), msg(m) {}
-
-            bool IsDefalutSuccess() const { return code == 0; }
-        };
+        enum class LogLevel { DEBUG, INFO, WARNING, ERROR, FATAL };
 
         /**
          * @brief 数据库类型枚举
          */
-        enum class DatabaseType { MYSQL, OPENGAUSS };
+        enum class DatabaseType { MYSQL, OPENGAUSS, NONE };
 
         /**
          * @brief 执行配置信息
@@ -70,8 +56,8 @@ namespace qifeng {
          * @brief 数据库信息
          */
         struct DataBaseInfo {
-            DatabaseType dbType {DatabaseType::MYSQL};  // 数据库类型
-            std::string sqlDir;                         // 数据库初始化SQL脚本目录
+            DatabaseType dbType {DatabaseType::NONE};  // 数据库类型
+            std::string sqlDir;                        // 数据库初始化SQL脚本目录
         };
 
         struct ResourcesInfo {
@@ -85,6 +71,7 @@ namespace qifeng {
          */
         struct ServiceDefinition {
             std::string serviceName;                          // 服务名称
+            bool isDatabaseService {false};                   // 是否为数据库服务
             std::string version;                              // 服务版本号
             pid_t pid {0};                                    // 服务启动后的进程ID
             bool isAutoStart {false};                         // 是否自动启动
@@ -101,30 +88,18 @@ namespace qifeng {
          * @brief 服务运行时信息
          */
         struct ServiceRuntimeInfo {
-            int serviceId {0};                // 服务ID
-            pid_t pid {0};                    // 服务进程ID
-            std::string currentVersion;       // 当前运行的服务版本号
-            std::string status;               // 服务状态（如已安装、运行中、已停止等）
-            std::string startTime;            // 服务启动时间: 年月日时分秒毫秒
-            std::string runTime;              // 服务运行时间：天、时、分、秒、毫秒
-            size_t memoryUsage {0};           // 服务内存占用（字节）
-            size_t cpuUsage {0};              // 服务CPU占用（%）
-            std::string configFilePath;       // 服务配置文件路径
-            std::string logFilePath;          // 服务日志文件路径
-            std::string dbFilePath;           // 数据库文件路径
-            int recoveryCount {0};            // 重启尝试次数
-            std::string lastHealthCheckTime;  // 上次健康检查时间
+            pid_t pid {0};               // 服务进程ID
+            std::string currentVersion;  // 当前运行的服务版本号
+            std::string status;          // 服务状态（如已安装、运行中、已停止等）
+            std::string startTime;       // 服务启动时间: 年月日时分秒毫秒
+            std::string runTime;         // 服务运行时间：天、时、分、秒、毫秒
+            size_t memoryUsage {0};      // 服务内存占用（字节）
+            size_t cpuUsage {0};         // 服务CPU占用（%）
+            std::string configFilePath;  // 服务配置文件路径
+            std::string logFilePath;     // 服务日志文件路径
+            std::string dbFilePath;      // 数据库文件路径
+            int recoveryCount {0};       // 重启尝试次数
         };
-
-        /**
-         * @brief 服务状态枚举
-         */
-        enum class ServiceStatus { UNKNOWN, INSTALLED, STOPPED, RUNNING, FAILED, ERROR };
-
-        /**
-         * @brief 日志级别枚举
-         */
-        enum class LogLevel { DEBUG, INFO, WARNING, ERROR, FATAL };
 
         /**
          * @brief scmd配置信息
@@ -137,6 +112,7 @@ namespace qifeng {
 
             // uds配置
             std::string udsSocketPath;  // uds socket路径
+            int udsSocketMode {0666};   // uds socket文件权限（默认0666允许所有用户连接）
 
             // 健康检查配置
             uint32_t healthCheckIntervalSec;  // 健康检查间隔时间（秒）

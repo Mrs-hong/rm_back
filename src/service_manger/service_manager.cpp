@@ -17,26 +17,16 @@
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <json/json.h>
 #include <sstream>
 #include <thread>
+#include <unistd.h>
 
 namespace fs = std::filesystem;
 
 namespace {
 
     constexpr const char* TempExtractPrefix = "scmd_install_";
-    constexpr const char* ScmdServicePrefix = "scmd_";
-
-    std::string GetCurrentTimestamp() {
-        auto now = std::chrono::system_clock::now();
-        auto timeTNow = std::chrono::system_clock::to_time_t(now);
-        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
-
-        std::stringstream ss;
-        ss << std::put_time(std::localtime(&timeTNow), "%Y-%m-%d %H:%M:%S");
-        ss << '.' << std::setfill('0') << std::setw(3) << ms.count();
-        return ss.str();
-    }
 
     // 生成唯一临时目录名，避免并发冲突
     std::string GenerateTempDirName() {
@@ -44,33 +34,53 @@ namespace {
         return TempExtractPrefix + std::to_string(getpid()) + "_" + std::to_string(now);
     }
 
-    // JSON 字符串转义
-    std::string EscapeJsonString(const std::string &input) {
-        std::string output;
-        output.reserve(input.size());
-        for (char c : input) {
-            switch (c) {
-                case '"':
-                    output += "\\\"";
-                    break;
-                case '\\':
-                    output += "\\\\";
-                    break;
-                case '\n':
-                    output += "\\n";
-                    break;
-                case '\r':
-                    output += "\\r";
-                    break;
-                case '\t':
-                    output += "\\t";
-                    break;
-                default:
-                    output += c;
-                    break;
-            }
+    // 将 systemd 微秒时间戳转为格式化字符串 "YYYY-MM-DD HH:MM:SS.mmm"
+    std::string FormatTimestamp(uint64_t usec) {
+        auto timePoint = std::chrono::system_clock::time_point(std::chrono::microseconds(usec));
+        auto timeTNow = std::chrono::system_clock::to_time_t(timePoint);
+        auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(timePoint.time_since_epoch()) % 1000;
+
+        std::stringstream ss;
+        ss << std::put_time(std::localtime(&timeTNow), "%Y-%m-%d %H:%M:%S");
+        ss << '.' << std::setfill('0') << std::setw(3) << ms.count();
+        return ss.str();
+    }
+
+    // 计算从 startUsec 到当前的运行时长，格式化为 "Xd HH:MM:SS"
+    std::string FormatDuration(uint64_t startUsec) {
+        auto now = std::chrono::system_clock::now();
+        auto start = std::chrono::system_clock::time_point(std::chrono::microseconds(startUsec));
+        auto diff = now - start;
+
+        if (diff.count() <= 0) {
+            return "0d 00:00:00";
         }
-        return output;
+
+        auto totalSec = std::chrono::duration_cast<std::chrono::seconds>(diff).count();
+        int days = static_cast<int>(totalSec / 86400);
+        int hours = static_cast<int>((totalSec % 86400) / 3600);
+        int minutes = static_cast<int>((totalSec % 3600) / 60);
+        int seconds = static_cast<int>(totalSec % 60);
+
+        std::stringstream ss;
+        ss << days << "d ";
+        ss << std::setfill('0') << std::setw(2) << hours << ":";
+        ss << std::setfill('0') << std::setw(2) << minutes << ":";
+        ss << std::setfill('0') << std::setw(2) << seconds;
+        return ss.str();
+    }
+
+    // 计算 CPU 占用百分比：CPUUsageNSec / 运行秒数 / 1e9 * 100
+    size_t CalculateCpuUsage(uint64_t cpuUsageNSec, uint64_t activeEnterUsec) {
+        auto now = std::chrono::system_clock::now();
+        auto start = std::chrono::system_clock::time_point(std::chrono::microseconds(activeEnterUsec));
+        auto runSec = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
+        if (runSec <= 0) {
+            return 0;
+        }
+        double cpuSec = static_cast<double>(cpuUsageNSec) / 1e9;
+        double percent = (cpuSec / static_cast<double>(runSec)) * 100.0;
+        return static_cast<size_t>(percent);
     }
 
     // 生成唯一临时目录完整路径（独立函数减少栈使用）
@@ -179,13 +189,26 @@ namespace qifeng::scm {
         if (!mDBusManager->IsConnected()) {
             return MakeError("Failed to connect to systemd DBus");
         }
+
+        // sd_bus_open_system成功不代表实际能通信，需做一次真实调用验证
+        auto testResult = mDBusManager->ReloadDaemon();
+        if (!testResult.IsDefalutSuccess()) {
+            SLOG_WARN << "DBus与systemd通信失败: " << testResult.msg;
+            if (geteuid() != 0) {
+                SLOG_WARN << "请使用sudo启动scmd以获得systemd控制权限";
+            }
+            return MakeError("DBus system bus communication failed: " + testResult.msg);
+        } else {
+            SLOG_INFO << "DBus connectivity test passed";
+        }
+
         return MakeSuccess();
     }
 
     // --- 辅助方法 ---
 
     std::string ServiceManager::ToSystemdUnitName(const std::string &serviceName) {
-        return std::string(ScmdServicePrefix) + serviceName;
+        return std::string(FileManager::GetServiceFilePrefix()) + serviceName;
     }
 
     ResultMsg ServiceManager::ExtractSoftwareTar(const std::string &tarPath, std::string &extractDir,
@@ -208,11 +231,7 @@ namespace qifeng::scm {
 
     // 将 InstallService 中解析服务名的逻辑提取为独立方法，降低函数复杂度和栈使用
     std::string ServiceManager::ResolveServiceName(const std::string &serviceName, const std::string &extractDir) {
-        if (!serviceName.empty()) {
-            return serviceName;
-        }
-
-        std::string yamlPath = extractDir + "/" + DefaultServiceName;
+        std::string yamlPath = extractDir + "/" + serviceName + "/" + DefaultServiceName;
         if (fs::exists(yamlPath)) {
             auto tempConfig = std::make_shared<ConfigLoader>();
             auto scanResult = tempConfig->ScanServicesDirectory(extractDir);
@@ -250,7 +269,7 @@ namespace qifeng::scm {
             if (!depSvc) {
                 return MakeError("Missing dependency for service " + serviceName + ": " + depName);
             }
-            if (depSvc->version != depVersion) {
+            if (!utils::SatisfiesVersionConstraint(depSvc->version, depVersion)) {
                 return MakeError("Dependency version conflict for service " + serviceName + ": " + depName +
                                  " expected " + depVersion + " but got " + depSvc->version);
             }
@@ -321,9 +340,10 @@ namespace qifeng::scm {
             return MakeError("Service not found: " + serviceName);
         }
 
-        if (svc->execInfo.user.empty()) {
+        if (!svc->execInfo.user.empty()) {
             return MakeSuccess();
         }
+        svc->execInfo.user = utils::GetCurrentUserName();
 
         SLOG_INFO << "Setting service user to: " << svc->execInfo.user;
         return MakeSuccess();
@@ -335,7 +355,7 @@ namespace qifeng::scm {
             return MakeError("Service not found: " + serviceName);
         }
 
-        auto genResult = ServiceGenerator::GenerateContent(*svc);
+        auto genResult = ServiceGenerator::GenerateContent(*svc, FileManager::GetServiceFilePrefix());
         if (!genResult.IsDefalutSuccess()) {
             return MakeError("Failed to generate service file content: " + genResult.msg);
         }
@@ -376,27 +396,41 @@ namespace qifeng::scm {
         return ServiceStatus::UNKNOWN;
     }
 
+    // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
     ServiceRuntimeInfo ServiceManager::CollectRuntimeInfo(const std::string &serviceName) {
         ServiceRuntimeInfo info;
 
+        // --- 1. 静态信息 ---
         auto* svc = mConfigLoader->GetServiceByName(serviceName);
         if (!svc) {
             SLOG_ERROR << "Service not found: " << serviceName;
             return info;
         }
 
-        info.serviceId = static_cast<int>(std::hash<std::string> {}(serviceName));
         info.currentVersion = svc->version;
         info.configFilePath = mFileManager->GetServiceConfigPath(serviceName);
 
-        // 通过 DBus 获取运行时信息
+        // 数据库文件路径：服务目录 + dataDir
+        if (!svc->execInfo.dataDir.empty()) {
+            info.dbFilePath = svc->currentServiceDir + "/" + svc->execInfo.dataDir;
+        }
+
+        // 日志文件路径：日志目录下按服务名组织的日志文件
+        auto configInfo = mConfigLoader->GetConfigInfo();
+        if (!configInfo.logsDir.empty()) {
+            info.logFilePath = configInfo.logsDir + "/" + serviceName + ".log";
+        }
+
+        // --- 2. DBus 运行时信息 ---
         std::string unitName = ToSystemdUnitName(serviceName);
 
+        // 服务活跃状态
         auto stateResult = mDBusManager->GetUnitActiveState(unitName);
         if (stateResult.IsDefalutSuccess()) {
             info.status = stateResult.msg;
         }
 
+        // 主进程 PID
         auto pidResult = mDBusManager->GetServiceMainPID(unitName);
         if (pidResult.IsDefalutSuccess()) {
             try {
@@ -406,10 +440,50 @@ namespace qifeng::scm {
             }
         }
 
-        // 获取服务实际启动时间
-        auto subStateResult = mDBusManager->GetUnitSubState(unitName);
-        if (stateResult.IsDefalutSuccess() && stateResult.msg == "active") {
-            info.startTime = GetCurrentTimestamp();
+        // 重启次数
+        auto nRestartsResult = mDBusManager->GetServiceNRestarts(unitName);
+        if (nRestartsResult.IsDefalutSuccess()) {
+            try {
+                info.recoveryCount = std::stoi(nRestartsResult.msg);
+            } catch (...) {
+                info.recoveryCount = 0;
+            }
+        }
+
+        // 内存使用量
+        auto memResult = mDBusManager->GetServiceMemoryCurrent(unitName);
+        if (memResult.IsDefalutSuccess()) {
+            try {
+                info.memoryUsage = static_cast<size_t>(std::stoull(memResult.msg));
+            } catch (...) {
+                info.memoryUsage = 0;
+            }
+        }
+
+        // 启动时间与运行时长（从 ActiveEnterTimestamp 获取）
+        uint64_t activeEnterUsec = 0;
+        auto timestampResult = mDBusManager->GetUnitActiveEnterTimestamp(unitName);
+        if (timestampResult.IsDefalutSuccess()) {
+            try {
+                activeEnterUsec = std::stoull(timestampResult.msg);
+                if (activeEnterUsec > 0) {
+                    info.startTime = FormatTimestamp(activeEnterUsec);
+                    info.runTime = FormatDuration(activeEnterUsec);
+                }
+            } catch (...) {
+                // 忽略解析错误
+            }
+        }
+
+        // CPU 占用百分比
+        auto cpuResult = mDBusManager->GetServiceCPUUsageNSec(unitName);
+        if (cpuResult.IsDefalutSuccess() && activeEnterUsec > 0) {
+            try {
+                uint64_t cpuUsageNSec = std::stoull(cpuResult.msg);
+                info.cpuUsage = CalculateCpuUsage(cpuUsageNSec, activeEnterUsec);
+            } catch (...) {
+                info.cpuUsage = 0;
+            }
         }
 
         return info;
@@ -479,14 +553,17 @@ namespace qifeng::scm {
             return result;
         }
 
-        // FileManager::InstallSoftwarePackage 内部已包含验证逻辑（VerifySoftwarePackage）
-        // 无需在 ServiceManager 层重复验证
-
         // 解析服务名：若未指定，从解压后的 service.yaml 中读取
         std::string actualServiceName = ResolveServiceName(serviceName, extractDir);
         if (actualServiceName.empty()) {
             CleanupTempDirectory(extractDir);
             return MakeError("Cannot determine service name from package");
+        }
+
+        if (actualServiceName != serviceName) {
+            SLOG_ERROR << "Service name in package is " << actualServiceName << ", using name " << serviceName;
+            CleanupTempDirectory(extractDir);
+            return MakeError("Service name in package is " + actualServiceName + ", using name " + serviceName);
         }
 
         result = mFileManager->InstallSoftwarePackage(actualServiceName, extractDir);
@@ -504,34 +581,28 @@ namespace qifeng::scm {
 
         result = GenerateAndCreateServiceFile(actualServiceName);
         if (!result.IsDefalutSuccess()) {
-            CleanupTempDirectory(extractDir);
-            return result;
-        }
+            // 删除已经拷贝过来的服务目录
+            mConfigLoader->RemoveService(actualServiceName);
+            mFileManager->CleanupService(actualServiceName);
 
-        result = SetServiceUser(actualServiceName);
-        if (!result.IsDefalutSuccess()) {
             CleanupTempDirectory(extractDir);
             return result;
         }
 
         result = InitializeServiceDatabase(actualServiceName);
         if (!result.IsDefalutSuccess()) {
+            // 删除已经拷贝过来的服务目录
+            mConfigLoader->RemoveService(actualServiceName);
+            mFileManager->CleanupService(actualServiceName);
+
             CleanupTempDirectory(extractDir);
             return result;
-        }
-
-        auto* svc = mConfigLoader->GetServiceByName(actualServiceName);
-        if (svc && svc->isAutoStart) {
-            result = EnableAutoStart(actualServiceName);
-            if (!result.IsDefalutSuccess()) {
-                SLOG_INFO << "Failed to enable auto-start: " << result.msg;
-            }
         }
 
         CleanupTempDirectory(extractDir);
         SLOG_INFO << "Service installed successfully: " << actualServiceName;
         MarkSequenceDirty();
-        return MakeSuccess();
+        return MakeResult(0, actualServiceName);
     }
     // NOLINTEND(readability-function-size, readability-function-cognitive-complexity)
 
@@ -591,7 +662,7 @@ namespace qifeng::scm {
         for (const auto &depName : dependents) {
             auto depState = mDBusManager->GetUnitActiveState(ToSystemdUnitName(depName));
             if (depState.IsDefalutSuccess() && depState.msg == "active") {
-                SLOG_INFO << "Warning: service " << depName << " depends on " << serviceName << " and is still running";
+                SLOG_WARN << "Warning: service " << depName << " depends on " << serviceName << " and is still running";
             }
         }
 
@@ -600,15 +671,24 @@ namespace qifeng::scm {
             return MakeError("Failed to stop service: " + result.msg);
         }
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(500));
-
-        auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-        if (stateResult.IsDefalutSuccess() && stateResult.msg == "inactive") {
-            SLOG_INFO << "Service stopped successfully: " << serviceName;
-            return MakeSuccess();
-        } else {
-            return MakeError("Service failed to stop: unexpected state " + stateResult.msg);
+        // 循环等待服务进入停止状态，超时时间使用配置中的 optTimeoutSec
+        uint32_t timeoutSec = mConfigLoader->GetConfigInfo().optTimeoutSec;
+        std::string finalState;
+        for (uint32_t i = 0; i < timeoutSec * 2; ++i) {
+            auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
+            if (stateResult.IsDefalutSuccess()) {
+                finalState = stateResult.msg;
+                if (stateResult.msg == "inactive" || stateResult.msg == "failed") {
+                    SLOG_INFO << "Service stopped successfully: " << serviceName;
+                    return MakeSuccess();
+                }
+            }
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
         }
+
+        // 超时后返回最新状态（运行中 / 停止中 / 已停止），不作为错误处理
+        SLOG_WARN << "Service stop wait timeout, latest state: " << finalState;
+        return ResultMsg(0, finalState);
     }
 
     ResultMsg ServiceManager::RestartService(const std::string &serviceName) {
@@ -648,10 +728,15 @@ namespace qifeng::scm {
         }
 
         if (serviceName.empty()) {
-            // 重载所有服务：重新加载配置 + 重新生成 service 文件 + daemon reload
+            // 重载所有服务：停止所有 -> 重新加载配置 -> 重新生成文件 -> 启动 auto-start
+            auto result = StopAllServices();
+            if (!result.IsDefalutSuccess()) {
+                return MakeError("Failed to stop services before reload: " + result.msg);
+            }
+
             auto allServices = mConfigLoader->GetAllServices();
             for (const auto &svc : allServices) {
-                auto result = mConfigLoader->ReloadService(svc.serviceName);
+                result = mConfigLoader->ReloadService(svc.serviceName);
                 if (!result.IsDefalutSuccess()) {
                     SLOG_ERROR << "Failed to reload service config " << svc.serviceName << ": " << result.msg;
                     continue;
@@ -663,10 +748,21 @@ namespace qifeng::scm {
                 }
             }
             MarkSequenceDirty();
+
+            result = StartAllAutoStartServices();
+            if (!result.IsDefalutSuccess()) {
+                return MakeError("Failed to start services after reload: " + result.msg);
+            }
             return MakeSuccess();
         }
 
-        auto result = mConfigLoader->ReloadService(serviceName);
+        // 重载单个服务：停止 -> 重新加载配置 -> 重新生成文件 -> 启动
+        auto result = StopService(serviceName);
+        if (!result.IsDefalutSuccess()) {
+            return MakeError("Failed to stop service before reload: " + result.msg);
+        }
+
+        result = mConfigLoader->ReloadService(serviceName);
         if (!result.IsDefalutSuccess()) {
             return result;
         }
@@ -676,8 +772,14 @@ namespace qifeng::scm {
             return result;
         }
 
-        SLOG_INFO << "Service reloaded successfully: " << serviceName;
         MarkSequenceDirty();
+
+        result = StartService(serviceName);
+        if (!result.IsDefalutSuccess()) {
+            return MakeError("Failed to start service after reload: " + result.msg);
+        }
+
+        SLOG_INFO << "Service reloaded successfully: " << serviceName;
         return MakeSuccess();
     }
 
@@ -695,19 +797,25 @@ namespace qifeng::scm {
 
         auto info = CollectRuntimeInfo(serviceName);
 
-        // 使用转义后的值构建 JSON
-        std::stringstream ss;
-        ss << "{";
-        ss << "\"serviceId\":" << info.serviceId << ",";
-        ss << "\"serviceName\":\"" << EscapeJsonString(serviceName) << "\",";
-        ss << "\"version\":\"" << EscapeJsonString(info.currentVersion) << "\",";
-        ss << "\"pid\":" << info.pid << ",";
-        ss << "\"status\":\"" << EscapeJsonString(info.status) << "\",";
-        ss << "\"startTime\":\"" << EscapeJsonString(info.startTime) << "\",";
-        ss << "\"configFilePath\":\"" << EscapeJsonString(info.configFilePath) << "\"";
-        ss << "}";
+        // 使用 Json::Value 构建结构化数据，由 CLI 端统一格式化输出
+        Json::Value root;
+        root["serviceName"] = serviceName;
+        root["version"] = info.currentVersion;
+        root["pid"] = static_cast<int>(info.pid);
+        root["status"] = info.status;
+        root["startTime"] = info.startTime;
+        root["runTime"] = info.runTime;
+        root["memoryUsage"] = static_cast<Json::UInt64>(info.memoryUsage);
+        root["cpuUsage"] = static_cast<Json::UInt64>(info.cpuUsage);
+        root["configFilePath"] = info.configFilePath;
+        root["logFilePath"] = info.logFilePath;
+        root["dbFilePath"] = info.dbFilePath;
+        root["recoveryCount"] = info.recoveryCount;
 
-        return ResultMsg {0, ss.str()};
+        Json::StreamWriterBuilder builder;
+        builder["emitUTF8"] = true;
+        std::string jsonStr = Json::writeString(builder, root);
+        return ResultMsg {0, jsonStr};
     }
 
     ServiceRuntimeInfo ServiceManager::GetServiceRuntimeInfo(const std::string &serviceName) {
@@ -742,10 +850,7 @@ namespace qifeng::scm {
         }
 
         // RemoveSoftwarePackage 内部已包含 DeleteServiceFile 和 DeleteServiceSymlink
-        auto pkgResult = mFileManager->RemoveSoftwarePackage(serviceName);
-        if (!pkgResult.IsDefalutSuccess()) {
-            return MakeError("Failed to remove software package: " + pkgResult.msg);
-        }
+        mFileManager->CleanupService(serviceName);
 
         auto removeResult = mConfigLoader->RemoveService(serviceName);
         if (!removeResult.IsDefalutSuccess()) {
