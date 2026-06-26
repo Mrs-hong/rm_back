@@ -72,24 +72,38 @@ include CMakeFiles/docx_temp_helper.dir/flags.make
 CMakeFiles/docx_temp_helper.dir/codegen:
 .PHONY : CMakeFiles/docx_temp_helper.dir/codegen
 
-CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
-CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/docx_replacer.cpp
-CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/docx_replacer.cpp
+CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
+CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/docx_document.cpp
+CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_1) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/docx_document.cpp
 
-CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.i: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.i"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/hong/code/rm_back/docx_temp_helper/src/docx_replacer.cpp > CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.i
+CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/hong/code/rm_back/docx_temp_helper/src/docx_document.cpp > CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.i
 
-CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.s: cmake_force
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.s"
-	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/hong/code/rm_back/docx_temp_helper/src/docx_replacer.cpp -o CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.s
+CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/hong/code/rm_back/docx_temp_helper/src/docx_document.cpp -o CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.s
+
+CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
+CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/streaming_processor.cpp
+CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/streaming_processor.cpp
+
+CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Preprocessing CXX source to CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/hong/code/rm_back/docx_temp_helper/src/streaming_processor.cpp > CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.i
+
+CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green "Compiling CXX source to assembly CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/hong/code/rm_back/docx_temp_helper/src/streaming_processor.cpp -o CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.s
 
 CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
 CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/zip_utils.cpp
 CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_2) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/zip_utils.cpp
 
 CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.i: cmake_force
@@ -103,7 +117,7 @@ CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.s: cmake_force
 CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
 CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/xml_utils.cpp
 CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/xml_utils.cpp
 
 CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.i: cmake_force
@@ -117,7 +131,7 @@ CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.s: cmake_force
 CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o: CMakeFiles/docx_temp_helper.dir/flags.make
 CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o: /home/hong/code/rm_back/docx_temp_helper/src/rich_content.cpp
 CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o: CMakeFiles/docx_temp_helper.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o -MF CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o.d -o CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o -c /home/hong/code/rm_back/docx_temp_helper/src/rich_content.cpp
 
 CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.i: cmake_force
@@ -130,7 +144,8 @@ CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.s: cmake_force
 
 # Object files for target docx_temp_helper
 docx_temp_helper_OBJECTS = \
-"CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o" \
+"CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o" \
+"CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o" \
 "CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o" \
 "CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o" \
 "CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o"
@@ -138,13 +153,14 @@ docx_temp_helper_OBJECTS = \
 # External object files for target docx_temp_helper
 docx_temp_helper_EXTERNAL_OBJECTS =
 
-libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o
+libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o
+libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o
 libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o
 libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o
 libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o
 libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/build.make
 libdocx_temp_helper.a: CMakeFiles/docx_temp_helper.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Linking CXX static library libdocx_temp_helper.a"
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --green --bold --progress-dir=/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Linking CXX static library libdocx_temp_helper.a"
 	$(CMAKE_COMMAND) -P CMakeFiles/docx_temp_helper.dir/cmake_clean_target.cmake
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/docx_temp_helper.dir/link.txt --verbose=$(VERBOSE)
 

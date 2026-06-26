@@ -65,6 +65,16 @@ CMAKE_BINARY_DIR = /home/hong/code/rm_back/docx_temp_helper/build
 #=============================================================================
 # Targets provided globally by CMake.
 
+# Special rule for the target test
+test:
+	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running tests..."
+	/usr/local/bin/ctest $(ARGS)
+.PHONY : test
+
+# Special rule for the target test
+test/fast: test
+.PHONY : test/fast
+
 # Special rule for the target edit_cache
 edit_cache:
 	@$(CMAKE_COMMAND) -E cmake_echo_color "--switch=$(COLOR)" --cyan "Running CMake cache editor..."
@@ -142,6 +152,84 @@ test_docx/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_docx.dir/build.make CMakeFiles/test_docx.dir/build
 .PHONY : test_docx/fast
 
+#=============================================================================
+# Target rules for targets named test_plain
+
+# Build rule for target.
+test_plain: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_plain
+.PHONY : test_plain
+
+# fast build rule for target.
+test_plain/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_plain.dir/build.make CMakeFiles/test_plain.dir/build
+.PHONY : test_plain/fast
+
+#=============================================================================
+# Target rules for targets named test_markdown
+
+# Build rule for target.
+test_markdown: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_markdown
+.PHONY : test_markdown
+
+# fast build rule for target.
+test_markdown/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_markdown.dir/build.make CMakeFiles/test_markdown.dir/build
+.PHONY : test_markdown/fast
+
+#=============================================================================
+# Target rules for targets named test_html
+
+# Build rule for target.
+test_html: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_html
+.PHONY : test_html
+
+# fast build rule for target.
+test_html/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_html.dir/build.make CMakeFiles/test_html.dir/build
+.PHONY : test_html/fast
+
+#=============================================================================
+# Target rules for targets named test_mixed
+
+# Build rule for target.
+test_mixed: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_mixed
+.PHONY : test_mixed
+
+# fast build rule for target.
+test_mixed/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_mixed.dir/build.make CMakeFiles/test_mixed.dir/build
+.PHONY : test_mixed/fast
+
+#=============================================================================
+# Target rules for targets named test_streaming
+
+# Build rule for target.
+test_streaming: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_streaming
+.PHONY : test_streaming
+
+# fast build rule for target.
+test_streaming/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_streaming.dir/build.make CMakeFiles/test_streaming.dir/build
+.PHONY : test_streaming/fast
+
+#=============================================================================
+# Target rules for targets named test_error
+
+# Build rule for target.
+test_error: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 test_error
+.PHONY : test_error
+
+# fast build rule for target.
+test_error/fast:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_error.dir/build.make CMakeFiles/test_error.dir/build
+.PHONY : test_error/fast
+
 main.o: main.cpp.o
 .PHONY : main.o
 
@@ -166,29 +254,29 @@ main.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_docx.dir/build.make CMakeFiles/test_docx.dir/main.cpp.s
 .PHONY : main.cpp.s
 
-src/docx_replacer.o: src/docx_replacer.cpp.o
-.PHONY : src/docx_replacer.o
+src/docx_document.o: src/docx_document.cpp.o
+.PHONY : src/docx_document.o
 
 # target to build an object file
-src/docx_replacer.cpp.o:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o
-.PHONY : src/docx_replacer.cpp.o
+src/docx_document.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o
+.PHONY : src/docx_document.cpp.o
 
-src/docx_replacer.i: src/docx_replacer.cpp.i
-.PHONY : src/docx_replacer.i
+src/docx_document.i: src/docx_document.cpp.i
+.PHONY : src/docx_document.i
 
 # target to preprocess a source file
-src/docx_replacer.cpp.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.i
-.PHONY : src/docx_replacer.cpp.i
+src/docx_document.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.i
+.PHONY : src/docx_document.cpp.i
 
-src/docx_replacer.s: src/docx_replacer.cpp.s
-.PHONY : src/docx_replacer.s
+src/docx_document.s: src/docx_document.cpp.s
+.PHONY : src/docx_document.s
 
 # target to generate assembly for a file
-src/docx_replacer.cpp.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.s
-.PHONY : src/docx_replacer.cpp.s
+src/docx_document.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.s
+.PHONY : src/docx_document.cpp.s
 
 src/rich_content.o: src/rich_content.cpp.o
 .PHONY : src/rich_content.o
@@ -213,6 +301,30 @@ src/rich_content.s: src/rich_content.cpp.s
 src/rich_content.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.s
 .PHONY : src/rich_content.cpp.s
+
+src/streaming_processor.o: src/streaming_processor.cpp.o
+.PHONY : src/streaming_processor.o
+
+# target to build an object file
+src/streaming_processor.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o
+.PHONY : src/streaming_processor.cpp.o
+
+src/streaming_processor.i: src/streaming_processor.cpp.i
+.PHONY : src/streaming_processor.i
+
+# target to preprocess a source file
+src/streaming_processor.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.i
+.PHONY : src/streaming_processor.cpp.i
+
+src/streaming_processor.s: src/streaming_processor.cpp.s
+.PHONY : src/streaming_processor.s
+
+# target to generate assembly for a file
+src/streaming_processor.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.s
+.PHONY : src/streaming_processor.cpp.s
 
 src/xml_utils.o: src/xml_utils.cpp.o
 .PHONY : src/xml_utils.o
@@ -262,6 +374,150 @@ src/zip_utils.cpp.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/docx_temp_helper.dir/build.make CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.s
 .PHONY : src/zip_utils.cpp.s
 
+test/test_error.o: test/test_error.cpp.o
+.PHONY : test/test_error.o
+
+# target to build an object file
+test/test_error.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_error.dir/build.make CMakeFiles/test_error.dir/test/test_error.cpp.o
+.PHONY : test/test_error.cpp.o
+
+test/test_error.i: test/test_error.cpp.i
+.PHONY : test/test_error.i
+
+# target to preprocess a source file
+test/test_error.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_error.dir/build.make CMakeFiles/test_error.dir/test/test_error.cpp.i
+.PHONY : test/test_error.cpp.i
+
+test/test_error.s: test/test_error.cpp.s
+.PHONY : test/test_error.s
+
+# target to generate assembly for a file
+test/test_error.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_error.dir/build.make CMakeFiles/test_error.dir/test/test_error.cpp.s
+.PHONY : test/test_error.cpp.s
+
+test/test_html.o: test/test_html.cpp.o
+.PHONY : test/test_html.o
+
+# target to build an object file
+test/test_html.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_html.dir/build.make CMakeFiles/test_html.dir/test/test_html.cpp.o
+.PHONY : test/test_html.cpp.o
+
+test/test_html.i: test/test_html.cpp.i
+.PHONY : test/test_html.i
+
+# target to preprocess a source file
+test/test_html.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_html.dir/build.make CMakeFiles/test_html.dir/test/test_html.cpp.i
+.PHONY : test/test_html.cpp.i
+
+test/test_html.s: test/test_html.cpp.s
+.PHONY : test/test_html.s
+
+# target to generate assembly for a file
+test/test_html.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_html.dir/build.make CMakeFiles/test_html.dir/test/test_html.cpp.s
+.PHONY : test/test_html.cpp.s
+
+test/test_markdown.o: test/test_markdown.cpp.o
+.PHONY : test/test_markdown.o
+
+# target to build an object file
+test/test_markdown.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_markdown.dir/build.make CMakeFiles/test_markdown.dir/test/test_markdown.cpp.o
+.PHONY : test/test_markdown.cpp.o
+
+test/test_markdown.i: test/test_markdown.cpp.i
+.PHONY : test/test_markdown.i
+
+# target to preprocess a source file
+test/test_markdown.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_markdown.dir/build.make CMakeFiles/test_markdown.dir/test/test_markdown.cpp.i
+.PHONY : test/test_markdown.cpp.i
+
+test/test_markdown.s: test/test_markdown.cpp.s
+.PHONY : test/test_markdown.s
+
+# target to generate assembly for a file
+test/test_markdown.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_markdown.dir/build.make CMakeFiles/test_markdown.dir/test/test_markdown.cpp.s
+.PHONY : test/test_markdown.cpp.s
+
+test/test_mixed.o: test/test_mixed.cpp.o
+.PHONY : test/test_mixed.o
+
+# target to build an object file
+test/test_mixed.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_mixed.dir/build.make CMakeFiles/test_mixed.dir/test/test_mixed.cpp.o
+.PHONY : test/test_mixed.cpp.o
+
+test/test_mixed.i: test/test_mixed.cpp.i
+.PHONY : test/test_mixed.i
+
+# target to preprocess a source file
+test/test_mixed.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_mixed.dir/build.make CMakeFiles/test_mixed.dir/test/test_mixed.cpp.i
+.PHONY : test/test_mixed.cpp.i
+
+test/test_mixed.s: test/test_mixed.cpp.s
+.PHONY : test/test_mixed.s
+
+# target to generate assembly for a file
+test/test_mixed.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_mixed.dir/build.make CMakeFiles/test_mixed.dir/test/test_mixed.cpp.s
+.PHONY : test/test_mixed.cpp.s
+
+test/test_plain.o: test/test_plain.cpp.o
+.PHONY : test/test_plain.o
+
+# target to build an object file
+test/test_plain.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_plain.dir/build.make CMakeFiles/test_plain.dir/test/test_plain.cpp.o
+.PHONY : test/test_plain.cpp.o
+
+test/test_plain.i: test/test_plain.cpp.i
+.PHONY : test/test_plain.i
+
+# target to preprocess a source file
+test/test_plain.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_plain.dir/build.make CMakeFiles/test_plain.dir/test/test_plain.cpp.i
+.PHONY : test/test_plain.cpp.i
+
+test/test_plain.s: test/test_plain.cpp.s
+.PHONY : test/test_plain.s
+
+# target to generate assembly for a file
+test/test_plain.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_plain.dir/build.make CMakeFiles/test_plain.dir/test/test_plain.cpp.s
+.PHONY : test/test_plain.cpp.s
+
+test/test_streaming.o: test/test_streaming.cpp.o
+.PHONY : test/test_streaming.o
+
+# target to build an object file
+test/test_streaming.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_streaming.dir/build.make CMakeFiles/test_streaming.dir/test/test_streaming.cpp.o
+.PHONY : test/test_streaming.cpp.o
+
+test/test_streaming.i: test/test_streaming.cpp.i
+.PHONY : test/test_streaming.i
+
+# target to preprocess a source file
+test/test_streaming.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_streaming.dir/build.make CMakeFiles/test_streaming.dir/test/test_streaming.cpp.i
+.PHONY : test/test_streaming.cpp.i
+
+test/test_streaming.s: test/test_streaming.cpp.s
+.PHONY : test/test_streaming.s
+
+# target to generate assembly for a file
+test/test_streaming.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/test_streaming.dir/build.make CMakeFiles/test_streaming.dir/test/test_streaming.cpp.s
+.PHONY : test/test_streaming.cpp.s
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -270,23 +526,51 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... test"
 	@echo "... docx_temp_helper"
 	@echo "... test_docx"
+	@echo "... test_error"
+	@echo "... test_html"
+	@echo "... test_markdown"
+	@echo "... test_mixed"
+	@echo "... test_plain"
+	@echo "... test_streaming"
 	@echo "... main.o"
 	@echo "... main.i"
 	@echo "... main.s"
-	@echo "... src/docx_replacer.o"
-	@echo "... src/docx_replacer.i"
-	@echo "... src/docx_replacer.s"
+	@echo "... src/docx_document.o"
+	@echo "... src/docx_document.i"
+	@echo "... src/docx_document.s"
 	@echo "... src/rich_content.o"
 	@echo "... src/rich_content.i"
 	@echo "... src/rich_content.s"
+	@echo "... src/streaming_processor.o"
+	@echo "... src/streaming_processor.i"
+	@echo "... src/streaming_processor.s"
 	@echo "... src/xml_utils.o"
 	@echo "... src/xml_utils.i"
 	@echo "... src/xml_utils.s"
 	@echo "... src/zip_utils.o"
 	@echo "... src/zip_utils.i"
 	@echo "... src/zip_utils.s"
+	@echo "... test/test_error.o"
+	@echo "... test/test_error.i"
+	@echo "... test/test_error.s"
+	@echo "... test/test_html.o"
+	@echo "... test/test_html.i"
+	@echo "... test/test_html.s"
+	@echo "... test/test_markdown.o"
+	@echo "... test/test_markdown.i"
+	@echo "... test/test_markdown.s"
+	@echo "... test/test_mixed.o"
+	@echo "... test/test_mixed.i"
+	@echo "... test/test_mixed.s"
+	@echo "... test/test_plain.o"
+	@echo "... test/test_plain.i"
+	@echo "... test/test_plain.s"
+	@echo "... test/test_streaming.o"
+	@echo "... test/test_streaming.i"
+	@echo "... test/test_streaming.s"
 .PHONY : help
 
 

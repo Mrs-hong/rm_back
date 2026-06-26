@@ -45,7 +45,8 @@ target_include_directories(pugixml INTERFACE
 
 # ───────── 主库：docx_temp_helper ─────────
 add_library(docx_temp_helper STATIC
-    src/docx_replacer.cpp
+    src/docx_document.cpp
+    src/streaming_processor.cpp
     src/zip_utils.cpp
     src/xml_utils.cpp
     src/rich_content.cpp
@@ -55,6 +56,31 @@ target_include_directories(docx_temp_helper PUBLIC
 )
 target_link_libraries(docx_temp_helper PUBLIC minizip pugixml)
 
-# ───────── 测试程序：test_docx ─────────
+# ───────── CLI 工具：test_docx ─────────
 add_executable(test_docx main.cpp)
 target_link_libraries(test_docx PRIVATE docx_temp_helper)
+
+# ───────── 测试程序 ─────────
+enable_testing()
+
+# 测试数据目录（编译时注入路径，测试程序可据此定位 test/data/ 下的文件）
+set(TEST_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/test/data)
+
+# 测试程序列表：目标名 => 源文件路径
+set(TEST_TARGETS
+    test_plain
+    test_markdown
+    test_html
+    test_mixed
+    test_streaming
+    test_error
+)
+
+foreach(target ${TEST_TARGETS})
+    add_executable(${target} test/${target}.cpp)
+    target_link_libraries(${target} PRIVATE docx_temp_helper)
+    # 测试程序需要访问内部头文件（zip_utils.h）用于验证输出
+    target_include_directories(${target} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
+    target_compile_definitions(${target} PRIVATE TEST_DATA_DIR="${TEST_DATA_DIR}")
+    add_test(NAME ${target} COMMAND ${target})
+endforeach()

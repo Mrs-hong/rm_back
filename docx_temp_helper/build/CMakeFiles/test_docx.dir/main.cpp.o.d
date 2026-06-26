@@ -1,7 +1,7 @@
 CMakeFiles/test_docx.dir/main.cpp.o: \
  /home/hong/code/rm_back/docx_temp_helper/main.cpp \
  /usr/include/stdc-predef.h \
- /home/hong/code/rm_back/docx_temp_helper/include/docx_temp_helper/docx_replacer.h \
+ /home/hong/code/rm_back/docx_temp_helper/include/docx_temp_helper/docx_document.h \
  /home/hong/code/rm_back/docx_temp_helper/include/docx_temp_helper/rich_content.h \
  /home/hong/code/rm_back/docx_temp_helper/third_party/pugixml/include/pugixml.hpp \
  /home/hong/code/rm_back/docx_temp_helper/third_party/pugixml/include/pugiconfig.hpp \

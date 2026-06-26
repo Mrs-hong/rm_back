@@ -21,8 +21,7 @@
  *   test_docx ./联合纪要说明.docx --html "正文" "<h2>标题</h2><p>这是<b>加粗</b></p>"
  */
 
-#include "docx_temp_helper/docx_replacer.h"
-#include "docx_temp_helper/rich_content.h"
+#include "docx_temp_helper/docx_document.h"
 
 #include <iostream>
 #include <string>
@@ -68,9 +67,6 @@ int main(int argc, char* argv[]) {
         std::string replacement = argv[3];
         std::string outputPath = defaultOutputPath(inputPath);
 
-        docx_temp_helper::ReplaceOptions options;
-        options.verbose = true;
-
         std::cout << "=== DOCX 纯文本占位符替换 ===" << std::endl;
         std::cout << "输入文件: " << inputPath << std::endl;
         std::cout << "匹配模式: " << pattern << std::endl;
@@ -78,10 +74,33 @@ int main(int argc, char* argv[]) {
         std::cout << "输出文件: " << outputPath << std::endl;
         std::cout << std::endl;
 
-        auto result = docx_temp_helper::replacePlaceholders(
-            inputPath, pattern, replacement, outputPath, options);
+        // 使用 DocxDocument class API
+        docx_temp_helper::DocxConfig config;
+        config.verbose = true;
+        docx_temp_helper::DocxDocument doc(config);
 
-        printResult(result, outputPath);
+        auto openErr = doc.open(inputPath);
+        if (!openErr.ok()) {
+            std::cerr << "=== 打开失败 ===" << std::endl;
+            std::cerr << openErr.toString() << std::endl;
+            return 1;
+        }
+
+        auto result = doc.replaceText(pattern, replacement);
+        if (result.ok()) {
+            auto saveErr = doc.save(outputPath);
+            if (!saveErr.ok()) {
+                std::cerr << "=== 保存失败 ===" << std::endl;
+                std::cerr << saveErr.toString() << std::endl;
+                doc.close();
+                return 1;
+            }
+            printResult(result, outputPath);
+        } else {
+            printResult(result, outputPath);
+        }
+
+        doc.close();
         return result.ok() ? 0 : 1;
     }
 
@@ -95,8 +114,13 @@ int main(int argc, char* argv[]) {
         std::string content = argv[4];
         std::string outputPath = (argc >= 6) ? argv[5] : defaultOutputPath(inputPath);
 
-        docx_temp_helper::ReplaceOptions options;
-        options.verbose = true;
+        std::cout << "=== DOCX 富文本占位符替换 ===" << std::endl;
+        std::cout << "输入文件: " << inputPath << std::endl;
+        std::cout << "占位符: {{" << placeholderName << "}}" << std::endl;
+        std::cout << "内容类型: " << (isHtml ? "HTML" : "Markdown") << std::endl;
+        std::cout << "内容预览: " << content.substr(0, 80) << (content.size() > 80 ? "..." : "") << std::endl;
+        std::cout << "输出文件: " << outputPath << std::endl;
+        std::cout << std::endl;
 
         // 构建富文本替换映射
         std::map<std::string, docx_temp_helper::RichReplacement> replacements;
@@ -106,18 +130,33 @@ int main(int argc, char* argv[]) {
                            : docx_temp_helper::ContentType::Markdown;
         replacements[placeholderName] = rich;
 
-        std::cout << "=== DOCX 富文本占位符替换 ===" << std::endl;
-        std::cout << "输入文件: " << inputPath << std::endl;
-        std::cout << "占位符: {{" << placeholderName << "}}" << std::endl;
-        std::cout << "内容类型: " << (isHtml ? "HTML" : "Markdown") << std::endl;
-        std::cout << "内容预览: " << content.substr(0, 80) << (content.size() > 80 ? "..." : "") << std::endl;
-        std::cout << "输出文件: " << outputPath << std::endl;
-        std::cout << std::endl;
+        // 使用 DocxDocument class API
+        docx_temp_helper::DocxConfig config;
+        config.verbose = true;
+        docx_temp_helper::DocxDocument doc(config);
 
-        auto result = docx_temp_helper::replacePlaceholdersRich(
-            inputPath, replacements, outputPath, options);
+        auto openErr = doc.open(inputPath);
+        if (!openErr.ok()) {
+            std::cerr << "=== 打开失败 ===" << std::endl;
+            std::cerr << openErr.toString() << std::endl;
+            return 1;
+        }
 
-        printResult(result, outputPath);
+        auto result = doc.replaceRich(replacements);
+        if (result.ok()) {
+            auto saveErr = doc.save(outputPath);
+            if (!saveErr.ok()) {
+                std::cerr << "=== 保存失败 ===" << std::endl;
+                std::cerr << saveErr.toString() << std::endl;
+                doc.close();
+                return 1;
+            }
+            printResult(result, outputPath);
+        } else {
+            printResult(result, outputPath);
+        }
+
+        doc.close();
         return result.ok() ? 0 : 1;
     }
 

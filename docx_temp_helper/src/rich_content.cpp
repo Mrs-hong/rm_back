@@ -650,4 +650,22 @@ void renderParagraphsToXml(pugi::xml_node parent,
     parent.remove_child(placeholderParagraph);
 }
 
+std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs) {
+    // 创建临时文档，用 dummy root 节点作为父节点创建 <w:p> 元素
+    pugi::xml_document doc;
+    pugi::xml_node root = doc.append_child("root");
+
+    for (const auto& para : paragraphs) {
+        createParagraphNode(root, para);
+    }
+
+    // 序列化所有 <w:p> 子节点（不含 dummy root）
+    std::ostringstream oss;
+    for (pugi::xml_node child = root.first_child(); child;
+         child = child.next_sibling()) {
+        child.print(oss, "", pugi::format_raw);
+    }
+    return oss.str();
+}
+
 } // namespace docx_temp_helper

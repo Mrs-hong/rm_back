@@ -90,8 +90,15 @@ std::vector<RichParagraph> parseHtml(const std::string& html);
 /// @param paragraphs 段落列表
 /// @param placeholderParagraph 占位符所在的 <w:p> 节点
 /// @note 新段落插入到 placeholderParagraph 之前，之后删除 placeholderParagraph
+/// @note 仅用于 DOM 模式；流式模式请使用 serializeParagraphs
 void renderParagraphsToXml(pugi::xml_node parent,
                            const std::vector<RichParagraph>& paragraphs,
                            pugi::xml_node placeholderParagraph);
+
+/// 将结构化段落列表序列化为 XML 字符串（不依赖 parent 节点）
+/// @param paragraphs 段落列表
+/// @return XML 字符串，包含多个 <w:p> 元素的拼接
+/// @note 用于流式模式下替换占位符段落
+std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs);
 
 } // namespace docx_temp_helper

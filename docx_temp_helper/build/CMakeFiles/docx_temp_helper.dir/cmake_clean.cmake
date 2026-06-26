@@ -1,8 +1,10 @@
 file(REMOVE_RECURSE
-  "CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o"
-  "CMakeFiles/docx_temp_helper.dir/src/docx_replacer.cpp.o.d"
+  "CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o"
+  "CMakeFiles/docx_temp_helper.dir/src/docx_document.cpp.o.d"
   "CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o"
   "CMakeFiles/docx_temp_helper.dir/src/rich_content.cpp.o.d"
+  "CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o"
+  "CMakeFiles/docx_temp_helper.dir/src/streaming_processor.cpp.o.d"
   "CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o"
   "CMakeFiles/docx_temp_helper.dir/src/xml_utils.cpp.o.d"
   "CMakeFiles/docx_temp_helper.dir/src/zip_utils.cpp.o"
