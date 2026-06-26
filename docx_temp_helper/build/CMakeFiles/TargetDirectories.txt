@@ -1,0 +1,4 @@
+/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles/docx_temp_helper.dir
+/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles/test_docx.dir
+/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles/edit_cache.dir
+/home/hong/code/rm_back/docx_temp_helper/build/CMakeFiles/rebuild_cache.dir
