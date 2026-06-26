@@ -10,13 +10,14 @@ DOCX 模板占位符替换库 —— 面向边缘设备的轻量 C++17 解决方
 - [2. 三方库选择](#2-三方库选择)
 - [3. 目录结构](#3-目录结构)
 - [4. 构建方式](#4-构建方式)
-- [5. 架构设计：函数式 vs 面向对象](#5-架构设计函数式-vs-面向对象)
+- [5. 架构设计](#5-架构设计)
 - [6. 性能分析](#6-性能分析)
 - [7. API 接口文档](#7-api-接口文档)
 - [8. 错误码说明](#8-错误码说明)
 - [9. 使用示例](#9-使用示例)
-- [10. 格式标准](#10-格式标准)
-- [11. 限制与注意事项](#11-限制与注意事项)
+- [10. 测试程序](#10-测试程序)
+- [11. 格式标准](#11-格式标准)
+- [12. 限制与注意事项](#12-限制与注意事项)
 
 ---
 
@@ -28,9 +29,12 @@ DOCX 模板占位符替换库 —— 面向边缘设备的轻量 C++17 解决方
 - **富文本替换**：将 `{{正文}}` 替换为 Markdown/HTML 格式化内容，生成符合公文标准的段落
 
 核心特性：
+- 面向对象设计：`DocxDocument` 类管理文档生命周期，支持打开→多次替换→保存
 - 跨 Run 占位符替换（Word 将 `{{` `名称` `}}` 拆分到不同 `<w:r>` 中也能正确处理）
 - 保留 OOXML 中所有 `<w:rPr>` 格式属性
 - 支持 GB/T 9704-2012 公文格式标准
+- 流式处理模式：当文件过大时自动启用，内存占用 O(最大段落大小)
+- 内存限制可配置（默认 10MB）
 - 详细的错误码与错误信息
 - 临时目录可控（支持调试与嵌入式场景）
 - 三方库从源码编译，允许免费闭源商用
@@ -64,29 +68,43 @@ docx_temp_helper/
 ├── README.md                                   # 本文档
 │
 ├── include/docx_temp_helper/
-│   ├── docx_replacer.h                         # 公开 API（3个接口 + 错误设计）
-│   └── rich_content.h                          # 富文本模块（ContentType/RichRun/RichParagraph）
+│   ├── docx_document.h                         # 公开 API：DocxDocument 类 + 错误/配置类型
+│   └── rich_content.h                          # 富文本模块：ContentType / RichParagraph / 解析渲染函数
 │
 ├── src/
-│   ├── docx_replacer.cpp                       # 主实现：占位符查找 + 逐字符替换
-│   ├── rich_content.cpp                        # MD/HTML解析 + OOXML段落渲染
+│   ├── docx_document.cpp                       # 主实现：占位符查找 + 逐字符替换（DOM/流式双模式）
+│   ├── streaming_processor.h                   # 流式 XML 处理器（内部头文件，不对外暴露）
+│   ├── streaming_processor.cpp                 # 流式处理实现：按段落边界逐段处理
+│   ├── rich_content.cpp                        # MD/HTML 解析 + OOXML 段落渲染
 │   ├── zip_utils.h / zip_utils.cpp             # ZIP 工具（minizip 封装）
 │   └── xml_utils.h / xml_utils.cpp             # XML 工具（pugixml 封装）
+│
+├── test/
+│   ├── test_plain.cpp                          # 测试：纯文本批量替换
+│   ├── test_markdown.cpp                       # 测试：Markdown 富文本替换
+│   ├── test_html.cpp                           # 测试：HTML 富文本替换
+│   ├── test_mixed.cpp                          # 测试：混合替换（纯文本 + 富文本）
+│   ├── test_streaming.cpp                      # 测试：流式处理模式（低内存限制）
+│   ├── test_error.cpp                          # 测试：错误处理
+│   └── data/
+│       ├── template.docx                       # 测试模板
+│       ├── content.md                          # Markdown 测试内容
+│       └── content.html                        # HTML 测试内容
 │
 ├── third_party/
 │   ├── minizip/
 │   │   ├── build.sh                            # 拉取源码并编译（GitHub → Gitee 回退）
-│   │   ├── include/                            # zip.h, unzip.h, ioapi.h
+│   │   ├── include/                            # zip.h, unzip.h, ioapi.h, crypt.h
 │   │   └── lib/                                # libminizip.a
 │   └── pugixml/
 │       ├── build.sh                            # 拉取源码并编译
 │       ├── include/                            # pugixml.hpp, pugiconfig.hpp
 │       └── lib/                                # libpugixml.a
 │
-├── templates/summary/
-│   └── 联合行文模板.docx                        # 测试用模板
+├── templates/
+│   └── summary/                                # 测试用模板文件
 │
-└── main.cpp                                    # test_docx 测试程序
+└── main.cpp                                    # test_docx CLI 工具
 ```
 
 ---
@@ -104,15 +122,18 @@ docx_temp_helper/
 ```bash
 # 第1步：编译三方库（首次构建时执行）
 cd third_party/pugixml && ./build.sh
-cd third_party/minizip && ./build.sh
+cd ../minizip && ./build.sh
 
 # 第2步：编译主项目
 cd ../../build
 cmake ..
 make -j$(nproc)
 
-# 第3步：运行测试
+# 第3步：运行 CLI 工具
 ./test_docx ./联合纪要说明.docx "{{*}}" "小红有才"
+
+# 第4步：运行所有测试
+ctest
 ```
 
 ### 4.3 build.sh 说明
@@ -127,85 +148,61 @@ minizip 使用稳定版 zlib v1.3.1 的 `contrib/minizip`，避免 master 分支
 
 ---
 
-## 5. 架构设计：函数式 vs 面向对象
+## 5. 架构设计
 
-### 5.1 当前选择：自由函数 + namespace
+### 5.1 面向对象设计
 
-本库采用**自由函数（free function）**设计，而非面向对象（class）设计：
-
-```cpp
-// 当前设计：自由函数
-namespace docx_temp_helper {
-    ReplaceResult replacePlaceholders(input, pattern, replacement, output, options);
-    ReplaceResult replacePlaceholdersRich(input, map, output, options);
-}
-```
-
-### 5.2 为什么选择函数式？
-
-| 考量维度 | 函数式（当前） | 面向对象（class） |
-|---------|--------------|-----------------|
-| **使用场景** | 一次性操作：输入→替换→输出 | 多步操作：打开→多次修改→保存 |
-| **状态管理** | 无状态，线程安全 | 持有 XML 文档、临时目录等状态 |
-| **调用成本** | 直接调用，无对象构造 | 需构造对象，管理生命周期 |
-| **C 互操作** | 易于 C wrapper 封装 | 需额外适配层 |
-| **资源管理** | 函数内部 RAII（自动清理） | 需 destructor 释放 |
-| **扩展性** | 新增函数即可 | 可继承/多态，但此场景无多态需求 |
-
-**核心理由**：
-
-1. **本场景是无状态变换**：输入文件 → 替换 → 输出文件，无需跨调用保持状态。函数式天然适合无状态操作，类似 `std::transform`、`std::sort` 的设计哲学。
-
-2. **边缘设备 simplicity 优先**：嵌入式/边缘场景下，对象生命周期管理是额外复杂度。函数调用更直接，减少出错可能。
-
-3. **RAII 已足够**：临时目录、XML 文档等资源在函数内部通过 RAII 自动管理，不需要 class destructor。
-
-4. **C 互操作友好**：边缘设备常需 C/C++ 混合编程，自由函数易于通过 `extern "C"` 封装为 C 接口。
-
-### 5.3 什么时候应该用 class？
-
-如果未来出现以下需求，建议重构为 class：
-
-- **多次操作同一文档**：避免重复解压/压缩（当前每次调用都解压+压缩）
-- **流式处理**：边读取边替换，不全部加载到内存
-- **插件化**：不同替换策略通过多态切换
-
-示例（未来可选的 class 设计）：
+本库采用 **class 设计**，核心类是 `DocxDocument`：
 
 ```cpp
-// 未来可选的 class 设计（当前未实现）
 class DocxDocument {
 public:
-    bool open(const std::string& path);   // 解压一次
-    int  replaceText(const map<string,string>& replacements);
-    int  replaceRich(const map<string,RichReplacement>& replacements);
-    bool save(const std::string& path);   // 压缩一次
-    ~DocxDocument();                       // 自动清理临时目录
+    // 生命周期管理
+    ErrorInfo open(const std::string& path);
+    ErrorInfo save(const std::string& path);
+    void close();
+
+    // 文本替换
+    ReplaceResult replaceText(const std::map<std::string, std::string>& replacements);
+    ReplaceResult replaceText(const std::string& pattern, const std::string& replacement);
+
+    // 富文本替换
+    ReplaceResult replaceRich(const std::map<std::string, RichReplacement>& replacements);
+
+    // 状态查询
+    bool isOpen() const;
+    bool isStreamingMode() const;
+    size_t getFileSize() const;
+    const DocxConfig& config() const;
 };
 ```
 
-**当前函数式设计不影响未来重构**：内部实现已模块化（`collectRuns`、`replaceInParagraph`、`parseMarkdown` 等），可平滑迁移到 class 方法。
+### 5.2 为什么选择 class？
+
+| 考量维度 | 说明 |
+|---------|------|
+| **多次操作同一文档** | 打开一次后可多次调用 `replaceText`/`replaceRich`，最后一次性保存，避免重复解压/压缩 |
+| **状态管理** | 对象持有 DOM 文档、临时目录等状态，方法间自然共享 |
+| **资源管理** | RAII：析构函数自动清理临时目录，避免资源泄漏 |
+| **流式模式** | 根据文件大小自动选择 DOM 或流式处理，对调用方透明 |
+| **配置集中** | `DocxConfig` 统一管理内存限制、临时目录、日志开关等参数 |
+
+### 5.3 双处理模式
+
+内部根据文件大小自动选择处理模式：
+
+| 模式 | 触发条件 | 内存占用 | 适用场景 |
+|------|---------|---------|---------|
+| **DOM 模式** | 文件大小 + 替换内容 ≤ `memoryLimit` | O(文件大小) | 常规文档 |
+| **流式模式** | 文件大小 + 替换内容 > `memoryLimit` | O(最大段落大小) | 大文件、内存受限设备 |
+
+流式模式采用 64KB 块读取，按 `<w:p>` 段落边界逐段处理，段落外内容直接透传。
 
 ---
 
 ## 6. 性能分析
 
-### 6.1 函数式 vs 面向对象：性能差异
-
-**结论：两者性能无实质差异。**
-
-| 因素 | 函数式 | 面向对象 | 差异 |
-|------|--------|---------|------|
-| 调用开销 | 直接调用 | `this` 指针传入（等同） | 0 |
-| 内联优化 | 编译器可内联自由函数 | 编译器可内联成员函数 | 0 |
-| 内存分配 | 栈上局部变量 | 对象成员（通常也在栈上） | 0 |
-| 虚函数 | 无 | 若用 virtual 则有虚表开销 | 函数式略优（但本场景无需虚函数） |
-
-在 `-O2` 优化下，编译器对自由函数和成员函数生成几乎相同的机器码。
-
-### 6.2 实际性能瓶颈
-
-真正影响性能的是 I/O 和算法，不是函数 vs class：
+### 6.1 实际性能瓶颈
 
 | 阶段 | 耗时占比 | 说明 |
 |------|---------|------|
@@ -215,46 +212,88 @@ public:
 | XML 保存 | ~10% | pugixml 序列化回 XML |
 | 压缩 docx | ~35% | minizip 压缩 ZIP，CPU 密集 |
 
-### 6.3 优化建议
+### 6.2 优化建议
 
-- **批量替换**：使用 `map<string,string>` 一次传入所有替换项，避免多次调用（每次调用都解压+压缩）
-- **临时目录**：`options.tempDir` 指定 SSD 路径，减少 I/O 延迟
-- **verbose 日志**：生产环境关闭 `options.verbose`，减少 stdout 开销
+- **批量替换**：使用 `map<string,string>` 一次传入所有替换项，避免多次调用
+- **临时目录**：`config.tempDir` 指定 SSD 路径，减少 I/O 延迟
+- **verbose 日志**：生产环境关闭 `config.verbose`，减少 stdout 开销
+- **流式模式**：内存受限场景下调低 `config.memoryLimit`，强制启用流式处理
 
 ---
 
 ## 7. API 接口文档
 
-### 7.1 接口1：批量纯文本替换
+### 7.1 配置：DocxConfig
 
 ```cpp
-ReplaceResult replacePlaceholders(
-    const std::string& inputPath,                        // 输入 docx 路径
-    const std::map<std::string, std::string>& replacements, // 占位符名→替换文本
-    const std::string& outputPath,                       // 输出 docx 路径
-    const ReplaceOptions& options = {}                   // 可选参数
-);
+struct DocxConfig {
+    size_t memoryLimit = 10 * 1024 * 1024;  // 内存限制（字节），默认 10MB
+    std::string tempDir;                     // 临时解压目录，空则使用系统临时目录
+    bool verbose = false;                    // 是否输出详细日志
+    bool keepTempDir = false;                // 是否保留临时目录（调试用）
+};
 ```
 
-**参数说明**：
+### 7.2 生命周期管理
+
+#### open
+
+```cpp
+ErrorInfo DocxDocument::open(const std::string& path);
+```
+
+打开 docx 文件，解压到临时目录。
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
-| `inputPath` | `string` | 输入 `.docx` 文件路径，必须存在且可读 |
-| `replacements` | `map<string,string>` | key 为占位符名称（不含 `{{}}`），value 为替换文本；key 为 `"*"` 时通配所有 |
-| `outputPath` | `string` | 输出 `.docx` 文件路径 |
-| `options` | `ReplaceOptions` | 可选参数，见下表 |
+| `path` | `string` | 输入 `.docx` 文件路径，必须存在且可读 |
 
-**ReplaceOptions 字段**：
+**返回值**：`ErrorInfo`，`ok()` 返回 `true` 表示成功。
 
-| 字段 | 类型 | 默认值 | 说明 |
-|------|------|--------|------|
-| `tempDir` | `string` | `""` | 临时解压目录，空则使用 `/tmp/docx_<pid>_XXXXXX` |
-| `preserveFormatting` | `bool` | `true` | 是否保留原始格式（当前始终为 true） |
-| `verbose` | `bool` | `false` | 是否输出详细日志到 stdout |
-| `keepTempDir` | `bool` | `false` | 是否保留临时目录（调试用） |
+#### save
 
-**返回值**：`ReplaceResult`，包含错误信息和替换记录。
+```cpp
+ErrorInfo DocxDocument::save(const std::string& path);
+```
+
+将修改后的文档压缩保存为 docx 文件。
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `path` | `string` | 输出 `.docx` 文件路径 |
+
+**返回值**：`ErrorInfo`，`ok()` 返回 `true` 表示成功。
+
+#### close
+
+```cpp
+void DocxDocument::close();
+```
+
+关闭文档，清理临时目录。析构时也会自动调用。
+
+### 7.3 文本替换：replaceText
+
+#### 批量替换
+
+```cpp
+ReplaceResult replaceText(const std::map<std::string, std::string>& replacements);
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `replacements` | `map<string,string>` | key 为占位符名称（不含 `{{}}`），value 为替换文本；key 为 `"*"` 时通配所有占位符 |
+
+#### 单模式替换
+
+```cpp
+ReplaceResult replaceText(const std::string& pattern, const std::string& replacement);
+```
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| `pattern` | `string` | 占位符模式，支持 `"{{*}}"`（匹配所有）或 `"{{会议主题}}"`（精确匹配） |
+| `replacement` | `string` | 替换文本 |
 
 **行为**：
 - 遍历 docx 中所有 `<w:p>` 段落（包括表格单元格中的段落）
@@ -262,77 +301,11 @@ ReplaceResult replacePlaceholders(
 - 保留原有 `<w:rPr>` 字体/字号/样式，仅修改 `<w:t>` 文本内容
 - 跨 Run 的占位符（`{{`、名称、`}}` 分布在不同 `<w:r>` 中）也能正确处理
 
-**示例**：
+### 7.4 富文本替换：replaceRich
 
 ```cpp
-#include "docx_temp_helper/docx_replacer.h"
-
-// 示例：批量替换多个占位符
-std::map<std::string, std::string> replacements = {
-    {"会议主题", "2024年第四季度工作总结会议"},
-    {"会议时间", "2024年12月25日 14:00"},
-    {"会议地点", "三楼会议室"},
-    {"主持人", "张三"},
-    {"参会人员", "全体员工"},
-    {"备注", "请准时参加"}
-};
-
-docx_temp_helper::ReplaceOptions opts;
-opts.verbose = true;
-
-auto result = docx_temp_helper::replacePlaceholders(
-    "input.docx", replacements, "output.docx", opts);
-
-if (result.ok()) {
-    std::cout << "替换成功，共替换 " << result.totalReplaced << " 处" << std::endl;
-} else {
-    std::cerr << result.error.toString() << std::endl;
-}
+ReplaceResult replaceRich(const std::map<std::string, RichReplacement>& replacements);
 ```
-
-### 7.2 接口2：单模式纯文本替换
-
-```cpp
-ReplaceResult replacePlaceholders(
-    const std::string& inputPath,     // 输入 docx 路径
-    const std::string& pattern,       // 占位符模式
-    const std::string& replacement,   // 替换文本
-    const std::string& outputPath,    // 输出 docx 路径
-    const ReplaceOptions& options = {}
-);
-```
-
-**参数说明**：
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| `pattern` | `string` | `{{*}}` 匹配所有占位符；`{{会议主题}}` 匹配特定占位符；`*` 或 `会议主题` 也可 |
-| `replacement` | `string` | 替换文本 |
-
-**示例**：
-
-```cpp
-// 通配替换：所有 {{xx}} 替换为同一文本
-auto result = docx_temp_helper::replacePlaceholders(
-    "input.docx", "{{*}}", "小红有才", "output.docx");
-
-// 精确替换：仅替换 {{会议主题}}
-auto result2 = docx_temp_helper::replacePlaceholders(
-    "input.docx", "{{会议主题}}", "年终总结会议", "output.docx");
-```
-
-### 7.3 接口3：富文本批量替换
-
-```cpp
-ReplaceResult replacePlaceholdersRich(
-    const std::string& inputPath,
-    const std::map<std::string, RichReplacement>& replacements,
-    const std::string& outputPath,
-    const ReplaceOptions& options = {}
-);
-```
-
-**参数说明**：
 
 | 参数 | 类型 | 说明 |
 |------|------|------|
@@ -342,8 +315,8 @@ ReplaceResult replacePlaceholdersRich(
 
 ```cpp
 struct RichReplacement {
-    std::string content;                    // 内容字符串
-    ContentType type = ContentType::Plain;  // 内容类型
+    std::string content;
+    ContentType type = ContentType::Plain;
 };
 ```
 
@@ -351,59 +324,25 @@ struct RichReplacement {
 
 | 值 | 说明 | 处理方式 |
 |----|------|---------|
-| `Plain` | 纯文本 | 走接口1逻辑，仅替换 `<w:t>` 文本 |
-| `HTML` | HTML 格式 | 解析 HTML，生成格式化 `<w:p>` 段落，替换占位符所在整个段落 |
-| `Markdown` | Markdown 格式 | 解析 MD，生成格式化 `<w:p>` 段落，替换占位符所在整个段落 |
-
-**行为差异**：
-
-| 类型 | 替换粒度 | 格式 | 适用场景 |
-|------|---------|------|---------|
-| Plain | 文本级（修改 `<w:t>`） | 保留原格式 | 简单文本替换 |
-| HTML/MD | 段落级（替换整个 `<w:p>`） | 生成新格式 | 长正文、结构化内容 |
+| `Plain` | 纯文本 | 走文本替换逻辑，仅替换 `<w:t>` 文本 |
+| `HTML` | HTML 格式 | 解析 HTML，生成格式化 `<w:p>` 段落 |
+| `Markdown` | Markdown 格式 | 解析 MD，生成格式化 `<w:p>` 段落 |
 
 **HTML/Markdown 替换规则**：
 - 仅替换**独占一行**的占位符（段落全文只有 `{{xx}}`）
 - 删除占位符所在 `<w:p>`，在原位置插入多个新 `<w:p>`
 - 新段落按 GB/T 9704-2012 公文格式渲染
 
-**示例**：
+### 7.5 状态查询
 
 ```cpp
-#include "docx_temp_helper/docx_replacer.h"
-#include "docx_temp_helper/rich_content.h"
-
-// 混合替换：纯文本 + Markdown + HTML
-std::map<std::string, docx_temp_helper::RichReplacement> replacements;
-
-// 纯文本替换
-replacements["会议主题"] = {"年终总结会议", docx_temp_helper::ContentType::Plain};
-replacements["会议时间"] = {"2024年12月25日", docx_temp_helper::ContentType::Plain};
-
-// Markdown 替换（正文）
-replacements["正文"] = {
-    "## 会议内容\n\n"
-    "本次会议讨论了以下事项：\n\n"
-    "- 项目进度汇报\n"
-    "- 下阶段工作安排\n"
-    "- 预算审批\n\n"
-    "**重要决定**：项目延期至下月。",
-    docx_temp_helper::ContentType::Markdown
-};
-
-// HTML 替换
-replacements["备注"] = {
-    "<h3>注意事项</h3>"
-    "<p>请各部门提前准备<b>汇报材料</b>。</p>"
-    "<ul><li>材料需含<i>数据图表</i></li><li>提前3天提交</li></ul>",
-    docx_temp_helper::ContentType::HTML
-};
-
-auto result = docx_temp_helper::replacePlaceholdersRich(
-    "input.docx", replacements, "output.docx");
+bool isOpen() const;           // 文档是否已打开
+bool isStreamingMode() const;  // 是否处于流式处理模式
+size_t getFileSize() const;    // 获取已打开文件的大小（字节）
+const DocxConfig& config() const;  // 获取配置
 ```
 
-### 7.4 富文本模块独立使用
+### 7.6 富文本模块独立使用
 
 富文本解析和渲染函数可独立使用，不依赖 docx 文件操作：
 
@@ -416,10 +355,13 @@ auto paragraphs = docx_temp_helper::parseMarkdown("# 标题\n正文内容");
 // 2. 解析 HTML
 auto paragraphs = docx_temp_helper::parseHtml("<h2>标题</h2><p>正文</p>");
 
-// 3. 渲染为 OOXML 并插入到已有 XML 文档
+// 3. 渲染为 OOXML 并插入到已有 XML 文档（DOM 模式）
 pugi::xml_node parent = doc.child("w:body");
 pugi::xml_node placeholder = /* 找到占位符 <w:p> */;
 docx_temp_helper::renderParagraphsToXml(parent, paragraphs, placeholder);
+
+// 4. 序列化为 XML 字符串（流式模式）
+std::string xml = docx_temp_helper::serializeParagraphs(paragraphs);
 ```
 
 ---
@@ -442,7 +384,8 @@ docx_temp_helper::renderParagraphsToXml(parent, paragraphs, placeholder);
 | `NoMatchFound` | 9 | 未找到匹配的占位符 | 模板中没有对应 `{{xx}}` |
 | `InvalidPattern` | 10 | 占位符模式非法 | 替换映射为空 |
 | `OutputWriteFailed` | 11 | 输出文件写入失败 | 路径不可写 |
-| `UnknownError` | 12 | 未知错误 | - |
+| `NotOpened` | 12 | 文档未打开 | 未调用 `open()` 或已 `close()` |
+| `UnknownError` | 13 | 未知错误 | - |
 
 ### 8.2 ErrorInfo 结构体
 
@@ -478,23 +421,32 @@ struct ReplaceRecord {
 ### 8.4 错误处理示例
 
 ```cpp
-auto result = docx_temp_helper::replacePlaceholders(/* ... */);
+docx_temp_helper::DocxDocument doc;
 
-if (!result.ok()) {
-    switch (result.error.code) {
+auto err = doc.open("input.docx");
+if (!err.ok()) {
+    switch (err.code) {
         case docx_temp_helper::ErrorCode::FileNotFound:
             // 提示用户检查文件路径
-            break;
-        case docx_temp_helper::ErrorCode::NoMatchFound:
-            // 提示模板中没有对应占位符
             break;
         case docx_temp_helper::ErrorCode::UnzipFailed:
             // 提示文件可能损坏
             break;
         default:
-            std::cerr << result.error.toString() << std::endl;
+            std::cerr << err.toString() << std::endl;
     }
+    return;
 }
+
+auto result = doc.replaceText("{{*}}", "替换文本");
+if (!result.ok()) {
+    std::cerr << result.error.toString() << std::endl;
+    doc.close();
+    return;
+}
+
+doc.save("output.docx");
+doc.close();
 ```
 
 ---
@@ -521,10 +473,40 @@ if (!result.ok()) {
 ./test_docx ./联合纪要说明.docx --html "正文" "<h2>会议内容</h2><p>讨论了<b>项目进度</b></p>"
 ```
 
-### 9.2 C++ 代码：纯文本批量替换
+### 9.2 C++ 代码：纯文本替换
 
 ```cpp
-#include "docx_temp_helper/docx_replacer.h"
+#include "docx_temp_helper/docx_document.h"
+
+int main() {
+    docx_temp_helper::DocxConfig config;
+    config.verbose = true;
+
+    docx_temp_helper::DocxDocument doc(config);
+
+    auto openErr = doc.open("template.docx");
+    if (!openErr.ok()) {
+        std::cerr << openErr.toString() << std::endl;
+        return 1;
+    }
+
+    auto result = doc.replaceText("{{*}}", "小红有才");
+    if (result.ok()) {
+        std::cout << "替换成功，共 " << result.totalReplaced << " 处" << std::endl;
+        doc.save("output.docx");
+    } else {
+        std::cerr << result.error.toString() << std::endl;
+    }
+
+    doc.close();
+    return result.ok() ? 0 : 1;
+}
+```
+
+### 9.3 C++ 代码：批量替换
+
+```cpp
+#include "docx_temp_helper/docx_document.h"
 
 int main() {
     std::map<std::string, std::string> replacements = {
@@ -533,23 +515,31 @@ int main() {
         {"主持人", "张三"},
     };
 
-    auto result = docx_temp_helper::replacePlaceholders(
-        "template.docx", replacements, "output.docx");
+    docx_temp_helper::DocxDocument doc;
+    auto openErr = doc.open("template.docx");
+    if (!openErr.ok()) return 1;
 
+    auto result = doc.replaceText(replacements);
     if (result.ok()) {
         printf("成功替换 %d 处\n", result.totalReplaced);
         for (const auto& rec : result.records) {
-            printf("  %s -> %s\n", rec.placeholder.c_str(), rec.replacement.c_str());
+            printf("  %s -> %s (x%d)\n",
+                   rec.placeholder.c_str(),
+                   rec.replacement.c_str(),
+                   rec.count);
         }
+        doc.save("output.docx");
     }
+
+    doc.close();
     return result.ok() ? 0 : 1;
 }
 ```
 
-### 9.3 C++ 代码：富文本混合替换
+### 9.4 C++ 代码：富文本混合替换
 
 ```cpp
-#include "docx_temp_helper/docx_replacer.h"
+#include "docx_temp_helper/docx_document.h"
 #include "docx_temp_helper/rich_content.h"
 
 int main() {
@@ -570,23 +560,42 @@ int main() {
         docx_temp_helper::ContentType::Markdown
     };
 
-    auto result = docx_temp_helper::replacePlaceholdersRich(
-        "template.docx", replacements, "output.docx");
+    // HTML 替换
+    replacements["备注"] = {
+        "<h3>注意事项</h3>"
+        "<p>请各部门提前准备<b>汇报材料</b>。</p>"
+        "<ul><li>材料需含<i>数据图表</i></li><li>提前3天提交</li></ul>",
+        docx_temp_helper::ContentType::HTML
+    };
 
+    docx_temp_helper::DocxDocument doc;
+    auto openErr = doc.open("template.docx");
+    if (!openErr.ok()) return 1;
+
+    auto result = doc.replaceRich(replacements);
+    if (result.ok()) {
+        doc.save("output.docx");
+    }
+
+    doc.close();
     return result.ok() ? 0 : 1;
 }
 ```
 
-### 9.4 C++ 代码：自定义临时目录（调试用）
+### 9.5 C++ 代码：自定义配置（调试用）
 
 ```cpp
-docx_temp_helper::ReplaceOptions opts;
-opts.tempDir = "/my/custom/temp";  // 自定义临时目录
-opts.keepTempDir = true;            // 保留临时文件用于调试
-opts.verbose = true;                // 输出详细日志
+docx_temp_helper::DocxConfig config;
+config.tempDir = "/my/custom/temp";   // 自定义临时目录
+config.keepTempDir = true;             // 保留临时文件用于调试
+config.verbose = true;                 // 输出详细日志
+config.memoryLimit = 5 * 1024 * 1024; // 5MB 内存限制
 
-auto result = docx_temp_helper::replacePlaceholders(
-    "input.docx", "{{*}}", "替换文本", "output.docx", opts);
+docx_temp_helper::DocxDocument doc(config);
+doc.open("input.docx");
+doc.replaceText("{{*}}", "替换文本");
+doc.save("output.docx");
+doc.close();
 
 // 调试：检查临时目录中的 word/document.xml
 // /my/custom/temp/word/document.xml
@@ -594,66 +603,103 @@ auto result = docx_temp_helper::replacePlaceholders(
 
 ---
 
-## 10. 格式标准
+## 10. 测试程序
 
-### 10.1 纯文本替换格式保留
+项目提供了 6 个独立测试程序，覆盖所有功能：
 
-纯文本替换保留以下 OOXML 属性：
-- `<w:rPr>` 中的所有字体设置（`w:rFonts` 的 `w:eastAsia`、`w:ascii`、`w:hAnsi`）
-- 字号（`w:sz`、`w:szCs`）
-- 加粗（`w:b`）、斜体（`w:i`）、下划线（`w:u`）
-- 段落属性（`<w:pPr>` 中的缩进、对齐、行距等）
-- 表格结构、文档结构完全不动
+| 测试程序 | 源文件 | 测试内容 |
+|---------|--------|---------|
+| `test_plain` | `test/test_plain.cpp` | 纯文本批量替换，验证占位符替换正确性和格式保留 |
+| `test_markdown` | `test/test_markdown.cpp` | Markdown 富文本替换，验证标题/列表/加粗/斜体等格式 |
+| `test_html` | `test/test_html.cpp` | HTML 富文本替换，验证标签解析和格式渲染 |
+| `test_mixed` | `test/test_mixed.cpp` | 混合替换（纯文本 + Markdown + HTML），验证多种类型共存 |
+| `test_streaming` | `test/test_streaming.cpp` | 流式处理模式，设置 1KB 内存限制强制启用流式 |
+| `test_error` | `test/test_error.cpp` | 错误处理，验证文件不存在、空映射等异常场景 |
 
-### 10.2 富文本生成格式（GB/T 9704-2012）
+**测试数据**：
+- `test/data/template.docx` - 包含多个占位符的测试模板
+- `test/data/content.md` - Markdown 测试内容
+- `test/data/content.html` - HTML 测试内容
 
-| 元素 | 中文字体 | 西文字体 | 字号 | 对齐 | 缩进 |
-|------|---------|---------|------|------|------|
-| h1 (#) | 方正小标宋简体 | Times New Roman | 22pt | 居中 | 无 |
-| h2 (##) | 黑体 | Times New Roman | 16pt | 左对齐 | 无 |
-| h3 (###) | 楷体 | Times New Roman | 16pt | 左对齐 | 无 |
-| h4 (####) | 仿宋 | Times New Roman | 16pt | 左对齐 | 无 |
-| 正文段落 | 仿宋 | Times New Roman | 16pt | 两端对齐 | 首行缩进 32pt |
-| 无序列表 | 仿宋 | Times New Roman | 16pt | 左对齐 | 悬挂缩进 16pt |
-| 有序列表 | 仿宋 | Times New Roman | 16pt | 左对齐 | 悬挂缩进 16pt |
+**运行测试**：
 
-行距统一为 1.0 倍。标题段后间距 8pt。
+```bash
+cd build && cmake .. && make -j$(nproc) && ctest
+```
 
-### 10.3 OOXML 单位换算
+输出示例：
 
-| 单位 | 换算关系 |
+```
+Test project /home/hong/code/rm_back/docx_temp_helper/build
+    Start 1: test_plain
+1/6 Test #1: test_plain .......................   Passed    0.02 sec
+    Start 2: test_markdown
+2/6 Test #2: test_markdown ....................   Passed    0.02 sec
+    Start 3: test_html
+3/6 Test #3: test_html ........................   Passed    0.02 sec
+    Start 4: test_mixed
+4/6 Test #4: test_mixed .......................   Passed    0.02 sec
+    Start 5: test_streaming
+5/6 Test #5: test_streaming ...................   Passed    0.02 sec
+    Start 6: test_error
+6/6 Test #6: test_error .......................   Passed    0.01 sec
+
+100% tests passed, 0 tests failed out of 6
+```
+
+---
+
+## 11. 格式标准
+
+### GB/T 9704-2012 公文格式映射
+
+| 元素 | 字体 | 字号 | 对齐 | 缩进 | 行距 |
+|------|------|------|------|------|------|
+| h1 | 方正小标宋简体 | 22pt | 居中 | 0 | 1.0 |
+| h2 | 黑体 | 16pt | 左对齐 | 0 | 1.0 |
+| h3 | 楷体 | 16pt | 左对齐 | 0 | 1.0 |
+| h4 / 正文 | 仿宋 | 16pt | 两端对齐 | 首行缩进 2 字符 (32pt) | 1.0 |
+| 列表 | 仿宋 | 16pt | 左对齐 | 悬挂缩进 | 1.0 |
+| 西文 | Times New Roman | - | - | - | - |
+
+### OOXML 单位换算
+
+| 单位 | 换算 | 用途 |
+|------|------|------|
+| 字体大小 | 1pt = 2 half-points | `<w:sz>` 值（16pt = 32） |
+| 缩进 | 1pt = 20 twips | `<w:ind>` 值（32pt = 640 twips） |
+| 行距 | 240 = 1.0 倍 | `<w:spacing w:line="240">` |
+
+### 支持的 Markdown 语法
+
+| 语法 | 示例 | 渲染效果 |
+|------|------|---------|
+| 标题 | `# h1` ~ `#### h4` | 对应 h1~h4 |
+| 加粗 | `**text**` | 加粗 |
+| 斜体 | `*text*` | 斜体 |
+| 无序列表 | `- item` 或 `* item` | 列表项 |
+| 有序列表 | `1. item` | 有序列表 |
+| 段落 | 空行分隔 | 正文段落 |
+
+### 支持的 HTML 标签
+
+| 标签 | 渲染效果 |
 |------|---------|
-| 字号 (w:sz) | 半磅，如 16pt = 32 |
-| 缩进 (w:ind) | twips，1pt = 20twips，如 32pt = 640twips |
-| 行距 (w:spacing w:line) | 240 = 1.0 倍行距 |
-| 段后间距 (w:spacing w:after) | twips，如 8pt = 160twips |
+| `<h1>` ~ `<h4>` | 对应 h1~h4 |
+| `<p>` | 正文段落 |
+| `<b>` / `<strong>` | 加粗 |
+| `<i>` / `<em>` | 斜体 |
+| `<u>` | 下划线 |
+| `<ul>` / `<ol>` / `<li>` | 无序/有序列表 |
+| `<br>` | 换行（段落内） |
 
 ---
 
-## 11. 限制与注意事项
+## 12. 限制与注意事项
 
-### 11.1 当前限制
-
-1. **Markdown 支持**：仅支持基础语法（标题、加粗、斜体、列表、段落），不支持表格、代码块、图片、链接
-2. **HTML 支持**：仅支持基础标签（p, h1-h4, b/strong, i/em, u, ul/ol/li, br），不支持 table, img, a, div
-3. **富文本替换范围**：HTML/Markdown 仅替换**独占一行**的占位符（段落全文只有 `{{xx}}`）；非独占的占位符走纯文本逻辑
-4. **表格内占位符**：表格单元格中的 `{{xx}}` 支持纯文本替换，但不支持富文本替换（因为会改变表格结构）
-5. **并发安全**：自由函数本身无状态，但临时目录路径需各调用不同（默认使用 PID+随机数，不冲突）
-6. **大文件**：全部加载到内存，不适合超大 docx（>100MB）
-
-### 11.2 注意事项
-
-1. **三方库编译**：首次使用前必须执行 `third_party/*/build.sh` 编译 minizip 和 pugixml
-2. **zlib 依赖**：minizip 依赖系统 zlib（`zlib1g-dev`）
-3. **网络要求**：`build.sh` 需要从 GitHub/Gitee 拉取源码，首次构建需联网
-4. **文件编码**：docx 内部使用 UTF-8，传入的替换文本也应为 UTF-8
-5. **输出覆盖**：`outputPath` 如已存在会被覆盖，不报错
-6. **临时目录清理**：默认自动清理，设置 `keepTempDir=true` 可保留用于调试
-
----
-
-## 许可证
-
-本库代码可免费闭源商用。三方库许可证：
-- minizip: zlib License
-- pugixml: MIT License
+1. **仅处理 `word/document.xml`**：不处理页眉/页脚/尾注/批注中的占位符
+2. **富文本仅替换独占段落**：HTML/Markdown 替换只对占位符独占一行的段落生效（段落全文仅 `{{xx}}`）
+3. **不支持嵌套占位符**：`{{outer{{inner}}content}}` 无法正确处理
+4. **不支持图片/表格**：富文本不支持插入图片或表格，仅支持段落级别的内容
+5. **字形依赖**：GB/T 9704-2012 标准字体（方正小标宋简体、黑体、楷体、仿宋）需在目标系统安装
+6. **流式模式限制**：流式模式下不支持表格单元格中的占位符替换（仅 DOM 模式支持）
