@@ -198,4 +198,50 @@ bool zipDir(const std::string& srcDir, const std::string& zipPath) {
     return success;
 }
 
+// ───────── 单文件压缩实现 ─────────
+
+bool zipSingleFile(const std::string& filePath, const std::string& zipPath) {
+    zipFile zf = zipOpen(zipPath.c_str(), APPEND_STATUS_CREATE);
+    if (zf == nullptr) {
+        return false;
+    }
+
+    bool success = true;
+    constexpr int BUFFER_SIZE = 8192;
+    char buffer[BUFFER_SIZE];
+
+    FILE* inFile = fopen(filePath.c_str(), "rb");
+    if (inFile == nullptr) {
+        zipClose(zf, nullptr);
+        return false;
+    }
+
+    // ZIP 内文件名：取 basename（不含目录路径）
+    fs::path p(filePath);
+    std::string entryName = p.filename().string();
+
+    zip_fileinfo zi;
+    memset(&zi, 0, sizeof(zi));
+    if (zipOpenNewFileInZip(zf, entryName.c_str(), &zi,
+                             nullptr, 0, nullptr, 0, nullptr,
+                             Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
+        fclose(inFile);
+        zipClose(zf, nullptr);
+        return false;
+    }
+
+    size_t readBytes;
+    while ((readBytes = fread(buffer, 1, BUFFER_SIZE, inFile)) > 0) {
+        if (zipWriteInFileInZip(zf, buffer, static_cast<unsigned int>(readBytes)) != ZIP_OK) {
+            success = false;
+            break;
+        }
+    }
+
+    fclose(inFile);
+    zipCloseFileInZip(zf);
+    zipClose(zf, nullptr);
+    return success;
+}
+
 } // namespace docx_temp_helper

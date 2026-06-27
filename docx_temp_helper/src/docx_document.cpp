@@ -1048,4 +1048,74 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
     return result;
 }
 
+// ═══════════════════════════════════════════════════════════════════════════════
+// ZIP 工具函数
+// ═══════════════════════════════════════════════════════════════════════════════
+
+ErrorInfo zipCompress(const std::string& srcPath,
+                       const std::string& outputPath,
+                       const std::string& zipName) {
+    namespace fs = std::filesystem;
+
+    // 检查源路径是否存在
+    if (!fs::exists(srcPath)) {
+        return makeError(ErrorCode::FileNotFound, "源路径不存在", "path: " + srcPath);
+    }
+
+    // 确保输出目录存在
+    std::error_code ec;
+    fs::create_directories(outputPath, ec);
+    if (ec) {
+        return makeError(ErrorCode::TempDirCreateFailed,
+                         "无法创建输出目录", "path: " + outputPath);
+    }
+
+    // 拼接完整输出路径
+    std::string fullZipPath = outputPath;
+    if (!fullZipPath.empty() && fullZipPath.back() != '/') {
+        fullZipPath += '/';
+    }
+    fullZipPath += zipName;
+
+    bool ok = false;
+    if (fs::is_directory(srcPath)) {
+        // 目录压缩
+        ok = zipDir(srcPath, fullZipPath);
+    } else {
+        // 单文件压缩
+        ok = zipSingleFile(srcPath, fullZipPath);
+    }
+
+    if (!ok) {
+        return makeError(ErrorCode::ZipFailed,
+                         "压缩失败", "src: " + srcPath + " -> zip: " + fullZipPath);
+    }
+
+    return ErrorInfo{};  // 成功
+}
+
+ErrorInfo zipExtract(const std::string& zipPath, const std::string& destDir) {
+    namespace fs = std::filesystem;
+
+    // 检查 ZIP 文件是否存在
+    if (!fs::exists(zipPath)) {
+        return makeError(ErrorCode::FileNotFound, "ZIP 文件不存在", "path: " + zipPath);
+    }
+
+    // 确保目标目录存在
+    std::error_code ec;
+    fs::create_directories(destDir, ec);
+    if (ec) {
+        return makeError(ErrorCode::TempDirCreateFailed,
+                         "无法创建目标目录", "path: " + destDir);
+    }
+
+    if (!unzipToDir(zipPath, destDir)) {
+        return makeError(ErrorCode::UnzipFailed,
+                         "解压失败", "zip: " + zipPath + " -> dir: " + destDir);
+    }
+
+    return ErrorInfo{};  // 成功
+}
+
 } // namespace docx_temp_helper

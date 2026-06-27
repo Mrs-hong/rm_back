@@ -275,4 +275,25 @@ private:
       const std::map<std::string, RichReplacement> &replacements);
 };
 
+// ───────── ZIP 工具函数（复用错误码）─────────
+
+/// 将目录或文件压缩为 ZIP
+/// @param srcPath    源路径（目录或文件均可）
+/// @param outputPath 输出目录路径（不存在则自动创建）
+/// @param zipName    ZIP 包名（如 "archive.zip"）
+/// @return 错误信息（ok=成功）
+/// @note 若 srcPath 为目录，递归打包其下所有文件，保持目录结构
+/// @note 若 srcPath 为文件，打包该单个文件（ZIP 内仅含文件名，不含目录路径）
+/// @note 最终输出路径为 outputPath/zipName
+ErrorInfo zipCompress(const std::string& srcPath,
+                       const std::string& outputPath,
+                       const std::string& zipName);
+
+/// 解压 ZIP 文件到指定目录
+/// @param zipPath  ZIP 文件路径
+/// @param destDir  解压目标目录（不存在则自动创建）
+/// @return 错误信息（ok=成功）
+ErrorInfo zipExtract(const std::string& zipPath,
+                      const std::string& destDir);
+
 } // namespace docx_temp_helper

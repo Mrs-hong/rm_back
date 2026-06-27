@@ -75,6 +75,7 @@ set(TEST_TARGETS
     test_streaming
     test_error
     test_generate
+    test_zip
 )
 
 foreach(target ${TEST_TARGETS})

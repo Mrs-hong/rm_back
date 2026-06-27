@@ -66,6 +66,7 @@ docx_temp_helper/
 │   ├── test_streaming.cpp                      #   测试5：流式处理模式
 │   ├── test_error.cpp                          #   测试6：错误处理
 │   ├── test_generate.cpp                       #   测试7：从空白模板生成文档
+│   ├── test_zip.cpp                            #   测试8：ZIP 工具函数
 │   └── data/                                   #   测试数据
 │       ├── template.docx                       #     占位符测试模板
 │       ├── content.md                          #     Markdown 测试内容（~9000字）
@@ -205,6 +206,8 @@ public:
 |------|---------|---------|---------|
 | **DOM 模式** | 总大小 ≤ `memoryLimit` | O(文件大小) | pugixml 全量加载 `document.xml` 到内存，支持多次替换复用 DOM |
 | **流式模式** | 总大小 > `memoryLimit` | O(最大段落大小) | 64KB 块读取，按 `<w:p>` 边界逐段处理，段落外内容直接透传 |
+
+两种模式均支持表格单元格内的占位符替换（流式模式扫描所有 `<w:p>` 标签，不区分位置）。
 
 ```
 用户调用 replaceText/replaceRich
@@ -392,6 +395,37 @@ std::string xml = docx_temp_helper::serializeParagraphs(paragraphs);
 docx_temp_helper::appendParagraphsBefore(parentNode, paragraphs, sectPrNode);
 ```
 
+### 5.8 ZIP 工具函数
+
+独立的 ZIP 压缩/解压函数，返回 `ErrorInfo` 复用错误码体系，不依赖 `DocxDocument`：
+
+```cpp
+#include "docx_temp_helper/docx_document.h"
+
+// 压缩：目录或文件 → ZIP
+ErrorInfo zipCompress(const std::string& srcPath,
+                       const std::string& outputPath,
+                       const std::string& zipName);
+
+// 解压：ZIP → 目录
+ErrorInfo zipExtract(const std::string& zipPath,
+                      const std::string& destDir);
+```
+
+| 函数 | 参数 | 说明 |
+|------|------|------|
+| `zipCompress` | `srcPath` | 源路径（目录或文件均可） |
+| | `outputPath` | 输出目录路径（不存在则自动创建） |
+| | `zipName` | ZIP 包名（如 `"archive.zip"`） |
+| `zipExtract` | `zipPath` | ZIP 文件路径 |
+| | `destDir` | 解压目标目录（不存在则自动创建） |
+
+**行为**：
+- `srcPath` 为目录时，递归打包其下所有文件，保持目录结构
+- `srcPath` 为文件时，打包单个文件（ZIP 内仅含文件名）
+- 输出的 ZIP 使用正斜杠 `/` 路径分隔符，Windows/Mac/Linux 均可原生解压
+- 使用 `Z_DEFLATED` 标准压缩算法，与系统自带工具完全兼容
+
 ---
 
 ## 6. 使用示例
@@ -547,6 +581,35 @@ doc.save("output.docx");
 doc.close();
 ```
 
+### 6.7 ZIP 工具：压缩/解压
+
+```cpp
+#include "docx_temp_helper/docx_document.h"
+
+// 压缩目录
+auto err = docx_temp_helper::zipCompress(
+    "/home/user/documents",    // 源目录
+    "/home/user/output",       // 输出目录（自动创建）
+    "backup.zip");              // 包名
+if (!err.ok()) {
+    std::cerr << err.toString() << std::endl;
+}
+
+// 压缩单个文件
+auto err2 = docx_temp_helper::zipCompress(
+    "/home/user/report.pdf",   // 源文件
+    "/home/user/output",       // 输出目录
+    "report.zip");              // 包名
+
+// 解压
+auto err3 = docx_temp_helper::zipExtract(
+    "/home/user/output/backup.zip",  // ZIP 文件
+    "/home/user/restored");           // 解压目录（自动创建）
+if (!err3.ok()) {
+    std::cerr << err3.toString() << std::endl;
+}
+```
+
 ---
 
 ## 7. 命令行工具
@@ -575,7 +638,7 @@ doc.close();
 
 ## 8. 测试程序
 
-7 个独立测试程序，覆盖所有功能：
+8 个独立测试程序，覆盖所有功能：
 
 | 测试程序 | 源文件 | 测试内容 | 断言数 |
 |---------|--------|---------|--------|
@@ -586,6 +649,7 @@ doc.close();
 | `test_streaming` | `test/test_streaming.cpp` | 流式处理模式（1KB 内存限制强制启用） | 13 |
 | `test_error` | `test/test_error.cpp` | 错误处理（文件不存在/空映射/未打开等） | 6 |
 | `test_generate` | `test/test_generate.cpp` | 从空白模板生成文档（MD/HTML/Plain/无标题/错误） | 28 |
+| `test_zip` | `test/test_zip.cpp` | ZIP 工具函数（目录/文件压缩、解压、docx 兼容、错误处理） | 15 |
 
 **测试数据**：
 - `test/data/template.docx` - 包含多个占位符的测试模板
@@ -714,5 +778,5 @@ struct ReplaceRecord {
 3. **不支持嵌套占位符**：`{{outer{{inner}}content}}` 无法正确处理
 4. **不支持图片/表格**：富文本不支持插入图片或表格，仅支持段落级别内容
 5. **字形依赖**：GB/T 9704-2012 标准字体（方正小标宋简体、黑体、楷体、仿宋）需在目标系统安装
-6. **流式模式限制**：流式模式下不支持表格单元格中的占位符替换（仅 DOM 模式支持）
-7. **generateDocument 始终使用 DOM 模式**：空白模板很小，无需流式处理
+6. **generateDocument 始终使用 DOM 模式**：空白模板很小，无需流式处理
+7. **ZIP 跨平台兼容**：`zipCompress` 生成的 ZIP 文件使用正斜杠路径分隔符和 `Z_DEFLATED` 标准压缩，Windows/Mac/Linux 系统自带工具均可直接解压
