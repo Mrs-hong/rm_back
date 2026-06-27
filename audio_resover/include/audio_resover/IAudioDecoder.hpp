@@ -10,9 +10,9 @@
 #include <cstdint>
 #include <string>
 
-#include "audio_resover/AudioError.hpp"
-#include "audio_resover/AudioFormat.hpp"
-#include "audio_resover/AudioInfo.hpp"
+#include "AudioError.hpp"
+#include "AudioFormat.hpp"
+#include "AudioInfo.hpp"
 
 namespace audio_resover
 {

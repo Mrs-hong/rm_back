@@ -4,7 +4,7 @@
 
 #include <cstdint>
 
-#include "audio_resover/AudioFormat.hpp"
+#include "AudioFormat.hpp"
 
 namespace audio_resover
 {

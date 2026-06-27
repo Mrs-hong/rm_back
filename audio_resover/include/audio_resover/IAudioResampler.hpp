@@ -13,8 +13,8 @@
 
 #include <cstdint>
 
-#include "audio_resover/AudioError.hpp"
-#include "audio_resover/AudioFormat.hpp"
+#include "AudioError.hpp"
+#include "AudioFormat.hpp"
 
 namespace audio_resover
 {

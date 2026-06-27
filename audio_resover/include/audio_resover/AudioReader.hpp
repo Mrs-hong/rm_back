@@ -20,11 +20,11 @@
 #include <string>
 #include <vector>
 
-#include "audio_resover/AudioError.hpp"
-#include "audio_resover/AudioFormat.hpp"
-#include "audio_resover/AudioInfo.hpp"
-#include "audio_resover/IAudioDecoder.hpp"
-#include "audio_resover/IAudioResampler.hpp"
+#include "AudioError.hpp"
+#include "AudioFormat.hpp"
+#include "AudioInfo.hpp"
+#include "IAudioDecoder.hpp"
+#include "IAudioResampler.hpp"
 
 namespace audio_resover
 {
