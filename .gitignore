@@ -2,3 +2,6 @@
 .cache/
 .trae/
 .vscode/
+
+build/
+**/build/
