@@ -9,7 +9,7 @@
 
 namespace docx_temp_helper {
 
-std::string collectRuns(pugi::xml_node paragraph, std::vector<RunInfo>& outRuns) {
+std::string CollectRuns(pugi::xml_node paragraph, std::vector<RunInfo>& outRuns) {
     outRuns.clear();
     std::string fullText;
     size_t currentPos = 0;
@@ -44,7 +44,7 @@ std::string collectRuns(pugi::xml_node paragraph, std::vector<RunInfo>& outRuns)
     return fullText;
 }
 
-void setRunText(pugi::xml_node runNode, const std::string& text) {
+void SetRunText(pugi::xml_node runNode, const std::string& text) {
     // 查找已有的 <w:t> 节点
     pugi::xml_node tNode = runNode.child("w:t");
 
@@ -67,7 +67,7 @@ void setRunText(pugi::xml_node runNode, const std::string& text) {
     tNode.append_attribute("xml:space") = "preserve";
 }
 
-std::string getRunText(pugi::xml_node runNode) {
+std::string GetRunText(pugi::xml_node runNode) {
     pugi::xml_node tNode = runNode.child("w:t");
     if (tNode) {
         return tNode.text().get();

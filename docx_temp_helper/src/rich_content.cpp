@@ -53,7 +53,7 @@ const int LINE_SPACING_10 = 240;
 const int SPACE_AFTER_HEADING = 160;  // 8pt
 
 /// 获取标题级别对应的字体
-const char* getHeadingFont(int level) {
+const char* GetHeadingFont(int level) {
     switch (level) {
         case 1:  return FONT_TITLE;
         case 2:  return FONT_HEADING;
@@ -63,12 +63,12 @@ const char* getHeadingFont(int level) {
 }
 
 /// 获取标题级别对应的字号（半磅）
-int getHeadingSize(int level) {
+int GetHeadingSize(int level) {
     return (level == 1) ? SIZE_H1 : SIZE_BODY;
 }
 
 /// 获取标题级别对应的对齐方式
-const char* getHeadingAlignment(int level) {
+const char* GetHeadingAlignment(int level) {
     return (level == 1) ? "center" : "left";
 }
 
@@ -82,7 +82,7 @@ namespace {
 
 /// 解析行内格式（加粗、斜体）为 RichRun 列表
 /// 支持: **bold**, *italic*, ***bold+italic***
-std::vector<RichRun> parseInlineMarkdown(const std::string& text) {
+std::vector<RichRun> ParseInlineMarkdown(const std::string& text) {
     std::vector<RichRun> runs;
 
     // 正则匹配 **bold**, *italic*, ***bold+italic***
@@ -179,7 +179,7 @@ std::vector<RichRun> parseInlineMarkdown(const std::string& text) {
 }
 
 /// 去除行首尾空白
-std::string trim(const std::string& s) {
+std::string Trim(const std::string& s) {
     size_t start = s.find_first_not_of(" \t\r\n");
     if (start == std::string::npos) return "";
     size_t end = s.find_last_not_of(" \t\r\n");
@@ -187,13 +187,13 @@ std::string trim(const std::string& s) {
 }
 
 /// 检查字符串是否以指定前缀开头
-bool startsWith(const std::string& s, const char* prefix) {
+bool StartsWith(const std::string& s, const char* prefix) {
     return s.compare(0, strlen(prefix), prefix) == 0;
 }
 
 } // anonymous namespace
 
-std::vector<RichParagraph> parseMarkdown(const std::string& md) {
+std::vector<RichParagraph> ParseMarkdown(const std::string& md) {
     std::vector<RichParagraph> paragraphs;
 
     std::istringstream stream(md);
@@ -202,7 +202,7 @@ std::vector<RichParagraph> parseMarkdown(const std::string& md) {
     int orderedListIndex = 0;  // 有序列表计数器
 
     while (std::getline(stream, line)) {
-        std::string trimmed = trim(line);
+        std::string trimmed = Trim(line);
 
         // 空行：跳过（段落分隔符）
         if (trimmed.empty()) {
@@ -213,29 +213,29 @@ std::vector<RichParagraph> parseMarkdown(const std::string& md) {
         RichParagraph para;
 
         // 检查标题: # ~ ####
-        if (startsWith(trimmed, "#### ")) {
+        if (StartsWith(trimmed, "#### ")) {
             para.headingLevel = 4;
             std::string text = trimmed.substr(5);
-            para.runs = parseInlineMarkdown(text);
-        } else if (startsWith(trimmed, "### ")) {
+            para.runs = ParseInlineMarkdown(text);
+        } else if (StartsWith(trimmed, "### ")) {
             para.headingLevel = 3;
             std::string text = trimmed.substr(4);
-            para.runs = parseInlineMarkdown(text);
-        } else if (startsWith(trimmed, "## ")) {
+            para.runs = ParseInlineMarkdown(text);
+        } else if (StartsWith(trimmed, "## ")) {
             para.headingLevel = 2;
             std::string text = trimmed.substr(3);
-            para.runs = parseInlineMarkdown(text);
-        } else if (startsWith(trimmed, "# ")) {
+            para.runs = ParseInlineMarkdown(text);
+        } else if (StartsWith(trimmed, "# ")) {
             para.headingLevel = 1;
             std::string text = trimmed.substr(2);
-            para.runs = parseInlineMarkdown(text);
+            para.runs = ParseInlineMarkdown(text);
         }
         // 检查无序列表: - 或 *
-        else if (startsWith(trimmed, "- ") || startsWith(trimmed, "* ")) {
+        else if (StartsWith(trimmed, "- ") || StartsWith(trimmed, "* ")) {
             para.isListItem = true;
             para.isOrdered = false;
             std::string text = trimmed.substr(2);
-            para.runs = parseInlineMarkdown(text);
+            para.runs = ParseInlineMarkdown(text);
         }
         // 检查有序列表: 1. 2. 3. 等
         else {
@@ -255,23 +255,23 @@ std::vector<RichParagraph> parseMarkdown(const std::string& md) {
                     orderedListIndex++;
                     para.listIndex = orderedListIndex;
                     std::string text = trimmed.substr(dotPos + 2);
-                    para.runs = parseInlineMarkdown(text);
+                    para.runs = ParseInlineMarkdown(text);
                 } else {
                     // 普通段落
                     orderedListIndex = 0;
-                    para.runs = parseInlineMarkdown(trimmed);
+                    para.runs = ParseInlineMarkdown(trimmed);
                 }
             } else {
                 // 普通段落
                 orderedListIndex = 0;
-                para.runs = parseInlineMarkdown(trimmed);
+                para.runs = ParseInlineMarkdown(trimmed);
             }
         }
 
         // 设置默认格式
         if (para.headingLevel > 0) {
             // 标题格式
-            para.alignment = getHeadingAlignment(para.headingLevel);
+            para.alignment = GetHeadingAlignment(para.headingLevel);
             para.spaceAfter = SPACE_AFTER_HEADING;
             para.lineSpacing = 1.0;
         } else if (para.isListItem) {
@@ -315,7 +315,7 @@ namespace {
 /// @param inheritedBold 父级继承的加粗状态
 /// @param inheritedItalic 父级继承的斜体状态
 /// @param inheritedUnderline 父级继承的下划线状态
-std::vector<RichRun> parseHtmlInline(pugi::xml_node node,
+std::vector<RichRun> ParseHtmlInline(pugi::xml_node node,
                                       bool inheritedBold = false,
                                       bool inheritedItalic = false,
                                       bool inheritedUnderline = false) {
@@ -339,15 +339,15 @@ std::vector<RichRun> parseHtmlInline(pugi::xml_node node,
 
             if (tagName == "b" || tagName == "strong") {
                 // 加粗
-                auto childRuns = parseHtmlInline(child, true, inheritedItalic, inheritedUnderline);
+                auto childRuns = ParseHtmlInline(child, true, inheritedItalic, inheritedUnderline);
                 runs.insert(runs.end(), childRuns.begin(), childRuns.end());
             } else if (tagName == "i" || tagName == "em") {
                 // 斜体
-                auto childRuns = parseHtmlInline(child, inheritedBold, true, inheritedUnderline);
+                auto childRuns = ParseHtmlInline(child, inheritedBold, true, inheritedUnderline);
                 runs.insert(runs.end(), childRuns.begin(), childRuns.end());
             } else if (tagName == "u") {
                 // 下划线
-                auto childRuns = parseHtmlInline(child, inheritedBold, inheritedItalic, true);
+                auto childRuns = ParseHtmlInline(child, inheritedBold, inheritedItalic, true);
                 runs.insert(runs.end(), childRuns.begin(), childRuns.end());
             } else if (tagName == "br") {
                 // 换行：插入空 run 作为分隔（实际渲染时可以忽略）
@@ -356,11 +356,11 @@ std::vector<RichRun> parseHtmlInline(pugi::xml_node node,
                 runs.push_back(r);
             } else if (tagName == "span") {
                 // span：直接递归（忽略 style 属性中的格式）
-                auto childRuns = parseHtmlInline(child, inheritedBold, inheritedItalic, inheritedUnderline);
+                auto childRuns = ParseHtmlInline(child, inheritedBold, inheritedItalic, inheritedUnderline);
                 runs.insert(runs.end(), childRuns.begin(), childRuns.end());
             } else {
                 // 其他标签：递归提取文本
-                auto childRuns = parseHtmlInline(child, inheritedBold, inheritedItalic, inheritedUnderline);
+                auto childRuns = ParseHtmlInline(child, inheritedBold, inheritedItalic, inheritedUnderline);
                 runs.insert(runs.end(), childRuns.begin(), childRuns.end());
             }
         }
@@ -370,13 +370,13 @@ std::vector<RichRun> parseHtmlInline(pugi::xml_node node,
 }
 
 /// 从 HTML 元素创建段落
-RichParagraph createHtmlParagraph(pugi::xml_node element, int headingLevel = 0) {
+RichParagraph CreateHtmlParagraph(pugi::xml_node element, int headingLevel = 0) {
     RichParagraph para;
     para.headingLevel = headingLevel;
-    para.runs = parseHtmlInline(element);
+    para.runs = ParseHtmlInline(element);
 
     if (headingLevel > 0) {
-        para.alignment = getHeadingAlignment(headingLevel);
+        para.alignment = GetHeadingAlignment(headingLevel);
         para.spaceAfter = SPACE_AFTER_HEADING;
         para.lineSpacing = 1.0;
     } else {
@@ -390,7 +390,7 @@ RichParagraph createHtmlParagraph(pugi::xml_node element, int headingLevel = 0) 
 
 } // anonymous namespace
 
-std::vector<RichParagraph> parseHtml(const std::string& html) {
+std::vector<RichParagraph> ParseHtml(const std::string& html) {
     std::vector<RichParagraph> paragraphs;
 
     // 用 pugixml 解析 HTML
@@ -423,15 +423,15 @@ std::vector<RichParagraph> parseHtml(const std::string& html) {
         std::string tagName = element.name();
 
         if (tagName == "h1") {
-            paragraphs.push_back(createHtmlParagraph(element, 1));
+            paragraphs.push_back(CreateHtmlParagraph(element, 1));
         } else if (tagName == "h2") {
-            paragraphs.push_back(createHtmlParagraph(element, 2));
+            paragraphs.push_back(CreateHtmlParagraph(element, 2));
         } else if (tagName == "h3") {
-            paragraphs.push_back(createHtmlParagraph(element, 3));
+            paragraphs.push_back(CreateHtmlParagraph(element, 3));
         } else if (tagName == "h4" || tagName == "h5" || tagName == "h6") {
-            paragraphs.push_back(createHtmlParagraph(element, 4));
+            paragraphs.push_back(CreateHtmlParagraph(element, 4));
         } else if (tagName == "p") {
-            paragraphs.push_back(createHtmlParagraph(element, 0));
+            paragraphs.push_back(CreateHtmlParagraph(element, 0));
         } else if (tagName == "ul" || tagName == "ol") {
             // 列表
             bool isOrdered = (tagName == "ol");
@@ -443,7 +443,7 @@ std::vector<RichParagraph> parseHtml(const std::string& html) {
                 para.isListItem = true;
                 para.isOrdered = isOrdered;
                 para.listIndex = index;
-                para.runs = parseHtmlInline(li);
+                para.runs = ParseHtmlInline(li);
 
                 // 添加列表前缀
                 std::string prefix;
@@ -467,7 +467,7 @@ std::vector<RichParagraph> parseHtml(const std::string& html) {
             // 顶层 <br>，跳过
         } else {
             // 其他标签：尝试作为段落处理
-            auto runs = parseHtmlInline(element);
+            auto runs = ParseHtmlInline(element);
             if (!runs.empty()) {
                 RichParagraph para;
                 para.runs = runs;
@@ -506,7 +506,7 @@ namespace {
 /// @param bold 加粗
 /// @param italic 斜体
 /// @param underline 下划线
-void createRunProperties(pugi::xml_node runNode,
+void CreateRunProperties(pugi::xml_node runNode,
                           const char* font, int size,
                           bool bold, bool italic, bool underline) {
     pugi::xml_node rPr = runNode.append_child("w:rPr");
@@ -543,7 +543,7 @@ void createRunProperties(pugi::xml_node runNode,
 /// 创建 <w:pPr>（段落属性）节点
 /// @param pPr <w:pPr> 节点
 /// @param para 段落信息
-void createParagraphProperties(pugi::xml_node pPr, const RichParagraph& para) {
+void CreateParagraphProperties(pugi::xml_node pPr, const RichParagraph& para) {
     // 行距：line=240 表示 1.0 倍行距
     pugi::xml_node spacing = pPr.append_child("w:spacing");
     int lineVal = static_cast<int>(LINE_SPACING_10 * para.lineSpacing);
@@ -588,19 +588,19 @@ void createParagraphProperties(pugi::xml_node pPr, const RichParagraph& para) {
 /// @param parent 父节点
 /// @param para 段落信息
 /// @return 创建的 <w:p> 节点
-pugi::xml_node createParagraphNode(pugi::xml_node parent, const RichParagraph& para) {
+pugi::xml_node CreateParagraphNode(pugi::xml_node parent, const RichParagraph& para) {
     pugi::xml_node pNode = parent.append_child("w:p");
 
     // 段落属性
     pugi::xml_node pPr = pNode.append_child("w:pPr");
-    createParagraphProperties(pPr, para);
+    CreateParagraphProperties(pPr, para);
 
     // 确定字体和字号
     const char* font = FONT_BODY;
     int size = SIZE_BODY;
     if (para.headingLevel > 0) {
-        font = getHeadingFont(para.headingLevel);
-        size = getHeadingSize(para.headingLevel);
+        font = GetHeadingFont(para.headingLevel);
+        size = GetHeadingSize(para.headingLevel);
     }
 
     // 添加 runs
@@ -614,7 +614,7 @@ pugi::xml_node createParagraphNode(pugi::xml_node parent, const RichParagraph& p
         if (text == "\n") continue;
 
         pugi::xml_node rNode = pNode.append_child("w:r");
-        createRunProperties(rNode, font, size, run.bold, run.italic, run.underline);
+        CreateRunProperties(rNode, font, size, run.bold, run.italic, run.underline);
 
         pugi::xml_node tNode = rNode.append_child("w:t");
         tNode.append_attribute("xml:space") = "preserve";
@@ -624,7 +624,7 @@ pugi::xml_node createParagraphNode(pugi::xml_node parent, const RichParagraph& p
     // 如果没有 runs，添加一个空 run 以保证段落不为空
     if (pNode.child("w:r") == nullptr) {
         pugi::xml_node rNode = pNode.append_child("w:r");
-        createRunProperties(rNode, font, size, false, false, false);
+        CreateRunProperties(rNode, font, size, false, false, false);
         pugi::xml_node tNode = rNode.append_child("w:t");
         tNode.append_attribute("xml:space") = "preserve";
         tNode.text().set("");
@@ -635,13 +635,13 @@ pugi::xml_node createParagraphNode(pugi::xml_node parent, const RichParagraph& p
 
 } // anonymous namespace
 
-void renderParagraphsToXml(pugi::xml_node parent,
+void RenderParagraphsToXml(pugi::xml_node parent,
                            const std::vector<RichParagraph>& paragraphs,
                            pugi::xml_node placeholderParagraph) {
     // 将每个 RichParagraph 渲染为 <w:p> 并插入到占位符段落之前
     for (const auto& para : paragraphs) {
         // 创建新段落（先 append 到 parent 末尾）
-        pugi::xml_node newPara = createParagraphNode(parent, para);
+        pugi::xml_node newPara = CreateParagraphNode(parent, para);
         // 移动到占位符段落之前
         parent.insert_move_before(newPara, placeholderParagraph);
     }
@@ -650,13 +650,13 @@ void renderParagraphsToXml(pugi::xml_node parent,
     parent.remove_child(placeholderParagraph);
 }
 
-std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs) {
+std::string SerializeParagraphs(const std::vector<RichParagraph>& paragraphs) {
     // 创建临时文档，用 dummy root 节点作为父节点创建 <w:p> 元素
     pugi::xml_document doc;
     pugi::xml_node root = doc.append_child("root");
 
     for (const auto& para : paragraphs) {
-        createParagraphNode(root, para);
+        CreateParagraphNode(root, para);
     }
 
     // 序列化所有 <w:p> 子节点（不含 dummy root）
@@ -668,12 +668,12 @@ std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs) {
     return oss.str();
 }
 
-void appendParagraphsBefore(pugi::xml_node parent,
+void AppendParagraphsBefore(pugi::xml_node parent,
                              const std::vector<RichParagraph>& paragraphs,
                              pugi::xml_node beforeNode) {
     for (const auto& para : paragraphs) {
         // 先 append 到 parent 末尾，再移动到 beforeNode 之前
-        pugi::xml_node newPara = createParagraphNode(parent, para);
+        pugi::xml_node newPara = CreateParagraphNode(parent, para);
         if (beforeNode) {
             parent.insert_move_before(newPara, beforeNode);
         }

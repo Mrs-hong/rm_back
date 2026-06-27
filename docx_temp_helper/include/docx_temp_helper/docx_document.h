@@ -20,21 +20,21 @@
  *   docx_temp_helper::DocxConfig config;
  *   config.verbose = true;
  *   docx_temp_helper::DocxDocument doc(config);
- *   if (!doc.open("input.docx").ok()) return;
- *   auto result = doc.replaceText("{{*}}", "小红有才");
- *   if (result.ok()) doc.save("output.docx");
- *   doc.close();
+ *   if (!doc.Open("input.docx").Ok()) return;
+ *   auto result = doc.ReplaceText("{{*}}", "小红有才");
+ *   if (result.Ok()) doc.Save("output.docx");
+ *   doc.Close();
  * @endcode
  *
  * 使用示例（富文本混合替换）：
  * @code
  *   docx_temp_helper::DocxDocument doc;
- *   doc.open("input.docx");
+ *   doc.Open("input.docx");
  *   std::map<std::string, docx_temp_helper::RichReplacement> rich;
  *   rich["正文"] = {mdContent, docx_temp_helper::ContentType::Markdown};
  *   rich["会议主题"] = {"年终总结", docx_temp_helper::ContentType::Plain};
- *   doc.replaceRich(rich);
- *   doc.save("output.docx");
+ *   doc.ReplaceRich(rich);
+ *   doc.Save("output.docx");
  * @endcode
  */
 
@@ -67,7 +67,7 @@ enum class ErrorCode {
   NoMatchFound,        ///< 未找到匹配的占位符
   InvalidPattern,      ///< 占位符模式格式非法
   OutputWriteFailed,   ///< 输出文件写入失败
-  NotOpened,           ///< 文档未打开（未调用 open 或已 close）
+  NotOpened,           ///< 文档未打开（未调用 Open 或已 Close）
   UnknownError         ///< 未知错误
 };
 
@@ -78,10 +78,10 @@ struct ErrorInfo {
   std::string detail; ///< 附加上下文（如文件路径、XML 节点路径等）
 
   /// 是否成功
-  bool ok() const { return code == ErrorCode::Ok; }
+  bool Ok() const { return code == ErrorCode::Ok; }
 
   /// 转为字符串（用于日志/打印）
-  std::string toString() const;
+  std::string ToString() const;
 };
 
 // ───────── 替换结果 ─────────
@@ -100,7 +100,7 @@ struct ReplaceResult {
   int totalReplaced = 0;              ///< 总替换次数
 
   /// 是否成功
-  bool ok() const { return error.ok(); }
+  bool Ok() const { return error.Ok(); }
 };
 
 // ───────── 配置 ─────────
@@ -148,15 +148,15 @@ public:
   /// 打开 docx 文件（解压到临时目录）
   /// @param path docx 文件路径
   /// @return 错误信息（ok=成功）
-  ErrorInfo open(const std::string &path);
+  ErrorInfo Open(const std::string &path);
 
   /// 保存文档到指定路径（重新压缩为 docx）
   /// @param path 输出 docx 文件路径
   /// @return 错误信息（ok=成功）
-  ErrorInfo save(const std::string &path);
+  ErrorInfo Save(const std::string &path);
 
   /// 关闭文档并清理临时目录
-  void close();
+  void Close();
 
   // ── 文本替换 ──
 
@@ -167,13 +167,13 @@ public:
   ///                       若 key 为 "*"，则匹配所有 {{xx}} 并统一替换
   /// @return 替换结果（含错误信息与逐项记录）
   ReplaceResult
-  replaceText(const std::map<std::string, std::string> &replacements);
+  ReplaceText(const std::map<std::string, std::string> &replacements);
 
   /// 单模式纯文本替换
   /// @param pattern     占位符模式，支持 "{{*}}"（匹配所有）或 "{{具体名称}}"
   /// @param replacement 替换文本
   /// @return 替换结果（含错误信息与逐项记录）
-  ReplaceResult replaceText(const std::string &pattern,
+  ReplaceResult ReplaceText(const std::string &pattern,
                             const std::string &replacement);
 
   // ── 富文本替换 ──
@@ -187,7 +187,7 @@ public:
   ///                       HTML/Markdown 仅替换独占一行的占位符（替换整个段落）
   /// @return 替换结果（含错误信息与逐项记录）
   ReplaceResult
-  replaceRich(const std::map<std::string, RichReplacement> &replacements);
+  ReplaceRich(const std::map<std::string, RichReplacement> &replacements);
 
   // ── 文档生成（从空白模板）──
 
@@ -202,76 +202,76 @@ public:
   /// @param contentType 内容类型（Plain/HTML/Markdown）
   /// @return 结果（含错误信息与生成记录）
   ///
-  /// @note 需先调用 open() 打开空白模板，生成后调用 save() 保存
+  /// @note 需先调用 Open() 打开空白模板，生成后调用 Save() 保存
   /// @note Plain 类型按行分割，每行渲染为仿宋正文段落
   /// @note HTML/Markdown 类型使用富文本解析器生成格式化段落
-  ReplaceResult generateDocument(const std::string &title,
+  ReplaceResult GenerateDocument(const std::string &title,
                                  const std::string &bodyContent,
                                  ContentType contentType);
 
   // ── 状态查询 ──
 
   /// 文档是否已打开
-  bool isOpen() const;
+  bool IsOpen() const;
 
   /// 是否处于流式处理模式
-  bool isStreamingMode() const;
+  bool IsStreamingMode() const;
 
   /// 获取已打开文件的大小（字节）
-  size_t getFileSize() const;
+  size_t GetFileSize() const;
 
   /// 获取配置
-  const DocxConfig &config() const;
+  const DocxConfig &Config() const;
 
 private:
   // ── 内部状态 ──
-  DocxConfig config_;
-  std::string tempDir_;        ///< 临时解压目录
-  std::string inputPath_;      ///< 输入 docx 路径
-  size_t fileSize_ = 0;        ///< 输入文件大小
-  bool streamingMode_ = false; ///< 是否使用流式模式
-  bool opened_ = false;        ///< 是否已打开
-  bool domLoaded_ = false;     ///< DOM 是否已加载
+  DocxConfig mConfig;
+  std::string mTempDir;        ///< 临时解压目录
+  std::string mInputPath;      ///< 输入 docx 路径
+  size_t mFileSize = 0;        ///< 输入文件大小
+  bool mStreamingMode = false; ///< 是否使用流式模式
+  bool mOpened = false;        ///< 是否已打开
+  bool mDomLoaded = false;     ///< DOM 是否已加载
 
   // DOM 模式数据
-  pugi::xml_document domDoc_; ///< document.xml 的 DOM 树
+  pugi::xml_document mDomDoc; ///< document.xml 的 DOM 树
 
   // ── 内部工具方法 ──
 
   /// 判断是否应使用流式模式
   /// @param extraSize 替换内容总大小
-  bool shouldUseStreaming_(size_t extraSize) const;
+  bool ShouldUseStreaming_(size_t extraSize) const;
 
-  /// 解压 docx 到 tempDir_
-  ErrorInfo unzip_();
+  /// 解压 docx 到 mTempDir
+  ErrorInfo Unzip_();
 
-  /// 加载 document.xml 到 domDoc_
-  ErrorInfo parseXmlDom_();
+  /// 加载 document.xml 到 mDomDoc
+  ErrorInfo ParseXmlDom_();
 
-  /// 保存 domDoc_ 到 document.xml
-  ErrorInfo saveXmlDom_();
+  /// 保存 mDomDoc 到 document.xml
+  ErrorInfo SaveXmlDom_();
 
-  /// 将 tempDir_ 压缩为 docx
-  ErrorInfo zip_(const std::string &outputPath);
+  /// 将 mTempDir 压缩为 docx
+  ErrorInfo Zip_(const std::string &outputPath);
 
   /// 创建临时目录
-  ErrorInfo createTempDir_();
+  ErrorInfo CreateTempDir_();
 
   /// 清理临时目录
-  void cleanupTempDir_();
+  void CleanupTempDir_();
 
   // ── DOM 模式替换 ──
 
   ReplaceResult
-  replaceTextDom_(const std::map<std::string, std::string> &replacements);
+  ReplaceTextDom_(const std::map<std::string, std::string> &replacements);
   ReplaceResult
-  replaceRichDom_(const std::map<std::string, RichReplacement> &replacements);
+  ReplaceRichDom_(const std::map<std::string, RichReplacement> &replacements);
 
   // ── 流式模式替换 ──
 
   ReplaceResult
-  replaceTextStreaming_(const std::map<std::string, std::string> &replacements);
-  ReplaceResult replaceRichStreaming_(
+  ReplaceTextStreaming_(const std::map<std::string, std::string> &replacements);
+  ReplaceResult ReplaceRichStreaming_(
       const std::map<std::string, RichReplacement> &replacements);
 };
 
@@ -285,7 +285,7 @@ private:
 /// @note 若 srcPath 为目录，递归打包其下所有文件，保持目录结构
 /// @note 若 srcPath 为文件，打包该单个文件（ZIP 内仅含文件名，不含目录路径）
 /// @note 最终输出路径为 outputPath/zipName
-ErrorInfo zipCompress(const std::string& srcPath,
+ErrorInfo ZipCompress(const std::string& srcPath,
                        const std::string& outputPath,
                        const std::string& zipName);
 
@@ -293,7 +293,7 @@ ErrorInfo zipCompress(const std::string& srcPath,
 /// @param zipPath  ZIP 文件路径
 /// @param destDir  解压目标目录（不存在则自动创建）
 /// @return 错误信息（ok=成功）
-ErrorInfo zipExtract(const std::string& zipPath,
+ErrorInfo ZipExtract(const std::string& zipPath,
                       const std::string& destDir);
 
 } // namespace docx_temp_helper

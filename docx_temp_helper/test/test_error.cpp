@@ -41,51 +41,51 @@ int main() {
     std::cout << std::endl << "  --- 6.1 文件不存在 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        auto err = doc.open("/nonexistent/path/file.docx");
+        auto err = doc.Open("/nonexistent/path/file.docx");
         ASSERT_EQ(err.code, docx_temp_helper::ErrorCode::FileNotFound,
                   "文件不存在返回 FileNotFound");
-        ASSERT_TRUE(!doc.isOpen(), "未打开时 isOpen()=false");
+        ASSERT_TRUE(!doc.IsOpen(), "未打开时 IsOpen()=false");
     }
 
     // ── 6.2 空替换映射 ──
     std::cout << std::endl << "  --- 6.2 空替换映射 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        auto openErr = doc.open(templatePath);
-        ASSERT_TRUE(openErr.ok(), "打开模板");
+        auto openErr = doc.Open(templatePath);
+        ASSERT_TRUE(openErr.Ok(), "打开模板");
 
         std::map<std::string, std::string> empty;
-        auto result = doc.replaceText(empty);
+        auto result = doc.ReplaceText(empty);
         ASSERT_EQ(result.error.code, docx_temp_helper::ErrorCode::InvalidPattern,
                   "空映射返回 InvalidPattern");
-        doc.close();
+        doc.Close();
     }
 
     // ── 6.3 无匹配占位符 ──
     std::cout << std::endl << "  --- 6.3 无匹配占位符 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        auto openErr = doc.open(templatePath);
-        ASSERT_TRUE(openErr.ok(), "打开模板");
+        auto openErr = doc.Open(templatePath);
+        ASSERT_TRUE(openErr.Ok(), "打开模板");
 
         // 使用不存在的占位符名
         std::map<std::string, std::string> replacements;
         replacements["不存在的占位符XYZ123"] = "测试";
-        auto result = doc.replaceText(replacements);
+        auto result = doc.ReplaceText(replacements);
         ASSERT_EQ(result.error.code, docx_temp_helper::ErrorCode::NoMatchFound,
                   "无匹配返回 NoMatchFound");
         ASSERT_EQ(result.totalReplaced, 0, "替换次数为0");
-        doc.close();
+        doc.Close();
     }
 
-    // ── 6.4 未 open 就调用 replaceText ──
+    // ── 6.4 未 open 就调用 ReplaceText ──
     std::cout << std::endl << "  --- 6.4 未 open 就替换 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
         // 不调用 open 直接替换
         std::map<std::string, std::string> replacements;
         replacements["测试"] = "值";
-        auto result = doc.replaceText(replacements);
+        auto result = doc.ReplaceText(replacements);
         ASSERT_EQ(result.error.code, docx_temp_helper::ErrorCode::NotOpened,
                   "未 open 返回 NotOpened");
     }
@@ -94,37 +94,37 @@ int main() {
     std::cout << std::endl << "  --- 6.5 未 open 就保存 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        auto err = doc.save("/tmp/test_output.docx");
+        auto err = doc.Save("/tmp/test_output.docx");
         ASSERT_EQ(err.code, docx_temp_helper::ErrorCode::NotOpened,
                   "未 open 调用 save 返回 NotOpened");
     }
 
-    // ── 6.6 close 后再调用 replaceText ──
+    // ── 6.6 close 后再调用 ReplaceText ──
     std::cout << std::endl << "  --- 6.6 close 后再替换 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        doc.open(templatePath);
-        doc.close();
+        doc.Open(templatePath);
+        doc.Close();
 
         std::map<std::string, std::string> replacements;
         replacements["测试"] = "值";
-        auto result = doc.replaceText(replacements);
+        auto result = doc.ReplaceText(replacements);
         ASSERT_EQ(result.error.code, docx_temp_helper::ErrorCode::NotOpened,
                   "close 后替换返回 NotOpened");
-        ASSERT_TRUE(!doc.isOpen(), "close 后 isOpen()=false");
+        ASSERT_TRUE(!doc.IsOpen(), "close 后 IsOpen()=false");
     }
 
     // ── 6.7 富文本空映射 ──
     std::cout << std::endl << "  --- 6.7 富文本空映射 ---" << std::endl;
     {
         docx_temp_helper::DocxDocument doc;
-        doc.open(templatePath);
+        doc.Open(templatePath);
 
         std::map<std::string, docx_temp_helper::RichReplacement> empty;
-        auto result = doc.replaceRich(empty);
+        auto result = doc.ReplaceRich(empty);
         ASSERT_EQ(result.error.code, docx_temp_helper::ErrorCode::InvalidPattern,
                   "富文本空映射返回 InvalidPattern");
-        doc.close();
+        doc.Close();
     }
 
     // ── 6.8 状态查询 ──
@@ -134,17 +134,17 @@ int main() {
         config.memoryLimit = 5 * 1024 * 1024;
         docx_temp_helper::DocxDocument doc(config);
 
-        ASSERT_TRUE(!doc.isOpen(), "初始状态 isOpen()=false");
-        ASSERT_TRUE(!doc.isStreamingMode(), "初始 isStreamingMode()=false");
-        ASSERT_EQ(doc.getFileSize(), 0u, "初始 fileSize=0");
+        ASSERT_TRUE(!doc.IsOpen(), "初始状态 IsOpen()=false");
+        ASSERT_TRUE(!doc.IsStreamingMode(), "初始 IsStreamingMode()=false");
+        ASSERT_EQ(doc.GetFileSize(), 0u, "初始 fileSize=0");
 
-        doc.open(templatePath);
-        ASSERT_TRUE(doc.isOpen(), "open 后 isOpen()=true");
-        ASSERT_TRUE(doc.getFileSize() > 0, "open 后 fileSize>0");
+        doc.Open(templatePath);
+        ASSERT_TRUE(doc.IsOpen(), "open 后 IsOpen()=true");
+        ASSERT_TRUE(doc.GetFileSize() > 0, "open 后 fileSize>0");
 
         // 配置查询
-        ASSERT_EQ(doc.config().memoryLimit, 5 * 1024 * 1024u, "config().memoryLimit 正确");
-        doc.close();
+        ASSERT_EQ(doc.Config().memoryLimit, 5 * 1024 * 1024u, "config().memoryLimit 正确");
+        doc.Close();
     }
 
     std::cout << std::endl;

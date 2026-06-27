@@ -49,7 +49,7 @@ namespace docx_temp_helper {
 namespace {
 
 /// 创建错误信息
-ErrorInfo makeError(ErrorCode code, const std::string& message,
+ErrorInfo MakeError(ErrorCode code, const std::string& message,
                     const std::string& detail = "") {
     ErrorInfo err;
     err.code = code;
@@ -59,19 +59,19 @@ ErrorInfo makeError(ErrorCode code, const std::string& message,
 }
 
 /// 检查文件是否存在
-bool fileExists(const std::string& path) {
+bool FileExists(const std::string& path) {
     std::ifstream f(path);
     return f.good();
 }
 
 /// 递归删除目录
-void removeDir(const std::string& path) {
+void RemoveDir(const std::string& path) {
     std::error_code ec;
     fs::remove_all(path, ec);
 }
 
 /// 创建唯一临时目录（使用 mkdtemp）
-std::string createTempDir(const std::string& baseDir) {
+std::string CreateTempDir(const std::string& baseDir) {
     std::string tempName = "docx_" + std::to_string(getpid()) + "_XXXXXX";
     char tempPath[256];
     if (!baseDir.empty()) {
@@ -161,14 +161,14 @@ std::vector<PlaceholderMatch> findPlaceholders(
 /// @param records 替换记录（输出）
 /// @param verbose 是否输出详细日志
 /// @return 替换次数
-int replaceInParagraph(
+int ReplaceInParagraph(
     pugi::xml_node paragraph,
     const std::map<std::string, std::string>& replacements,
     std::vector<ReplaceRecord>& records,
     bool verbose) {
 
     std::vector<RunInfo> runs;
-    std::string fullText = collectRuns(paragraph, runs);
+    std::string fullText = CollectRuns(paragraph, runs);
 
     if (fullText.find("{{") == std::string::npos) {
         return 0;  // 段落中没有占位符
@@ -220,7 +220,7 @@ int replaceInParagraph(
         }
 
         if (newText != run.text) {
-            setRunText(run.runNode, newText);
+            SetRunText(run.runNode, newText);
         }
     }
 
@@ -242,10 +242,10 @@ int replaceInParagraph(
 /// @param paragraph <w:p> 段落节点
 /// @param placeholderName 占位符名称
 /// @return 若段落全文只有 {{placeholderName}} 则返回 true
-bool isParagraphOnlyPlaceholder(pugi::xml_node paragraph,
+bool IsParagraphOnlyPlaceholder(pugi::xml_node paragraph,
                                 const std::string& placeholderName) {
     std::vector<RunInfo> runs;
-    std::string fullText = collectRuns(paragraph, runs);
+    std::string fullText = CollectRuns(paragraph, runs);
 
     // 去除首尾空白后检查
     size_t start = fullText.find_first_not_of(" \t\r\n");
@@ -258,9 +258,9 @@ bool isParagraphOnlyPlaceholder(pugi::xml_node paragraph,
 }
 
 /// 检查段落是否只包含 {{...}} 模式（用于通配符匹配）
-bool isParagraphOnlyAnyPlaceholder(pugi::xml_node paragraph) {
+bool IsParagraphOnlyAnyPlaceholder(pugi::xml_node paragraph) {
     std::vector<RunInfo> runs;
-    std::string fullText = collectRuns(paragraph, runs);
+    std::string fullText = CollectRuns(paragraph, runs);
 
     size_t s = fullText.find_first_not_of(" \t\r\n");
     if (s == std::string::npos) return false;
@@ -285,7 +285,7 @@ std::string serializeNode(pugi::xml_node node) {
 // ErrorInfo 实现
 // ═══════════════════════════════════════════════════════════════════════════════
 
-std::string ErrorInfo::toString() const {
+std::string ErrorInfo::ToString() const {
     std::string result = "[";
 
     switch (code) {
@@ -317,24 +317,24 @@ std::string ErrorInfo::toString() const {
 
 DocxDocument::DocxDocument() = default;
 
-DocxDocument::DocxDocument(const DocxConfig& config) : config_(config) {}
+DocxDocument::DocxDocument(const DocxConfig& config) : mConfig(config) {}
 
 DocxDocument::~DocxDocument() {
-    close();
+    Close();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 生命周期管理
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ErrorInfo DocxDocument::open(const std::string& path) {
-    if (opened_) {
-        close();  // 先关闭已打开的文档
+ErrorInfo DocxDocument::Open(const std::string& path) {
+    if (mOpened) {
+        Close();  // 先关闭已打开的文档
     }
 
     // 1. 检查文件存在
-    if (!fileExists(path)) {
-        return makeError(ErrorCode::FileNotFound,
+    if (!FileExists(path)) {
+        return MakeError(ErrorCode::FileNotFound,
                          "输入文件不存在", "path: " + path);
     }
 
@@ -342,110 +342,110 @@ ErrorInfo DocxDocument::open(const std::string& path) {
     std::error_code ec;
     auto size = fs::file_size(path, ec);
     if (ec) {
-        return makeError(ErrorCode::FileNotReadable,
+        return MakeError(ErrorCode::FileNotReadable,
                          "无法读取文件大小", "path: " + path + ", error: " + ec.message());
     }
-    fileSize_ = static_cast<size_t>(size);
-    inputPath_ = path;
+    mFileSize = static_cast<size_t>(size);
+    mInputPath = path;
 
     // 3. 创建临时目录
-    auto dirErr = createTempDir_();
-    if (!dirErr.ok()) return dirErr;
+    auto dirErr = CreateTempDir_();
+    if (!dirErr.Ok()) return dirErr;
 
     // 4. 解压 docx
-    auto unzipErr = unzip_();
-    if (!unzipErr.ok()) {
-        cleanupTempDir_();
+    auto unzipErr = Unzip_();
+    if (!unzipErr.Ok()) {
+        CleanupTempDir_();
         return unzipErr;
     }
 
-    if (config_.verbose) {
-        std::cout << "已打开: " << path << " (" << fileSize_ << " bytes)" << std::endl;
-        std::cout << "临时目录: " << tempDir_ << std::endl;
+    if (mConfig.verbose) {
+        std::cout << "已打开: " << path << " (" << mFileSize << " bytes)" << std::endl;
+        std::cout << "临时目录: " << mTempDir << std::endl;
     }
 
-    opened_ = true;
+    mOpened = true;
     return ErrorInfo{};  // Ok
 }
 
-ErrorInfo DocxDocument::save(const std::string& path) {
-    if (!opened_) {
-        return makeError(ErrorCode::NotOpened, "文档未打开", "");
+ErrorInfo DocxDocument::Save(const std::string& path) {
+    if (!mOpened) {
+        return MakeError(ErrorCode::NotOpened, "文档未打开", "");
     }
 
     // DOM 模式下需先保存 DOM 到文件
-    if (domLoaded_ && !streamingMode_) {
-        auto err = saveXmlDom_();
-        if (!err.ok()) return err;
+    if (mDomLoaded && !mStreamingMode) {
+        auto err = SaveXmlDom_();
+        if (!err.Ok()) return err;
     }
 
     // 压缩为 docx
-    return zip_(path);
+    return Zip_(path);
 }
 
-void DocxDocument::close() {
-    cleanupTempDir_();
+void DocxDocument::Close() {
+    CleanupTempDir_();
 
     // 重置状态
-    tempDir_.clear();
-    inputPath_.clear();
-    fileSize_ = 0;
-    streamingMode_ = false;
-    opened_ = false;
-    domLoaded_ = false;
-    domDoc_.reset();
+    mTempDir.clear();
+    mInputPath.clear();
+    mFileSize = 0;
+    mStreamingMode = false;
+    mOpened = false;
+    mDomLoaded = false;
+    mDomDoc.reset();
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 文本替换
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ReplaceResult DocxDocument::replaceText(const std::map<std::string, std::string>& replacements) {
+ReplaceResult DocxDocument::ReplaceText(const std::map<std::string, std::string>& replacements) {
     ReplaceResult result;
 
-    if (!opened_) {
-        result.error = makeError(ErrorCode::NotOpened, "文档未打开", "");
+    if (!mOpened) {
+        result.error = MakeError(ErrorCode::NotOpened, "文档未打开", "");
         return result;
     }
 
     if (replacements.empty()) {
-        result.error = makeError(ErrorCode::InvalidPattern,
+        result.error = MakeError(ErrorCode::InvalidPattern,
                                  "替换映射为空", "replacements map is empty");
         return result;
     }
 
     // 首次调用时确定处理模式
-    if (!domLoaded_ && !streamingMode_) {
+    if (!mDomLoaded && !mStreamingMode) {
         size_t extraSize = 0;
         for (const auto& [k, v] : replacements) {
             extraSize += v.size();
         }
 
-        if (shouldUseStreaming_(extraSize)) {
-            streamingMode_ = true;
-            if (config_.verbose) {
-                std::cout << "启用流式处理模式 (fileSize=" << fileSize_
+        if (ShouldUseStreaming_(extraSize)) {
+            mStreamingMode = true;
+            if (mConfig.verbose) {
+                std::cout << "启用流式处理模式 (fileSize=" << mFileSize
                           << " + content=" << extraSize
-                          << " > limit=" << config_.memoryLimit << ")" << std::endl;
+                          << " > limit=" << mConfig.memoryLimit << ")" << std::endl;
             }
         } else {
-            auto err = parseXmlDom_();
-            if (!err.ok()) {
+            auto err = ParseXmlDom_();
+            if (!err.Ok()) {
                 result.error = err;
                 return result;
             }
-            domLoaded_ = true;
+            mDomLoaded = true;
         }
     }
 
-    if (streamingMode_) {
-        return replaceTextStreaming_(replacements);
+    if (mStreamingMode) {
+        return ReplaceTextStreaming_(replacements);
     } else {
-        return replaceTextDom_(replacements);
+        return ReplaceTextDom_(replacements);
     }
 }
 
-ReplaceResult DocxDocument::replaceText(const std::string& pattern,
+ReplaceResult DocxDocument::ReplaceText(const std::string& pattern,
                                          const std::string& replacement) {
     // 解析 pattern，转换为 map 后委托给批量接口
     std::map<std::string, std::string> replacements;
@@ -460,55 +460,55 @@ ReplaceResult DocxDocument::replaceText(const std::string& pattern,
         replacements[pattern] = replacement;
     }
 
-    return replaceText(replacements);
+    return ReplaceText(replacements);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 富文本替换
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ReplaceResult DocxDocument::replaceRich(const std::map<std::string, RichReplacement>& replacements) {
+ReplaceResult DocxDocument::ReplaceRich(const std::map<std::string, RichReplacement>& replacements) {
     ReplaceResult result;
 
-    if (!opened_) {
-        result.error = makeError(ErrorCode::NotOpened, "文档未打开", "");
+    if (!mOpened) {
+        result.error = MakeError(ErrorCode::NotOpened, "文档未打开", "");
         return result;
     }
 
     if (replacements.empty()) {
-        result.error = makeError(ErrorCode::InvalidPattern,
+        result.error = MakeError(ErrorCode::InvalidPattern,
                                  "替换映射为空", "replacements map is empty");
         return result;
     }
 
     // 首次调用时确定处理模式
-    if (!domLoaded_ && !streamingMode_) {
+    if (!mDomLoaded && !mStreamingMode) {
         size_t extraSize = 0;
         for (const auto& [k, v] : replacements) {
             extraSize += v.content.size();
         }
 
-        if (shouldUseStreaming_(extraSize)) {
-            streamingMode_ = true;
-            if (config_.verbose) {
-                std::cout << "启用流式处理模式 (fileSize=" << fileSize_
+        if (ShouldUseStreaming_(extraSize)) {
+            mStreamingMode = true;
+            if (mConfig.verbose) {
+                std::cout << "启用流式处理模式 (fileSize=" << mFileSize
                           << " + content=" << extraSize
-                          << " > limit=" << config_.memoryLimit << ")" << std::endl;
+                          << " > limit=" << mConfig.memoryLimit << ")" << std::endl;
             }
         } else {
-            auto err = parseXmlDom_();
-            if (!err.ok()) {
+            auto err = ParseXmlDom_();
+            if (!err.Ok()) {
                 result.error = err;
                 return result;
             }
-            domLoaded_ = true;
+            mDomLoaded = true;
         }
     }
 
-    if (streamingMode_) {
-        return replaceRichStreaming_(replacements);
+    if (mStreamingMode) {
+        return ReplaceRichStreaming_(replacements);
     } else {
-        return replaceRichDom_(replacements);
+        return ReplaceRichDom_(replacements);
     }
 }
 
@@ -516,37 +516,37 @@ ReplaceResult DocxDocument::replaceRich(const std::map<std::string, RichReplacem
 // 文档生成（从空白模板）
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ReplaceResult DocxDocument::generateDocument(const std::string& title,
+ReplaceResult DocxDocument::GenerateDocument(const std::string& title,
                                                const std::string& bodyContent,
                                                ContentType contentType) {
     ReplaceResult result;
 
-    if (!opened_) {
-        result.error = makeError(ErrorCode::NotOpened, "文档未打开", "");
+    if (!mOpened) {
+        result.error = MakeError(ErrorCode::NotOpened, "文档未打开", "");
         return result;
     }
 
     if (bodyContent.empty()) {
-        result.error = makeError(ErrorCode::InvalidPattern, "正文内容为空", "");
+        result.error = MakeError(ErrorCode::InvalidPattern, "正文内容为空", "");
         return result;
     }
 
-    // generateDocument 始终使用 DOM 模式（空白模板很小，无需流式）
-    if (!domLoaded_) {
-        auto err = parseXmlDom_();
-        if (!err.ok()) {
+    // GenerateDocument 始终使用 DOM 模式（空白模板很小，无需流式）
+    if (!mDomLoaded) {
+        auto err = ParseXmlDom_();
+        if (!err.Ok()) {
             result.error = err;
             return result;
         }
-        domLoaded_ = true;
-        streamingMode_ = false;
+        mDomLoaded = true;
+        mStreamingMode = false;
     }
 
     // 找到 <w:body> 和 <w:sectPr>
-    pugi::xml_node root = domDoc_.document_element();  // <w:document>
+    pugi::xml_node root = mDomDoc.document_element();  // <w:document>
     pugi::xml_node body = root.child("w:body");
     if (!body) {
-        result.error = makeError(ErrorCode::XmlParseFailed,
+        result.error = MakeError(ErrorCode::XmlParseFailed,
                                  "未找到 <w:body> 元素", "");
         return result;
     }
@@ -571,10 +571,10 @@ ReplaceResult DocxDocument::generateDocument(const std::string& title,
 
     // 根据内容类型解析正文
     if (contentType == ContentType::HTML) {
-        auto bodyParas = parseHtml(bodyContent);
+        auto bodyParas = ParseHtml(bodyContent);
         paragraphs.insert(paragraphs.end(), bodyParas.begin(), bodyParas.end());
     } else if (contentType == ContentType::Markdown) {
-        auto bodyParas = parseMarkdown(bodyContent);
+        auto bodyParas = ParseMarkdown(bodyContent);
         paragraphs.insert(paragraphs.end(), bodyParas.begin(), bodyParas.end());
     } else {
         // Plain：按行分割，每行渲染为仿宋正文段落（首行缩进 32pt = 640 twips）
@@ -596,13 +596,13 @@ ReplaceResult DocxDocument::generateDocument(const std::string& title,
     }
 
     if (paragraphs.empty()) {
-        result.error = makeError(ErrorCode::InvalidPattern,
+        result.error = MakeError(ErrorCode::InvalidPattern,
                                  "解析后无有效段落", "");
         return result;
     }
 
     // 渲染并插入到 <w:sectPr> 之前
-    appendParagraphsBefore(body, paragraphs, sectPr);
+    AppendParagraphsBefore(body, paragraphs, sectPr);
 
     // 记录生成结果
     ReplaceRecord record;
@@ -615,7 +615,7 @@ ReplaceResult DocxDocument::generateDocument(const std::string& title,
     result.records.push_back(record);
     result.totalReplaced = 1;
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "文档生成完成: " << paragraphs.size() << " 个段落" << std::endl;
     }
 
@@ -626,87 +626,87 @@ ReplaceResult DocxDocument::generateDocument(const std::string& title,
 // 状态查询
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool DocxDocument::isOpen() const { return opened_; }
-bool DocxDocument::isStreamingMode() const { return streamingMode_; }
-size_t DocxDocument::getFileSize() const { return fileSize_; }
-const DocxConfig& DocxDocument::config() const { return config_; }
+bool DocxDocument::IsOpen() const { return mOpened; }
+bool DocxDocument::IsStreamingMode() const { return mStreamingMode; }
+size_t DocxDocument::GetFileSize() const { return mFileSize; }
+const DocxConfig& DocxDocument::Config() const { return mConfig; }
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // 私有工具方法
 // ═══════════════════════════════════════════════════════════════════════════════
 
-bool DocxDocument::shouldUseStreaming_(size_t extraSize) const {
-    return fileSize_ + extraSize > config_.memoryLimit;
+bool DocxDocument::ShouldUseStreaming_(size_t extraSize) const {
+    return mFileSize + extraSize > mConfig.memoryLimit;
 }
 
-ErrorInfo DocxDocument::createTempDir_() {
-    if (!config_.tempDir.empty()) {
-        tempDir_ = config_.tempDir;
+ErrorInfo DocxDocument::CreateTempDir_() {
+    if (!mConfig.tempDir.empty()) {
+        mTempDir = mConfig.tempDir;
         std::error_code ec;
-        fs::create_directories(tempDir_, ec);
+        fs::create_directories(mTempDir, ec);
         if (ec) {
-            return makeError(ErrorCode::TempDirCreateFailed,
+            return MakeError(ErrorCode::TempDirCreateFailed,
                              "无法创建临时目录",
-                             "path: " + tempDir_ + ", error: " + ec.message());
+                             "path: " + mTempDir + ", error: " + ec.message());
         }
     } else {
-        tempDir_ = createTempDir("");
-        if (tempDir_.empty()) {
-            return makeError(ErrorCode::TempDirCreateFailed,
+        mTempDir = CreateTempDir("");
+        if (mTempDir.empty()) {
+            return MakeError(ErrorCode::TempDirCreateFailed,
                              "无法创建系统临时目录", "/tmp/docx_*");
         }
     }
     return ErrorInfo{};
 }
 
-ErrorInfo DocxDocument::unzip_() {
-    if (!unzipToDir(inputPath_, tempDir_)) {
-        return makeError(ErrorCode::UnzipFailed,
-                         "解压 docx 文件失败", "file: " + inputPath_);
+ErrorInfo DocxDocument::Unzip_() {
+    if (!UnzipToDir(mInputPath, mTempDir)) {
+        return MakeError(ErrorCode::UnzipFailed,
+                         "解压 docx 文件失败", "file: " + mInputPath);
     }
     return ErrorInfo{};
 }
 
-ErrorInfo DocxDocument::parseXmlDom_() {
-    std::string xmlPath = tempDir_ + "/word/document.xml";
-    pugi::xml_parse_result parseResult = domDoc_.load_file(xmlPath.c_str());
+ErrorInfo DocxDocument::ParseXmlDom_() {
+    std::string xmlPath = mTempDir + "/word/document.xml";
+    pugi::xml_parse_result parseResult = mDomDoc.load_file(xmlPath.c_str());
 
     if (!parseResult) {
-        return makeError(ErrorCode::XmlParseFailed,
+        return MakeError(ErrorCode::XmlParseFailed,
                          "XML 解析失败",
                          "file: " + xmlPath + ", error: " + parseResult.description());
     }
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "XML DOM 加载完成: " << xmlPath << std::endl;
     }
     return ErrorInfo{};
 }
 
-ErrorInfo DocxDocument::saveXmlDom_() {
-    std::string xmlPath = tempDir_ + "/word/document.xml";
-    if (!domDoc_.save_file(xmlPath.c_str())) {
-        return makeError(ErrorCode::XmlSaveFailed,
+ErrorInfo DocxDocument::SaveXmlDom_() {
+    std::string xmlPath = mTempDir + "/word/document.xml";
+    if (!mDomDoc.save_file(xmlPath.c_str())) {
+        return MakeError(ErrorCode::XmlSaveFailed,
                          "保存 XML 文件失败", "file: " + xmlPath);
     }
     return ErrorInfo{};
 }
 
-ErrorInfo DocxDocument::zip_(const std::string& outputPath) {
-    if (!zipDir(tempDir_, outputPath)) {
-        return makeError(ErrorCode::ZipFailed,
+ErrorInfo DocxDocument::Zip_(const std::string& outputPath) {
+    if (!ZipDir(mTempDir, outputPath)) {
+        return MakeError(ErrorCode::ZipFailed,
                          "压缩为 docx 文件失败", "output: " + outputPath);
     }
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "输出文件: " << outputPath << std::endl;
     }
     return ErrorInfo{};
 }
 
-void DocxDocument::cleanupTempDir_() {
-    if (!tempDir_.empty() && !config_.keepTempDir) {
-        removeDir(tempDir_);
+void DocxDocument::CleanupTempDir_() {
+    if (!mTempDir.empty() && !mConfig.keepTempDir) {
+        RemoveDir(mTempDir);
     }
 }
 
@@ -714,11 +714,11 @@ void DocxDocument::cleanupTempDir_() {
 // DOM 模式替换
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ReplaceResult DocxDocument::replaceTextDom_(
+ReplaceResult DocxDocument::ReplaceTextDom_(
     const std::map<std::string, std::string>& replacements) {
 
     ReplaceResult result;
-    pugi::xml_node root = domDoc_.document_element();  // <w:document>
+    pugi::xml_node root = mDomDoc.document_element();  // <w:document>
 
     // 递归遍历所有 <w:p> 节点（包括表格单元格中的段落）
     int totalReplaced = 0;
@@ -728,8 +728,8 @@ ReplaceResult DocxDocument::replaceTextDom_(
         for (pugi::xml_node child = node.first_child(); child;
              child = child.next_sibling()) {
             if (strcmp(child.name(), "w:p") == 0) {
-                totalReplaced += replaceInParagraph(
-                    child, replacements, result.records, config_.verbose);
+                totalReplaced += ReplaceInParagraph(
+                    child, replacements, result.records, mConfig.verbose);
             }
             traverseNodes(child);
         }
@@ -739,12 +739,12 @@ ReplaceResult DocxDocument::replaceTextDom_(
 
     result.totalReplaced = totalReplaced;
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "替换完成，总替换次数: " << totalReplaced << std::endl;
     }
 
     if (totalReplaced == 0) {
-        result.error = makeError(ErrorCode::NoMatchFound,
+        result.error = MakeError(ErrorCode::NoMatchFound,
                                  "未找到匹配的占位符",
                                  "pattern keys: " + std::to_string(replacements.size()) + " entries");
     }
@@ -752,7 +752,7 @@ ReplaceResult DocxDocument::replaceTextDom_(
     return result;
 }
 
-ReplaceResult DocxDocument::replaceRichDom_(
+ReplaceResult DocxDocument::ReplaceRichDom_(
     const std::map<std::string, RichReplacement>& replacements) {
 
     ReplaceResult result;
@@ -769,7 +769,7 @@ ReplaceResult DocxDocument::replaceRichDom_(
         }
     }
 
-    pugi::xml_node root = domDoc_.document_element();
+    pugi::xml_node root = mDomDoc.document_element();
     int totalReplaced = 0;
 
     // ── 阶段1：先处理富文本替换（HTML/Markdown）──
@@ -790,13 +790,13 @@ ReplaceResult DocxDocument::replaceRichDom_(
                 for (const auto& [key, rich] : richReplacements) {
                     bool match = false;
                     if (key == "*") {
-                        match = isParagraphOnlyAnyPlaceholder(para);
+                        match = IsParagraphOnlyAnyPlaceholder(para);
                     } else {
-                        match = isParagraphOnlyPlaceholder(para, key);
+                        match = IsParagraphOnlyPlaceholder(para, key);
                     }
 
                     if (match) {
-                        if (config_.verbose) {
+                        if (mConfig.verbose) {
                             std::cout << "  富文本替换: {{" << key << "}} ("
                                       << (rich.type == ContentType::HTML ? "HTML" : "MD")
                                       << ")" << std::endl;
@@ -805,14 +805,14 @@ ReplaceResult DocxDocument::replaceRichDom_(
                         // 解析内容
                         std::vector<RichParagraph> richParas;
                         if (rich.type == ContentType::HTML) {
-                            richParas = parseHtml(rich.content);
+                            richParas = ParseHtml(rich.content);
                         } else {
-                            richParas = parseMarkdown(rich.content);
+                            richParas = ParseMarkdown(rich.content);
                         }
 
                         // 渲染并替换段落
                         pugi::xml_node parent = para.parent();
-                        renderParagraphsToXml(parent, richParas, para);
+                        RenderParagraphsToXml(parent, richParas, para);
 
                         // 记录替换
                         ReplaceRecord record;
@@ -845,8 +845,8 @@ ReplaceResult DocxDocument::replaceRichDom_(
             for (pugi::xml_node child = node.first_child(); child;
                  child = child.next_sibling()) {
                 if (strcmp(child.name(), "w:p") == 0) {
-                    totalReplaced += replaceInParagraph(
-                        child, plainReplacements, result.records, config_.verbose);
+                    totalReplaced += ReplaceInParagraph(
+                        child, plainReplacements, result.records, mConfig.verbose);
                 }
                 plainTraverse(child);
             }
@@ -857,12 +857,12 @@ ReplaceResult DocxDocument::replaceRichDom_(
 
     result.totalReplaced = totalReplaced;
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "替换完成，总替换次数: " << totalReplaced << std::endl;
     }
 
     if (totalReplaced == 0) {
-        result.error = makeError(ErrorCode::NoMatchFound,
+        result.error = MakeError(ErrorCode::NoMatchFound,
                                  "未找到匹配的占位符",
                                  "replacements: " + std::to_string(replacements.size()) + " entries");
     }
@@ -874,13 +874,13 @@ ReplaceResult DocxDocument::replaceRichDom_(
 // 流式模式替换
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ReplaceResult DocxDocument::replaceTextStreaming_(
+ReplaceResult DocxDocument::ReplaceTextStreaming_(
     const std::map<std::string, std::string>& replacements) {
 
     ReplaceResult result;
 
-    std::string inputXmlPath = tempDir_ + "/word/document.xml";
-    std::string outputXmlPath = tempDir_ + "/word/document_out.xml";
+    std::string inputXmlPath = mTempDir + "/word/document.xml";
+    std::string outputXmlPath = mTempDir + "/word/document_out.xml";
 
     int totalReplaced = 0;
 
@@ -893,8 +893,8 @@ ReplaceResult DocxDocument::replaceTextStreaming_(
         }
 
         pugi::xml_node paraNode = fragDoc.document_element();  // <w:p>
-        int replaced = replaceInParagraph(paraNode, replacements,
-                                          result.records, config_.verbose);
+        int replaced = ReplaceInParagraph(paraNode, replacements,
+                                          result.records, mConfig.verbose);
 
         if (replaced > 0) {
             totalReplaced += replaced;
@@ -903,8 +903,8 @@ ReplaceResult DocxDocument::replaceTextStreaming_(
         return "";  // 无修改，保持原文
     };
 
-    if (!detail::streamProcessXml(inputXmlPath, outputXmlPath, handler)) {
-        result.error = makeError(ErrorCode::XmlSaveFailed,
+    if (!detail::StreamProcessXml(inputXmlPath, outputXmlPath, handler)) {
+        result.error = MakeError(ErrorCode::XmlSaveFailed,
                                  "流式处理 XML 失败", "file: " + inputXmlPath);
         return result;
     }
@@ -921,12 +921,12 @@ ReplaceResult DocxDocument::replaceTextStreaming_(
 
     result.totalReplaced = totalReplaced;
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "流式替换完成，总替换次数: " << totalReplaced << std::endl;
     }
 
     if (totalReplaced == 0) {
-        result.error = makeError(ErrorCode::NoMatchFound,
+        result.error = MakeError(ErrorCode::NoMatchFound,
                                  "未找到匹配的占位符",
                                  "pattern keys: " + std::to_string(replacements.size()) + " entries");
     }
@@ -934,7 +934,7 @@ ReplaceResult DocxDocument::replaceTextStreaming_(
     return result;
 }
 
-ReplaceResult DocxDocument::replaceRichStreaming_(
+ReplaceResult DocxDocument::ReplaceRichStreaming_(
     const std::map<std::string, RichReplacement>& replacements) {
 
     ReplaceResult result;
@@ -951,8 +951,8 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
         }
     }
 
-    std::string inputXmlPath = tempDir_ + "/word/document.xml";
-    std::string outputXmlPath = tempDir_ + "/word/document_out.xml";
+    std::string inputXmlPath = mTempDir + "/word/document.xml";
+    std::string outputXmlPath = mTempDir + "/word/document_out.xml";
 
     int totalReplaced = 0;
 
@@ -970,13 +970,13 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
         for (const auto& [key, rich] : richReplacements) {
             bool match = false;
             if (key == "*") {
-                match = isParagraphOnlyAnyPlaceholder(paraNode);
+                match = IsParagraphOnlyAnyPlaceholder(paraNode);
             } else {
-                match = isParagraphOnlyPlaceholder(paraNode, key);
+                match = IsParagraphOnlyPlaceholder(paraNode, key);
             }
 
             if (match) {
-                if (config_.verbose) {
+                if (mConfig.verbose) {
                     std::cout << "  富文本替换(流式): {{" << key << "}} ("
                               << (rich.type == ContentType::HTML ? "HTML" : "MD")
                               << ")" << std::endl;
@@ -985,9 +985,9 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
                 // 解析富文本内容
                 std::vector<RichParagraph> richParas;
                 if (rich.type == ContentType::HTML) {
-                    richParas = parseHtml(rich.content);
+                    richParas = ParseHtml(rich.content);
                 } else {
-                    richParas = parseMarkdown(rich.content);
+                    richParas = ParseMarkdown(rich.content);
                 }
 
                 // 记录替换
@@ -1001,14 +1001,14 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
                 totalReplaced++;
 
                 // 序列化新段落（替换原段落）
-                return serializeParagraphs(richParas);
+                return SerializeParagraphs(richParas);
             }
         }
 
         // ── 阶段2：纯文本替换（仅在无富文本匹配时）──
         if (!plainReplacements.empty()) {
-            int replaced = replaceInParagraph(paraNode, plainReplacements,
-                                              result.records, config_.verbose);
+            int replaced = ReplaceInParagraph(paraNode, plainReplacements,
+                                              result.records, mConfig.verbose);
             if (replaced > 0) {
                 totalReplaced += replaced;
                 return serializeNode(paraNode);
@@ -1018,8 +1018,8 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
         return "";  // 无修改，保持原文
     };
 
-    if (!detail::streamProcessXml(inputXmlPath, outputXmlPath, handler)) {
-        result.error = makeError(ErrorCode::XmlSaveFailed,
+    if (!detail::StreamProcessXml(inputXmlPath, outputXmlPath, handler)) {
+        result.error = MakeError(ErrorCode::XmlSaveFailed,
                                  "流式处理 XML 失败", "file: " + inputXmlPath);
         return result;
     }
@@ -1035,12 +1035,12 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
 
     result.totalReplaced = totalReplaced;
 
-    if (config_.verbose) {
+    if (mConfig.verbose) {
         std::cout << "流式富文本替换完成，总替换次数: " << totalReplaced << std::endl;
     }
 
     if (totalReplaced == 0) {
-        result.error = makeError(ErrorCode::NoMatchFound,
+        result.error = MakeError(ErrorCode::NoMatchFound,
                                  "未找到匹配的占位符",
                                  "replacements: " + std::to_string(replacements.size()) + " entries");
     }
@@ -1052,21 +1052,21 @@ ReplaceResult DocxDocument::replaceRichStreaming_(
 // ZIP 工具函数
 // ═══════════════════════════════════════════════════════════════════════════════
 
-ErrorInfo zipCompress(const std::string& srcPath,
+ErrorInfo ZipCompress(const std::string& srcPath,
                        const std::string& outputPath,
                        const std::string& zipName) {
     namespace fs = std::filesystem;
 
     // 检查源路径是否存在
     if (!fs::exists(srcPath)) {
-        return makeError(ErrorCode::FileNotFound, "源路径不存在", "path: " + srcPath);
+        return MakeError(ErrorCode::FileNotFound, "源路径不存在", "path: " + srcPath);
     }
 
     // 确保输出目录存在
     std::error_code ec;
     fs::create_directories(outputPath, ec);
     if (ec) {
-        return makeError(ErrorCode::TempDirCreateFailed,
+        return MakeError(ErrorCode::TempDirCreateFailed,
                          "无法创建输出目录", "path: " + outputPath);
     }
 
@@ -1080,38 +1080,38 @@ ErrorInfo zipCompress(const std::string& srcPath,
     bool ok = false;
     if (fs::is_directory(srcPath)) {
         // 目录压缩
-        ok = zipDir(srcPath, fullZipPath);
+        ok = ZipDir(srcPath, fullZipPath);
     } else {
         // 单文件压缩
-        ok = zipSingleFile(srcPath, fullZipPath);
+        ok = ZipSingleFile(srcPath, fullZipPath);
     }
 
     if (!ok) {
-        return makeError(ErrorCode::ZipFailed,
+        return MakeError(ErrorCode::ZipFailed,
                          "压缩失败", "src: " + srcPath + " -> zip: " + fullZipPath);
     }
 
     return ErrorInfo{};  // 成功
 }
 
-ErrorInfo zipExtract(const std::string& zipPath, const std::string& destDir) {
+ErrorInfo ZipExtract(const std::string& zipPath, const std::string& destDir) {
     namespace fs = std::filesystem;
 
     // 检查 ZIP 文件是否存在
     if (!fs::exists(zipPath)) {
-        return makeError(ErrorCode::FileNotFound, "ZIP 文件不存在", "path: " + zipPath);
+        return MakeError(ErrorCode::FileNotFound, "ZIP 文件不存在", "path: " + zipPath);
     }
 
     // 确保目标目录存在
     std::error_code ec;
     fs::create_directories(destDir, ec);
     if (ec) {
-        return makeError(ErrorCode::TempDirCreateFailed,
+        return MakeError(ErrorCode::TempDirCreateFailed,
                          "无法创建目标目录", "path: " + destDir);
     }
 
-    if (!unzipToDir(zipPath, destDir)) {
-        return makeError(ErrorCode::UnzipFailed,
+    if (!UnzipToDir(zipPath, destDir)) {
+        return MakeError(ErrorCode::UnzipFailed,
                          "解压失败", "zip: " + zipPath + " -> dir: " + destDir);
     }
 

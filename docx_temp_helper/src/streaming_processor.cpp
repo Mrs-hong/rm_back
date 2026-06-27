@@ -16,12 +16,12 @@ namespace docx_temp_helper::detail {
 
 /// 判断字符是否可作为 <w:p 标签后的合法分隔符
 /// <w:p> <w:p  <w:p/ <w:p\t <w:p\n 均合法；<w:pPr 不合法
-static inline bool isValidParaTagChar(char c) {
+static inline bool IsValidParaTagChar(char c) {
     return c == '>' || c == ' ' || c == '/' ||
            c == '\t' || c == '\n' || c == '\r';
 }
 
-bool streamProcessXml(const std::string& inputXmlPath,
+bool StreamProcessXml(const std::string& inputXmlPath,
                       const std::string& outputXmlPath,
                       ParagraphHandler handler) {
     std::ifstream in(inputXmlPath, std::ios::binary);
@@ -100,7 +100,7 @@ bool streamProcessXml(const std::string& inputXmlPath,
             }
 
             char c = buffer[4];  // "<w:p" 后的字符
-            if (!isValidParaTagChar(c)) {
+            if (!IsValidParaTagChar(c)) {
                 // 不是 <w:p> 标签（如 <w:pPr），写出 "<w:p" 后继续扫描
                 out.write("<w:p", 4);
                 buffer = buffer.substr(4);

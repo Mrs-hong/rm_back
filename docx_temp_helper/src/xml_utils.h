@@ -28,17 +28,17 @@ struct RunInfo {
 /// @return 段落全文（所有 run 文本的拼接）
 /// @note 跳过非 <w:r> 的子节点（如 <w:pPr>、<w:proofErr> 等），
 ///       但不修改它们，保证后续替换时格式不被破坏
-std::string collectRuns(pugi::xml_node paragraph, std::vector<RunInfo>& outRuns);
+std::string CollectRuns(pugi::xml_node paragraph, std::vector<RunInfo>& outRuns);
 
 /// 设置 <w:r> 节点中 <w:t> 的文本内容
 /// @param runNode  <w:r> 节点
 /// @param text     新文本内容
 /// @note 如果 <w:t> 不存在则创建；保留 <w:rPr> 不变
-void setRunText(pugi::xml_node runNode, const std::string& text);
+void SetRunText(pugi::xml_node runNode, const std::string& text);
 
 /// 获取 <w:r> 节点中 <w:t> 的文本内容
 /// @param runNode <w:r> 节点
 /// @return 文本内容，若 <w:t> 不存在则返回空字符串
-std::string getRunText(pugi::xml_node runNode);
+std::string GetRunText(pugi::xml_node runNode);
 
 } // namespace docx_temp_helper

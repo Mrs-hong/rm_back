@@ -1,6 +1,6 @@
 /**
  * @file test_zip.cpp
- * @brief 测试8：ZIP 工具函数（zipCompress / zipExtract）
+ * @brief 测试8：ZIP 工具函数（ZipCompress / ZipExtract）
  *
  * 测试目录压缩、单文件压缩、解压、错误处理。
  */
@@ -60,8 +60,8 @@ int main() {
         std::string outputDir = workDir + "/output";
         std::string zipName = "dir_test.zip";
 
-        auto err = docx_temp_helper::zipCompress(srcDir, outputDir, zipName);
-        ASSERT_TRUE(err.ok(), "目录压缩成功");
+        auto err = docx_temp_helper::ZipCompress(srcDir, outputDir, zipName);
+        ASSERT_TRUE(err.Ok(), "目录压缩成功");
         ASSERT_TRUE(fs::exists(outputDir + "/" + zipName), "ZIP 文件存在");
 
         // 验证文件大小 > 0
@@ -78,8 +78,8 @@ int main() {
         std::string zipPath = workDir + "/output/dir_test.zip";
         std::string extractDir = workDir + "/extracted";
 
-        auto err = docx_temp_helper::zipExtract(zipPath, extractDir);
-        ASSERT_TRUE(err.ok(), "解压成功");
+        auto err = docx_temp_helper::ZipExtract(zipPath, extractDir);
+        ASSERT_TRUE(err.Ok(), "解压成功");
         ASSERT_TRUE(fs::exists(extractDir + "/file1.txt"), "解压后 file1.txt 存在");
         ASSERT_TRUE(fs::exists(extractDir + "/sub1/file2.txt"), "解压后 sub1/file2.txt 存在");
         ASSERT_TRUE(fs::exists(extractDir + "/sub2/file3.txt"), "解压后 sub2/file3.txt 存在");
@@ -102,14 +102,14 @@ int main() {
         std::string outputDir = workDir + "/output";
         std::string zipName = "single_test.zip";
 
-        auto err = docx_temp_helper::zipCompress(filePath, outputDir, zipName);
-        ASSERT_TRUE(err.ok(), "单文件压缩成功");
+        auto err = docx_temp_helper::ZipCompress(filePath, outputDir, zipName);
+        ASSERT_TRUE(err.Ok(), "单文件压缩成功");
         ASSERT_TRUE(fs::exists(outputDir + "/" + zipName), "ZIP 文件存在");
 
         // 解压验证
         std::string extractDir = workDir + "/extracted_single";
-        auto err2 = docx_temp_helper::zipExtract(outputDir + "/" + zipName, extractDir);
-        ASSERT_TRUE(err2.ok(), "单文件 ZIP 解压成功");
+        auto err2 = docx_temp_helper::ZipExtract(outputDir + "/" + zipName, extractDir);
+        ASSERT_TRUE(err2.Ok(), "单文件 ZIP 解压成功");
         ASSERT_TRUE(fs::exists(extractDir + "/single.txt"), "解压后文件存在");
 
         std::ifstream in(extractDir + "/single.txt");
@@ -129,13 +129,13 @@ int main() {
         std::string zipName = "template_copy.zip";
 
         // 将 docx 当作普通文件压缩
-        auto err = docx_temp_helper::zipCompress(docxPath, outputDir, zipName);
-        ASSERT_TRUE(err.ok(), "docx 文件压缩成功");
+        auto err = docx_temp_helper::ZipCompress(docxPath, outputDir, zipName);
+        ASSERT_TRUE(err.Ok(), "docx 文件压缩成功");
 
         // 解压
         std::string extractDir = workDir + "/extracted_docx";
-        auto err2 = docx_temp_helper::zipExtract(outputDir + "/" + zipName, extractDir);
-        ASSERT_TRUE(err2.ok(), "docx ZIP 解压成功");
+        auto err2 = docx_temp_helper::ZipExtract(outputDir + "/" + zipName, extractDir);
+        ASSERT_TRUE(err2.Ok(), "docx ZIP 解压成功");
         ASSERT_TRUE(fs::exists(extractDir + "/template.docx"), "解压后 docx 存在");
 
         std::cout << "  输出文件: " << outputDir << "/" << zipName << std::endl;
@@ -145,16 +145,16 @@ int main() {
     std::cout << std::endl << "  --- 8.5 错误处理 ---" << std::endl;
     {
         // 源路径不存在
-        auto err = docx_temp_helper::zipCompress(
+        auto err = docx_temp_helper::ZipCompress(
             "/nonexistent/path", workDir + "/output", "error.zip");
-        ASSERT_TRUE(!err.ok(), "源路径不存在返回错误");
+        ASSERT_TRUE(!err.Ok(), "源路径不存在返回错误");
         ASSERT_TRUE(err.code == docx_temp_helper::ErrorCode::FileNotFound,
                     "错误码为 FileNotFound");
 
         // ZIP 文件不存在
-        auto err2 = docx_temp_helper::zipExtract(
+        auto err2 = docx_temp_helper::ZipExtract(
             "/nonexistent/archive.zip", workDir + "/extract_err");
-        ASSERT_TRUE(!err2.ok(), "ZIP 不存在返回错误");
+        ASSERT_TRUE(!err2.Ok(), "ZIP 不存在返回错误");
         ASSERT_TRUE(err2.code == docx_temp_helper::ErrorCode::FileNotFound,
                     "错误码为 FileNotFound");
     }

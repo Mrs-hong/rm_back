@@ -56,18 +56,18 @@ int main() {
     docx_temp_helper::DocxDocument doc(config);
 
     // 测试打开
-    auto openErr = doc.open(templatePath);
-    ASSERT_TRUE(openErr.ok(), "打开模板文件");
+    auto openErr = doc.Open(templatePath);
+    ASSERT_TRUE(openErr.Ok(), "打开模板文件");
 
     // 测试批量替换
-    auto result = doc.replaceText(replacements);
+    auto result = doc.ReplaceText(replacements);
     std::cout << "  替换次数: " << result.totalReplaced << std::endl;
-    ASSERT_TRUE(result.ok(), "批量替换成功");
+    ASSERT_TRUE(result.Ok(), "批量替换成功");
     ASSERT_TRUE(result.totalReplaced >= 1, "至少替换1处 (实际: " + std::to_string(result.totalReplaced) + ")");
 
     // 测试保存
-    auto saveErr = doc.save(outputPath);
-    ASSERT_TRUE(saveErr.ok(), "保存输出文件");
+    auto saveErr = doc.Save(outputPath);
+    ASSERT_TRUE(saveErr.Ok(), "保存输出文件");
 
     // 测试输出文件存在
     ASSERT_TRUE(fs::exists(outputPath), "输出文件存在");
@@ -75,12 +75,12 @@ int main() {
     // 测试输出文件可解压（验证是合法 docx）
     std::string verifyDir = dataDir + "/verify_plain";
     fs::create_directories(verifyDir);
-    bool unzipOk = docx_temp_helper::unzipToDir(outputPath, verifyDir);
+    bool unzipOk = docx_temp_helper::UnzipToDir(outputPath, verifyDir);
     ASSERT_TRUE(unzipOk, "输出文件可解压（合法 docx）");
     ASSERT_TRUE(fs::exists(verifyDir + "/word/document.xml"), "输出包含 word/document.xml");
 
     // 关闭文档（输出文件保留供人工检查）
-    doc.close();
+    doc.Close();
     fs::remove_all(verifyDir);  // 仅清理解压验证目录，保留输出 docx
     std::cout << "  输出文件: " << outputPath << std::endl;
 
@@ -88,16 +88,16 @@ int main() {
     std::cout << std::endl << "  --- 通配符替换测试 ---" << std::endl;
     std::string outputPath2 = dataDir + "/output_plain_wildcard.docx";
     docx_temp_helper::DocxDocument doc2;
-    openErr = doc2.open(templatePath);
-    ASSERT_TRUE(openErr.ok(), "通配符: 打开模板");
+    openErr = doc2.Open(templatePath);
+    ASSERT_TRUE(openErr.Ok(), "通配符: 打开模板");
 
-    auto result2 = doc2.replaceText("{{*}}", "测试通配符");
-    ASSERT_TRUE(result2.ok(), "通配符替换成功");
+    auto result2 = doc2.ReplaceText("{{*}}", "测试通配符");
+    ASSERT_TRUE(result2.Ok(), "通配符替换成功");
     ASSERT_TRUE(result2.totalReplaced >= 1, "通配符至少替换1处");
 
-    saveErr = doc2.save(outputPath2);
-    ASSERT_TRUE(saveErr.ok(), "通配符: 保存输出");
-    doc2.close();
+    saveErr = doc2.Save(outputPath2);
+    ASSERT_TRUE(saveErr.Ok(), "通配符: 保存输出");
+    doc2.Close();
     std::cout << "  输出文件: " << outputPath2 << std::endl;
 
     // 结果汇总

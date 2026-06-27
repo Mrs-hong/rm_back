@@ -33,7 +33,7 @@ using ParagraphHandler = std::function<std::string(const std::string& paraXml)>;
 /// @param outputXmlPath 输出 XML 文件路径
 /// @param handler       段落处理回调
 /// @return true=成功, false=失败
-bool streamProcessXml(const std::string& inputXmlPath,
+bool StreamProcessXml(const std::string& inputXmlPath,
                       const std::string& outputXmlPath,
                       ParagraphHandler handler);
 

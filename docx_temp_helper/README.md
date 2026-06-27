@@ -30,7 +30,7 @@ DOCX 模板占位符替换与文档生成库 —— 面向边缘设备的轻量 
 | **空白模板文档生成** | 基于空白模板，传入标题+正文（纯文本/Markdown/HTML），生成完整文档 |
 
 核心特性：
-- 面向对象设计：`DocxDocument` 类管理文档生命周期（open → 替换/生成 → save → close）
+- 面向对象设计：`DocxDocument` 类管理文档生命周期（Open → 替换/生成 → Save → Close）
 - 跨 Run 占位符替换：Word 将 `{{` `名称` `}}` 拆分到不同 `<w:r>` 中也能正确处理
 - 格式保留：纯文本替换仅修改 `<w:t>` 文本，不改变 `<w:rPr>` 字体/字号/样式
 - 富文本渲染：HTML/Markdown → GB/T 9704-2012 公文格式段落
@@ -83,7 +83,7 @@ docx_temp_helper/
 │       └── lib/                                #   libpugixml.a
 │
 ├── templates/                                  # ── 模板文件 ──
-│   └── 默认模板.docx                            #   空白模板（用于 generateDocument）
+│   └── 默认模板.docx                            #   空白模板（用于 GenerateDocument）
 │
 └── main.cpp                                    # test_docx CLI 工具
 ```
@@ -168,33 +168,33 @@ public:
     explicit DocxDocument(const DocxConfig& config);
     ~DocxDocument();  // 析构自动清理临时目录
 
-    ErrorInfo open(const std::string& path);   // 解压 docx 到临时目录
-    ErrorInfo save(const std::string& path);   // 重新压缩为 docx
-    void close();                               // 清理临时目录
+    ErrorInfo Open(const std::string& path);   // 解压 docx 到临时目录
+    ErrorInfo Save(const std::string& path);   // 重新压缩为 docx
+    void Close();                               // 清理临时目录
 
     // 文本替换
-    ReplaceResult replaceText(const std::map<std::string, std::string>& replacements);
-    ReplaceResult replaceText(const std::string& pattern, const std::string& replacement);
+    ReplaceResult ReplaceText(const std::map<std::string, std::string>& replacements);
+    ReplaceResult ReplaceText(const std::string& pattern, const std::string& replacement);
 
     // 富文本替换
-    ReplaceResult replaceRich(const std::map<std::string, RichReplacement>& replacements);
+    ReplaceResult ReplaceRich(const std::map<std::string, RichReplacement>& replacements);
 
     // 文档生成（从空白模板）
-    ReplaceResult generateDocument(const std::string& title,
+    ReplaceResult GenerateDocument(const std::string& title,
                                     const std::string& bodyContent,
                                     ContentType contentType);
 
     // 状态查询
-    bool isOpen() const;
-    bool isStreamingMode() const;
-    size_t getFileSize() const;
-    const DocxConfig& config() const;
+    bool IsOpen() const;
+    bool IsStreamingMode() const;
+    size_t GetFileSize() const;
+    const DocxConfig& Config() const;
 };
 ```
 
 **设计要点**：
-- **open → 操作 → save → close** 生命周期模型，打开一次可多次操作后一次保存
-- **RAII 资源管理**：析构函数自动调用 `close()` 清理临时目录
+- **Open → 操作 → Save → Close** 生命周期模型，打开一次可多次操作后一次保存
+- **RAII 资源管理**：析构函数自动调用 `Close()` 清理临时目录
 - **禁拷贝允移动**：持有临时目录等资源不可拷贝，但可移动转移所有权
 - **配置集中**：`DocxConfig` 统一管理内存限制、临时目录、日志等参数
 
@@ -210,7 +210,7 @@ public:
 两种模式均支持表格单元格内的占位符替换（流式模式扫描所有 `<w:p>` 标签，不区分位置）。
 
 ```
-用户调用 replaceText/replaceRich
+用户调用 ReplaceText/ReplaceRich
          │
          ▼
   shouldUseStreaming_() 判断
@@ -224,7 +224,7 @@ public:
  全量加载 DOM     按段落回调处理
     │         │
     ▼         ▼
- replaceTextDom_()  replaceTextStreaming_()
+ ReplaceTextDom_()  ReplaceTextStreaming_()
  遍历 <w:p> 逐段替换   逐段读取+替换+写入
     │         │
     └────┬────┘
@@ -261,7 +261,7 @@ HTML/Markdown 替换流程：
 输入字符串 (HTML/Markdown)
          │
          ▼
-  parseHtml() / parseMarkdown()
+  ParseHtml() / ParseMarkdown()
          │
          ▼
   vector<RichParagraph>    ← 结构化段落（标题级别、runs、对齐、缩进）
@@ -281,7 +281,7 @@ HTML/Markdown 替换流程：
 
 ### 4.5 文档生成实现
 
-`generateDocument` 从空白模板生成文档：
+`GenerateDocument` 从空白模板生成文档：
 1. 打开空白模板（`<w:body>` 中仅有 `<w:sectPr>`，无段落）
 2. 若提供标题，创建 h1 段落（方正小标宋简体 22pt 居中）
 3. 根据内容类型解析正文：
@@ -307,19 +307,19 @@ struct DocxConfig {
 ### 5.2 生命周期管理
 
 ```cpp
-ErrorInfo open(const std::string& path);    // 打开 docx，解压到临时目录
-ErrorInfo save(const std::string& path);    // 保存为 docx
-void close();                                // 关闭并清理临时目录
+ErrorInfo Open(const std::string& path);    // 打开 docx，解压到临时目录
+ErrorInfo Save(const std::string& path);    // 保存为 docx
+void Close();                                // 关闭并清理临时目录
 ```
 
-### 5.3 文本替换：replaceText
+### 5.3 文本替换：ReplaceText
 
 ```cpp
 // 批量替换：传入 map<string,string>
-ReplaceResult replaceText(const std::map<std::string, std::string>& replacements);
+ReplaceResult ReplaceText(const std::map<std::string, std::string>& replacements);
 
 // 单模式替换
-ReplaceResult replaceText(const std::string& pattern, const std::string& replacement);
+ReplaceResult ReplaceText(const std::string& pattern, const std::string& replacement);
 ```
 
 | 参数 | 说明 |
@@ -330,10 +330,10 @@ ReplaceResult replaceText(const std::string& pattern, const std::string& replace
 
 **行为**：遍历所有 `<w:p>` 段落（含表格单元格），查找 `{{key}}` 替换为 value，保留原有 `<w:rPr>` 格式。
 
-### 5.4 富文本替换：replaceRich
+### 5.4 富文本替换：ReplaceRich
 
 ```cpp
-ReplaceResult replaceRich(const std::map<std::string, RichReplacement>& replacements);
+ReplaceResult ReplaceRich(const std::map<std::string, RichReplacement>& replacements);
 ```
 
 ```cpp
@@ -351,10 +351,10 @@ struct RichReplacement {
 
 **HTML/Markdown 规则**：仅替换**独占一行**的占位符（段落全文只有 `{{xx}}`），删除原段落并插入新段落。
 
-### 5.5 文档生成：generateDocument
+### 5.5 文档生成：GenerateDocument
 
 ```cpp
-ReplaceResult generateDocument(const std::string& title,
+ReplaceResult GenerateDocument(const std::string& title,
                                 const std::string& bodyContent,
                                 ContentType contentType);
 ```
@@ -365,15 +365,15 @@ ReplaceResult generateDocument(const std::string& title,
 | `bodyContent` | 正文内容 |
 | `contentType` | 内容类型：`Plain` / `HTML` / `Markdown` |
 
-**行为**：在空白模板的 `<w:body>` 中插入标题和正文段落。需先调用 `open()` 打开空白模板。
+**行为**：在空白模板的 `<w:body>` 中插入标题和正文段落。需先调用 `Open()` 打开空白模板。
 
 ### 5.6 状态查询
 
 ```cpp
-bool isOpen() const;           // 文档是否已打开
-bool isStreamingMode() const;  // 是否处于流式处理模式
-size_t getFileSize() const;    // 获取已打开文件大小（字节）
-const DocxConfig& config() const;  // 获取配置
+bool IsOpen() const;           // 文档是否已打开
+bool IsStreamingMode() const;  // 是否处于流式处理模式
+size_t GetFileSize() const;    // 获取已打开文件大小（字节）
+const DocxConfig& Config() const;  // 获取配置
 ```
 
 ### 5.7 富文本模块独立使用
@@ -382,17 +382,17 @@ const DocxConfig& config() const;  // 获取配置
 #include "docx_temp_helper/rich_content.h"
 
 // 解析 Markdown/HTML 为结构化段落
-auto paragraphs = docx_temp_helper::parseMarkdown("# 标题\n正文");
-auto paragraphs = docx_temp_helper::parseHtml("<h2>标题</h2><p>正文</p>");
+auto paragraphs = docx_temp_helper::ParseMarkdown("# 标题\n正文");
+auto paragraphs = docx_temp_helper::ParseHtml("<h2>标题</h2><p>正文</p>");
 
 // 渲染到已有 XML 文档（DOM 模式）
-docx_temp_helper::renderParagraphsToXml(parentNode, paragraphs, placeholderNode);
+docx_temp_helper::RenderParagraphsToXml(parentNode, paragraphs, placeholderNode);
 
 // 序列化为 XML 字符串（流式模式）
-std::string xml = docx_temp_helper::serializeParagraphs(paragraphs);
+std::string xml = docx_temp_helper::SerializeParagraphs(paragraphs);
 
 // 插入到指定节点之前（文档生成）
-docx_temp_helper::appendParagraphsBefore(parentNode, paragraphs, sectPrNode);
+docx_temp_helper::AppendParagraphsBefore(parentNode, paragraphs, sectPrNode);
 ```
 
 ### 5.8 ZIP 工具函数
@@ -403,21 +403,21 @@ docx_temp_helper::appendParagraphsBefore(parentNode, paragraphs, sectPrNode);
 #include "docx_temp_helper/docx_document.h"
 
 // 压缩：目录或文件 → ZIP
-ErrorInfo zipCompress(const std::string& srcPath,
+ErrorInfo ZipCompress(const std::string& srcPath,
                        const std::string& outputPath,
                        const std::string& zipName);
 
 // 解压：ZIP → 目录
-ErrorInfo zipExtract(const std::string& zipPath,
+ErrorInfo ZipExtract(const std::string& zipPath,
                       const std::string& destDir);
 ```
 
 | 函数 | 参数 | 说明 |
 |------|------|------|
-| `zipCompress` | `srcPath` | 源路径（目录或文件均可） |
+| `ZipCompress` | `srcPath` | 源路径（目录或文件均可） |
 | | `outputPath` | 输出目录路径（不存在则自动创建） |
 | | `zipName` | ZIP 包名（如 `"archive.zip"`） |
-| `zipExtract` | `zipPath` | ZIP 文件路径 |
+| `ZipExtract` | `zipPath` | ZIP 文件路径 |
 | | `destDir` | 解压目标目录（不存在则自动创建） |
 
 **行为**：
@@ -443,16 +443,16 @@ int main() {
     };
 
     docx_temp_helper::DocxDocument doc;
-    if (!doc.open("template.docx").ok()) return 1;
+    if (!doc.Open("template.docx").Ok()) return 1;
 
-    auto result = doc.replaceText(replacements);
-    if (result.ok()) {
+    auto result = doc.ReplaceText(replacements);
+    if (result.Ok()) {
         printf("替换 %d 处\n", result.totalReplaced);
-        doc.save("output.docx");
+        doc.Save("output.docx");
     }
 
-    doc.close();
-    return result.ok() ? 0 : 1;
+    doc.Close();
+    return result.Ok() ? 0 : 1;
 }
 ```
 
@@ -460,12 +460,12 @@ int main() {
 
 ```cpp
 docx_temp_helper::DocxDocument doc;
-doc.open("template.docx");
+doc.Open("template.docx");
 
 // 所有 {{xx}} 替换为同一文本
-doc.replaceText("{{*}}", "小红有才");
-doc.save("output.docx");
-doc.close();
+doc.ReplaceText("{{*}}", "小红有才");
+doc.Save("output.docx");
+doc.Close();
 ```
 
 ### 6.3 富文本混合替换
@@ -500,11 +500,11 @@ int main() {
     };
 
     docx_temp_helper::DocxDocument doc;
-    doc.open("template.docx");
-    auto result = doc.replaceRich(replacements);
-    if (result.ok()) doc.save("output.docx");
-    doc.close();
-    return result.ok() ? 0 : 1;
+    doc.Open("template.docx");
+    auto result = doc.ReplaceRich(replacements);
+    if (result.Ok()) doc.Save("output.docx");
+    doc.Close();
+    return result.Ok() ? 0 : 1;
 }
 ```
 
@@ -516,7 +516,7 @@ int main() {
 
 int main() {
     docx_temp_helper::DocxDocument doc;
-    doc.open("templates/默认模板.docx");
+    doc.Open("templates/默认模板.docx");
 
     // 传入标题 + Markdown 正文
     std::string mdContent = "## 会议内容\n\n"
@@ -524,10 +524,10 @@ int main() {
                             "- 项目进度\n"
                             "- 预算审批\n";
 
-    doc.generateDocument("季度工作总结会议纪要", mdContent,
+    doc.GenerateDocument("季度工作总结会议纪要", mdContent,
                           docx_temp_helper::ContentType::Markdown);
-    doc.save("output.docx");
-    doc.close();
+    doc.Save("output.docx");
+    doc.Close();
     return 0;
 }
 ```
@@ -542,10 +542,10 @@ config.verbose = true;                  // 输出详细日志
 config.memoryLimit = 5 * 1024 * 1024;  // 5MB 内存限制
 
 docx_temp_helper::DocxDocument doc(config);
-doc.open("input.docx");
-doc.replaceText("{{*}}", "替换文本");
-doc.save("output.docx");
-doc.close();
+doc.Open("input.docx");
+doc.ReplaceText("{{*}}", "替换文本");
+doc.Save("output.docx");
+doc.Close();
 
 // 调试：检查 /my/custom/temp/word/document.xml
 ```
@@ -555,8 +555,8 @@ doc.close();
 ```cpp
 docx_temp_helper::DocxDocument doc;
 
-auto openErr = doc.open("input.docx");
-if (!openErr.ok()) {
+auto openErr = doc.Open("input.docx");
+if (!openErr.Ok()) {
     switch (openErr.code) {
         case docx_temp_helper::ErrorCode::FileNotFound:
             std::cerr << "文件不存在: " << openErr.detail << std::endl;
@@ -565,20 +565,20 @@ if (!openErr.ok()) {
             std::cerr << "文件可能损坏" << std::endl;
             break;
         default:
-            std::cerr << openErr.toString() << std::endl;
+            std::cerr << openErr.ToString() << std::endl;
     }
     return 1;
 }
 
-auto result = doc.replaceText("{{*}}", "替换文本");
-if (!result.ok()) {
-    std::cerr << result.error.toString() << std::endl;
-    doc.close();
+auto result = doc.ReplaceText("{{*}}", "替换文本");
+if (!result.Ok()) {
+    std::cerr << result.error.ToString() << std::endl;
+    doc.Close();
     return 1;
 }
 
-doc.save("output.docx");
-doc.close();
+doc.Save("output.docx");
+doc.Close();
 ```
 
 ### 6.7 ZIP 工具：压缩/解压
@@ -587,26 +587,26 @@ doc.close();
 #include "docx_temp_helper/docx_document.h"
 
 // 压缩目录
-auto err = docx_temp_helper::zipCompress(
+auto err = docx_temp_helper::ZipCompress(
     "/home/user/documents",    // 源目录
     "/home/user/output",       // 输出目录（自动创建）
     "backup.zip");              // 包名
-if (!err.ok()) {
-    std::cerr << err.toString() << std::endl;
+if (!err.Ok()) {
+    std::cerr << err.ToString() << std::endl;
 }
 
 // 压缩单个文件
-auto err2 = docx_temp_helper::zipCompress(
+auto err2 = docx_temp_helper::ZipCompress(
     "/home/user/report.pdf",   // 源文件
     "/home/user/output",       // 输出目录
     "report.zip");              // 包名
 
 // 解压
-auto err3 = docx_temp_helper::zipExtract(
+auto err3 = docx_temp_helper::ZipExtract(
     "/home/user/output/backup.zip",  // ZIP 文件
     "/home/user/restored");           // 解压目录（自动创建）
-if (!err3.ok()) {
-    std::cerr << err3.toString() << std::endl;
+if (!err3.Ok()) {
+    std::cerr << err3.ToString() << std::endl;
 }
 ```
 
@@ -655,7 +655,7 @@ if (!err3.ok()) {
 - `test/data/template.docx` - 包含多个占位符的测试模板
 - `test/data/content.md` - Markdown 测试内容（~9000字，13个章节）
 - `test/data/content.html` - HTML 测试内容（~9000字，13个章节）
-- `templates/默认模板.docx` - 空白模板（用于 generateDocument 测试）
+- `templates/默认模板.docx` - 空白模板（用于 GenerateDocument 测试）
 
 **运行测试**：
 
@@ -743,7 +743,7 @@ output_generate_notitle.docx   # 空白模板生成（无标题）
 | `NoMatchFound` | 9 | 未找到匹配的占位符 | 模板无对应 `{{xx}}` |
 | `InvalidPattern` | 10 | 占位符模式非法 | 替换映射为空 / 正文为空 |
 | `OutputWriteFailed` | 11 | 输出文件写入失败 | 路径不可写 |
-| `NotOpened` | 12 | 文档未打开 | 未调用 `open()` 或已 `close()` |
+| `NotOpened` | 12 | 文档未打开 | 未调用 `Open()` 或已 `Close()` |
 | `UnknownError` | 13 | 未知错误 | - |
 
 ```cpp
@@ -751,15 +751,15 @@ struct ErrorInfo {
     ErrorCode code = ErrorCode::Ok;
     std::string message;   // 人可读的错误描述
     std::string detail;    // 附加上下文（文件路径等）
-    bool ok() const;
-    std::string toString() const;
+    bool Ok() const;
+    std::string ToString() const;
 };
 
 struct ReplaceResult {
     ErrorInfo error;
     std::vector<ReplaceRecord> records;  // 逐项替换记录
     int totalReplaced = 0;
-    bool ok() const;
+    bool Ok() const;
 };
 
 struct ReplaceRecord {
@@ -778,5 +778,5 @@ struct ReplaceRecord {
 3. **不支持嵌套占位符**：`{{outer{{inner}}content}}` 无法正确处理
 4. **不支持图片/表格**：富文本不支持插入图片或表格，仅支持段落级别内容
 5. **字形依赖**：GB/T 9704-2012 标准字体（方正小标宋简体、黑体、楷体、仿宋）需在目标系统安装
-6. **generateDocument 始终使用 DOM 模式**：空白模板很小，无需流式处理
-7. **ZIP 跨平台兼容**：`zipCompress` 生成的 ZIP 文件使用正斜杠路径分隔符和 `Z_DEFLATED` 标准压缩，Windows/Mac/Linux 系统自带工具均可直接解压
+6. **GenerateDocument 始终使用 DOM 模式**：空白模板很小，无需流式处理
+7. **ZIP 跨平台兼容**：`ZipCompress` 生成的 ZIP 文件使用正斜杠路径分隔符和 `Z_DEFLATED` 标准压缩，Windows/Mac/Linux 系统自带工具均可直接解压

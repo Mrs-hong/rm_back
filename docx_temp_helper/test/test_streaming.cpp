@@ -61,25 +61,25 @@ int main() {
 
   docx_temp_helper::DocxDocument doc(config);
 
-  auto openErr = doc.open(templatePath);
-  ASSERT_TRUE(openErr.ok(), "打开模板文件");
+  auto openErr = doc.Open(templatePath);
+  ASSERT_TRUE(openErr.Ok(), "打开模板文件");
 
   // 通配符替换
-  auto result = doc.replaceText("{{*}}", "流式替换文本");
-  ASSERT_TRUE(result.ok(), "流式纯文本替换成功");
+  auto result = doc.ReplaceText("{{*}}", "流式替换文本");
+  ASSERT_TRUE(result.Ok(), "流式纯文本替换成功");
   ASSERT_TRUE(result.totalReplaced >= 1, "至少替换1处");
 
   // 验证处于流式模式
-  ASSERT_TRUE(doc.isStreamingMode(), "确认处于流式处理模式");
+  ASSERT_TRUE(doc.IsStreamingMode(), "确认处于流式处理模式");
 
-  auto saveErr = doc.save(outputPath);
-  ASSERT_TRUE(saveErr.ok(), "保存输出文件");
+  auto saveErr = doc.Save(outputPath);
+  ASSERT_TRUE(saveErr.Ok(), "保存输出文件");
   ASSERT_TRUE(fs::exists(outputPath), "输出文件存在");
 
   // 验证输出可解压
   std::string verifyDir = dataDir + "/verify_streaming";
   fs::create_directories(verifyDir);
-  bool unzipOk = docx_temp_helper::unzipToDir(outputPath, verifyDir);
+  bool unzipOk = docx_temp_helper::UnzipToDir(outputPath, verifyDir);
   ASSERT_TRUE(unzipOk, "输出文件可解压");
 
   std::string docXml = readFile(verifyDir + "/word/document.xml");
@@ -87,7 +87,7 @@ int main() {
               "输出包含流式替换文本");
 
   // 关闭文档（输出文件保留供人工检查）
-  doc.close();
+  doc.Close();
   fs::remove_all(verifyDir); // 仅清理解压验证目录，保留输出 docx
   std::cout << "  输出文件: " << outputPath << std::endl;
 
@@ -107,22 +107,22 @@ int main() {
   config2.verbose = false;
 
   docx_temp_helper::DocxDocument doc2(config2);
-  openErr = doc2.open(templatePath);
-  ASSERT_TRUE(openErr.ok(), "流式 MD: 打开模板");
+  openErr = doc2.Open(templatePath);
+  ASSERT_TRUE(openErr.Ok(), "流式 MD: 打开模板");
 
-  auto result2 = doc2.replaceRich(replacements);
-  ASSERT_TRUE(result2.ok(), "流式 Markdown 替换成功");
-  ASSERT_TRUE(doc2.isStreamingMode(), "确认 MD 流式模式");
+  auto result2 = doc2.ReplaceRich(replacements);
+  ASSERT_TRUE(result2.Ok(), "流式 Markdown 替换成功");
+  ASSERT_TRUE(doc2.IsStreamingMode(), "确认 MD 流式模式");
   ASSERT_TRUE(result2.totalReplaced >= 1, "MD 至少替换1处");
 
   std::string outputPath2 = dataDir + "/output_streaming_md.docx";
-  saveErr = doc2.save(outputPath2);
-  ASSERT_TRUE(saveErr.ok(), "流式 MD: 保存输出");
+  saveErr = doc2.Save(outputPath2);
+  ASSERT_TRUE(saveErr.Ok(), "流式 MD: 保存输出");
 
   // 验证输出
   std::string verifyDir2 = dataDir + "/verify_streaming_md";
   fs::create_directories(verifyDir2);
-  unzipOk = docx_temp_helper::unzipToDir(outputPath2, verifyDir2);
+  unzipOk = docx_temp_helper::UnzipToDir(outputPath2, verifyDir2);
   ASSERT_TRUE(unzipOk, "流式 MD: 输出可解压");
 
   docXml = readFile(verifyDir2 + "/word/document.xml");
@@ -132,7 +132,7 @@ int main() {
               "流式 MD: 输出包含仿宋字体");
 
   // 关闭文档（输出文件保留供人工检查）
-  doc2.close();
+  doc2.Close();
   fs::remove_all(verifyDir2); // 仅清理解压验证目录，保留输出 docx
   std::cout << "  输出文件: " << outputPath2 << std::endl;
 
@@ -144,14 +144,14 @@ int main() {
   config3.verbose = false;
 
   docx_temp_helper::DocxDocument doc3(config3);
-  openErr = doc3.open(templatePath);
-  ASSERT_TRUE(openErr.ok(), "DOM 模式: 打开模板");
+  openErr = doc3.Open(templatePath);
+  ASSERT_TRUE(openErr.Ok(), "DOM 模式: 打开模板");
 
-  auto result3 = doc3.replaceText("{{*}}", "DOM替换文本");
-  ASSERT_TRUE(result3.ok(), "DOM 模式替换成功");
-  ASSERT_TRUE(!doc3.isStreamingMode(), "确认处于 DOM 模式（非流式）");
+  auto result3 = doc3.ReplaceText("{{*}}", "DOM替换文本");
+  ASSERT_TRUE(result3.Ok(), "DOM 模式替换成功");
+  ASSERT_TRUE(!doc3.IsStreamingMode(), "确认处于 DOM 模式（非流式）");
 
-  doc3.close();
+  doc3.Close();
 
   std::cout << std::endl;
   std::cout << "=== 测试结果: " << testPassCount << " passed, " << testFailCount

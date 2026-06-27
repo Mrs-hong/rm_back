@@ -24,23 +24,23 @@ namespace docx_temp_helper {
 // ───────── 辅助函数 ─────────
 
 /// 确保目录存在，递归创建
-static bool ensureDir(const std::string& path) {
+static bool EnsureDir(const std::string& path) {
     std::error_code ec;
     fs::create_directories(path, ec);
     return !ec;
 }
 
 /// 从 ZIP 内的文件路径提取目录部分并创建
-static bool ensureParentDir(const std::string& filePath) {
+static bool EnsureParentDir(const std::string& filePath) {
     fs::path p(filePath);
     fs::path parent = p.parent_path();
     if (parent.empty()) return true;
-    return ensureDir(parent.string());
+    return EnsureDir(parent.string());
 }
 
 // ───────── 解压实现 ─────────
 
-bool unzipToDir(const std::string& zipPath, const std::string& destDir) {
+bool UnzipToDir(const std::string& zipPath, const std::string& destDir) {
     // 打开 ZIP 文件
     unzFile uf = unzOpen(zipPath.c_str());
     if (uf == nullptr) {
@@ -48,7 +48,7 @@ bool unzipToDir(const std::string& zipPath, const std::string& destDir) {
     }
 
     // 确保目标目录存在
-    if (!ensureDir(destDir)) {
+    if (!EnsureDir(destDir)) {
         unzClose(uf);
         return false;
     }
@@ -76,12 +76,12 @@ bool unzipToDir(const std::string& zipPath, const std::string& destDir) {
 
         // 如果是目录（路径以 / 结尾），创建目录并跳过
         if (fileName[strlen(fileName) - 1] == '/') {
-            ensureDir(fullPath);
+            EnsureDir(fullPath);
             continue;
         }
 
         // 确保父目录存在
-        if (!ensureParentDir(fullPath)) {
+        if (!EnsureParentDir(fullPath)) {
             success = false;
             break;
         }
@@ -129,12 +129,12 @@ bool unzipToDir(const std::string& zipPath, const std::string& destDir) {
 // ───────── 压缩实现 ─────────
 
 /// 递归收集目录下所有文件的相对路径
-static void collectFiles(const fs::path& baseDir,
+static void CollectFiles(const fs::path& baseDir,
                           const fs::path& currentDir,
                           std::vector<std::pair<std::string, std::string>>& outFiles) {
     for (const auto& entry : fs::directory_iterator(currentDir)) {
         if (entry.is_directory()) {
-            collectFiles(baseDir, entry.path(), outFiles);
+            CollectFiles(baseDir, entry.path(), outFiles);
         } else if (entry.is_regular_file()) {
             // 相对于 baseDir 的路径（用于 ZIP 内的路径名）
             std::string relative = fs::relative(entry.path(), baseDir).string();
@@ -147,7 +147,7 @@ static void collectFiles(const fs::path& baseDir,
     }
 }
 
-bool zipDir(const std::string& srcDir, const std::string& zipPath) {
+bool ZipDir(const std::string& srcDir, const std::string& zipPath) {
     // 打开输出 ZIP 文件
     zipFile zf = zipOpen(zipPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == nullptr) {
@@ -156,7 +156,7 @@ bool zipDir(const std::string& srcDir, const std::string& zipPath) {
 
     // 收集所有文件（相对路径, 绝对路径）
     std::vector<std::pair<std::string, std::string>> files;
-    collectFiles(srcDir, srcDir, files);
+    CollectFiles(srcDir, srcDir, files);
 
     bool success = true;
     constexpr int BUFFER_SIZE = 8192;
@@ -200,7 +200,7 @@ bool zipDir(const std::string& srcDir, const std::string& zipPath) {
 
 // ───────── 单文件压缩实现 ─────────
 
-bool zipSingleFile(const std::string& filePath, const std::string& zipPath) {
+bool ZipSingleFile(const std::string& filePath, const std::string& zipPath) {
     zipFile zf = zipOpen(zipPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == nullptr) {
         return false;

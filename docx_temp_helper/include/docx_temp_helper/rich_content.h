@@ -76,12 +76,12 @@ struct RichReplacement {
 /// 解析 Markdown 字符串为结构化段落列表
 /// @param md Markdown 文本
 /// @return 段落列表
-std::vector<RichParagraph> parseMarkdown(const std::string& md);
+std::vector<RichParagraph> ParseMarkdown(const std::string& md);
 
 /// 解析 HTML 字符串为结构化段落列表
 /// @param html HTML 文本
 /// @return 段落列表
-std::vector<RichParagraph> parseHtml(const std::string& html);
+std::vector<RichParagraph> ParseHtml(const std::string& html);
 
 // ───────── 渲染函数 ─────────
 
@@ -90,8 +90,8 @@ std::vector<RichParagraph> parseHtml(const std::string& html);
 /// @param paragraphs 段落列表
 /// @param placeholderParagraph 占位符所在的 <w:p> 节点
 /// @note 新段落插入到 placeholderParagraph 之前，之后删除 placeholderParagraph
-/// @note 仅用于 DOM 模式；流式模式请使用 serializeParagraphs
-void renderParagraphsToXml(pugi::xml_node parent,
+/// @note 仅用于 DOM 模式；流式模式请使用 SerializeParagraphs
+void RenderParagraphsToXml(pugi::xml_node parent,
                            const std::vector<RichParagraph>& paragraphs,
                            pugi::xml_node placeholderParagraph);
 
@@ -99,14 +99,14 @@ void renderParagraphsToXml(pugi::xml_node parent,
 /// @param paragraphs 段落列表
 /// @return XML 字符串，包含多个 <w:p> 元素的拼接
 /// @note 用于流式模式下替换占位符段落
-std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs);
+std::string SerializeParagraphs(const std::vector<RichParagraph>& paragraphs);
 
 /// 将结构化段落渲染为 OOXML <w:p> 元素并插入到指定节点之前
 /// @param parent 父节点（通常是 <w:body>）
 /// @param paragraphs 段落列表
 /// @param beforeNode 新段落将插入到此节点之前（如 <w:sectPr>），为空则追加到末尾
 /// @note 用于从空白模板生成文档（generateDocument）
-void appendParagraphsBefore(pugi::xml_node parent,
+void AppendParagraphsBefore(pugi::xml_node parent,
                              const std::vector<RichParagraph>& paragraphs,
                              pugi::xml_node beforeNode);
 

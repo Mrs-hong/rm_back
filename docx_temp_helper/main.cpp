@@ -41,7 +41,7 @@ static std::string defaultOutputPath(const std::string& inputPath) {
 /// 打印替换结果
 static void printResult(const docx_temp_helper::ReplaceResult& result,
                          const std::string& outputPath) {
-    if (result.ok()) {
+    if (result.Ok()) {
         std::cout << "=== 替换成功 ===" << std::endl;
         std::cout << "总替换次数: " << result.totalReplaced << std::endl;
         std::cout << "替换明细:" << std::endl;
@@ -54,7 +54,7 @@ static void printResult(const docx_temp_helper::ReplaceResult& result,
         std::cout << "输出文件: " << outputPath << std::endl;
     } else {
         std::cerr << "=== 替换失败 ===" << std::endl;
-        std::cerr << result.error.toString() << std::endl;
+        std::cerr << result.error.ToString() << std::endl;
     }
 }
 
@@ -79,20 +79,20 @@ int main(int argc, char* argv[]) {
         config.verbose = true;
         docx_temp_helper::DocxDocument doc(config);
 
-        auto openErr = doc.open(inputPath);
-        if (!openErr.ok()) {
+        auto openErr = doc.Open(inputPath);
+        if (!openErr.Ok()) {
             std::cerr << "=== 打开失败 ===" << std::endl;
-            std::cerr << openErr.toString() << std::endl;
+            std::cerr << openErr.ToString() << std::endl;
             return 1;
         }
 
-        auto result = doc.replaceText(pattern, replacement);
-        if (result.ok()) {
-            auto saveErr = doc.save(outputPath);
-            if (!saveErr.ok()) {
+        auto result = doc.ReplaceText(pattern, replacement);
+        if (result.Ok()) {
+            auto saveErr = doc.Save(outputPath);
+            if (!saveErr.Ok()) {
                 std::cerr << "=== 保存失败 ===" << std::endl;
-                std::cerr << saveErr.toString() << std::endl;
-                doc.close();
+                std::cerr << saveErr.ToString() << std::endl;
+                doc.Close();
                 return 1;
             }
             printResult(result, outputPath);
@@ -100,8 +100,8 @@ int main(int argc, char* argv[]) {
             printResult(result, outputPath);
         }
 
-        doc.close();
-        return result.ok() ? 0 : 1;
+        doc.Close();
+        return result.Ok() ? 0 : 1;
     }
 
     // ── 用法2/3：富文本替换 ──
@@ -135,20 +135,20 @@ int main(int argc, char* argv[]) {
         config.verbose = true;
         docx_temp_helper::DocxDocument doc(config);
 
-        auto openErr = doc.open(inputPath);
-        if (!openErr.ok()) {
+        auto openErr = doc.Open(inputPath);
+        if (!openErr.Ok()) {
             std::cerr << "=== 打开失败 ===" << std::endl;
-            std::cerr << openErr.toString() << std::endl;
+            std::cerr << openErr.ToString() << std::endl;
             return 1;
         }
 
-        auto result = doc.replaceRich(replacements);
-        if (result.ok()) {
-            auto saveErr = doc.save(outputPath);
-            if (!saveErr.ok()) {
+        auto result = doc.ReplaceRich(replacements);
+        if (result.Ok()) {
+            auto saveErr = doc.Save(outputPath);
+            if (!saveErr.Ok()) {
                 std::cerr << "=== 保存失败 ===" << std::endl;
-                std::cerr << saveErr.toString() << std::endl;
-                doc.close();
+                std::cerr << saveErr.ToString() << std::endl;
+                doc.Close();
                 return 1;
             }
             printResult(result, outputPath);
@@ -156,8 +156,8 @@ int main(int argc, char* argv[]) {
             printResult(result, outputPath);
         }
 
-        doc.close();
-        return result.ok() ? 0 : 1;
+        doc.Close();
+        return result.Ok() ? 0 : 1;
     }
 
     // ── 用法说明 ──
