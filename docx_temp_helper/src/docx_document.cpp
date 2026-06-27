@@ -561,6 +561,8 @@ ReplaceResult DocxDocument::generateDocument(const std::string& title,
     if (!title.empty()) {
         RichParagraph titlePara;
         titlePara.headingLevel = 1;
+        titlePara.alignment = "center";  // h1 标题居中
+        titlePara.lineSpacing = 1.0;
         RichRun titleRun;
         titleRun.text = title;
         titlePara.runs.push_back(titleRun);
