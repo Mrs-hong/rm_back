@@ -22,6 +22,7 @@ option(AUDIO_RESOVER_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" OFF)
 # --- Library target ---
 add_library(audio_resover STATIC
     src/AudioReader.cpp
+    src/ChannelMixer.cpp
     src/MiniaudioDecoder.cpp
     src/MiniaudioResampler.cpp
     src/miniaudio_impl.cpp

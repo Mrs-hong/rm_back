@@ -7,6 +7,7 @@
 #include <cstring>
 #include <utility>
 
+#include "ChannelMixer.hpp"
 #include "MiniaudioDecoder.hpp"
 #include "MiniaudioResampler.hpp"
 
@@ -60,6 +61,8 @@ void AudioReader::Close()
 	mResampler.reset();
 	mTargetSampleRate = 0;
 	mUsingDefaultResampler = false;
+	mTargetChannels = 0;
+	mChannelMixMode = ChannelMixMode::Average;
 }
 
 const AudioInfo& AudioReader::GetInfo() const
@@ -78,50 +81,68 @@ Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount,
 		return Result<std::uint64_t>::Fail(AudioErrorCode::NotOpened);
 	}
 
-	const auto channels = GetInfo().Channels;
-	if (channels == 0) {
+	const auto srcChannels = GetInfo().Channels;
+	if (srcChannels == 0) {
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError,
 										   "channels == 0 (file not parsed?)");
 	}
 
+	// readRes 始终以“帧”为单位（不受通道混合影响）。
+	Result<std::uint64_t> readRes = Result<std::uint64_t>::Ok(0);
+
 	if (mTargetSampleRate == 0 || mResampler == nullptr) {
 		// 直通路径：从解码器直接读 F32 帧。
-		outSamples.resize(static_cast<std::size_t>(frameCount * channels));
-		auto r = mDecoder->ReadFrames(frameCount, SampleFormat::F32, outSamples.data());
-		if (!r)
-			return r;
-		outSamples.resize(static_cast<std::size_t>(r.Value() * channels));
-		return r;
+		outSamples.resize(static_cast<std::size_t>(frameCount * srcChannels));
+		readRes = mDecoder->ReadFrames(frameCount, SampleFormat::F32, outSamples.data());
+		if (!readRes)
+			return readRes;
+		outSamples.resize(static_cast<std::size_t>(readRes.Value() * srcChannels));
+	} else {
+		// 重采样路径。
+		const std::uint32_t srcRate = GetInfo().SampleRate;
+		const std::uint32_t dstRate = mTargetSampleRate;
+		if (srcRate == 0 || dstRate == 0) {
+			return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError,
+											   "invalid sample rate");
+		}
+
+		// 估算产出 frameCount 个输出帧需要多少输入帧，
+		// 加少量 slack 以吸收滤波器延迟。
+		const std::uint64_t inputEstimate = frameCount * srcRate / dstRate + 32;
+
+		std::vector<float> inBuf(static_cast<std::size_t>(inputEstimate * srcChannels));
+		auto inReadRes = mDecoder->ReadFrames(inputEstimate, SampleFormat::F32, inBuf.data());
+		if (!inReadRes)
+			return inReadRes;
+		const std::uint64_t inFrames = inReadRes.Value();
+		if (inFrames == 0) {
+			outSamples.clear();
+			return Result<std::uint64_t>::Ok(0);
+		}
+		inBuf.resize(static_cast<std::size_t>(inFrames * srcChannels));
+
+		outSamples.resize(static_cast<std::size_t>(frameCount * srcChannels));
+		auto procRes = mResampler->Process(inBuf.data(), inFrames, outSamples.data(), frameCount);
+		if (!procRes)
+			return procRes;
+		outSamples.resize(static_cast<std::size_t>(procRes.Value() * srcChannels));
+		readRes = procRes;
 	}
 
-	// 重采样路径。
-	const std::uint32_t srcRate = GetInfo().SampleRate;
-	const std::uint32_t dstRate = mTargetSampleRate;
-	if (srcRate == 0 || dstRate == 0) {
-		return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError, "invalid sample rate");
+	// 通道下混（如果启用且源是多通道）。
+	// 必须放在重采样之后，因为重采样器按原始通道数工作。
+	// in-place 安全：输出长度 = frames，远小于输入 frames*srcChannels。
+	if (mTargetChannels == 1 && srcChannels > 1) {
+		const std::uint64_t frames = readRes.Value();
+		if (!ChannelMixer::MixToMono(outSamples.data(), frames, srcChannels, mChannelMixMode,
+									 outSamples.data())) {
+			return Result<std::uint64_t>::Fail(AudioErrorCode::ChannelMixFailed,
+											   "ChannelMixer::MixToMono failed");
+		}
+		outSamples.resize(static_cast<std::size_t>(frames)); // 缩到单声道大小
 	}
 
-	// 估算产出 frameCount 个输出帧需要多少输入帧，
-	// 加少量 slack 以吸收滤波器延迟。
-	const std::uint64_t inputEstimate = frameCount * srcRate / dstRate + 32;
-
-	std::vector<float> inBuf(static_cast<std::size_t>(inputEstimate * channels));
-	auto readRes = mDecoder->ReadFrames(inputEstimate, SampleFormat::F32, inBuf.data());
-	if (!readRes)
-		return readRes;
-	const std::uint64_t inFrames = readRes.Value();
-	if (inFrames == 0) {
-		outSamples.clear();
-		return Result<std::uint64_t>::Ok(0);
-	}
-	inBuf.resize(static_cast<std::size_t>(inFrames * channels));
-
-	outSamples.resize(static_cast<std::size_t>(frameCount * channels));
-	auto procRes = mResampler->Process(inBuf.data(), inFrames, outSamples.data(), frameCount);
-	if (!procRes)
-		return procRes;
-	outSamples.resize(static_cast<std::size_t>(procRes.Value() * channels));
-	return procRes;
+	return readRes;
 }
 
 Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount, SampleFormat fmt,
@@ -138,12 +159,19 @@ Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount, SampleFo
 
 	const auto channels = GetInfo().Channels;
 	// 重采样目前仅在 F32 重载上支持；对于任意格式，调用方必须先关闭重采样。
-	// 这样保持实现简单，也符合典型用法（F32 流式 + 偶尔的原始 int 提取）。
+	// 通道下混同理：仅在 F32 重载上支持。这样保持实现简单，也符合典型用法
+	// （F32 流式 + 偶尔的原始 int 提取）。
 	if (mTargetSampleRate != 0 && mResampler != nullptr) {
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InvalidArgument,
 										   "byte-overload ReadFrames does not "
 										   "support active resampling; use the "
 										   "F32 overload or clear resampler");
+	}
+	if (mTargetChannels != 0) {
+		return Result<std::uint64_t>::Fail(AudioErrorCode::InvalidArgument,
+										   "byte-overload ReadFrames does not "
+										   "support active channel mix; use the "
+										   "F32 overload or clear target channels");
 	}
 
 	const std::size_t sampleSize = [fmt]() -> std::size_t {
@@ -337,6 +365,43 @@ Result<void> AudioReader::ReconfigureResampler()
 	const auto& info = GetInfo();
 	return mResampler->Configure(info.SampleRate, mTargetSampleRate, info.Channels,
 								 SampleFormat::F32);
+}
+
+// --- 通道下混管理 ---
+
+Result<void> AudioReader::SetTargetChannels(std::uint32_t targetChannels)
+{
+	if (!IsOpen()) {
+		return Result<void>::Fail(AudioErrorCode::NotOpened, "Open() before SetTargetChannels()");
+	}
+	// 仅支持 0（关闭）或 1（单声道下混）。
+	if (targetChannels > 1) {
+		return Result<void>::Fail(AudioErrorCode::InvalidArgument,
+								  "only targetChannels=0 or 1 is supported");
+	}
+	// 上混检查（如源是单声道，目标却是 2 通道 —— 当前接口不接受 >1，所以这里
+	// 主要是防御性校验）。
+	if (targetChannels > GetInfo().Channels) {
+		return Result<void>::Fail(AudioErrorCode::UnsupportedChannelDirection,
+								  "upsampling channels is not supported");
+	}
+	mTargetChannels = targetChannels;
+	return Result<void>::Ok();
+}
+
+std::uint32_t AudioReader::GetTargetChannels() const
+{
+	return mTargetChannels;
+}
+
+void AudioReader::SetChannelMixMode(ChannelMixMode mode)
+{
+	mChannelMixMode = mode;
+}
+
+ChannelMixMode AudioReader::GetChannelMixMode() const
+{
+	return mChannelMixMode;
 }
 
 } // namespace audio_resover

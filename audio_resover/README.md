@@ -30,7 +30,8 @@
 | 1   | 元数据                                   | 真实容器格式、采样率、采样深度、通道数、时长、文件大小、平均码率、是否被破坏         |
 | 2   | 数据读取                                 | F32 / 任意 PCM 格式；流式顺序读 + 随机时间区间读 `[startMs, endMs)`                  |
 | 3   | 重采样                                   | 仅下采样；策略模式可替换算法（默认线性），通过 `SetResampler` 注入                   |
-| 4   | 错误码                                   | 18 个细分错误码，按命名空间分区（1xxx 文件 / 2xxx 解码 / 3xxx 参数 / 4xxx 重采样 / 9xxx 内部） |
+| 3.5 | 通道下混                                 | 立体声 / 多通道 → 单声道；三种混合策略（Average / First / Last），支持 in-place 零拷贝 |
+| 4   | 错误码                                   | 20 个细分错误码，按命名空间分区（1xxx 文件 / 2xxx 解码 / 3xxx 参数 / 4xxx 重采样 / 5xxx 通道 / 9xxx 内部） |
 | 5   | 清晰分层                                 | Facade (`AudioReader`) + Strategy (`IAudioDecoder` / `IAudioResampler`) + PIMPL      |
 | 6   | 边缘友好                                 | 不抛异常（`Result<T>`），无 STL RTTI 依赖，可禁用异常；Linux 仅需 `pthread` + `m`    |
 | 7   | CMake 工程                               | 标准 `target_include_directories`、BUILD_INTERFACE/INSTALL_INTERFACE、可独立构建      |
@@ -59,6 +60,7 @@ audio_resover/
 │   └── audio_resover/
 │       ├── AudioResover.hpp    # umbrella 头文件（include 这一个即可）
 │       ├── AudioReader.hpp     # 高层 facade（用户主入口）
+│       ├── AudioChannelConverter.hpp # 通道混合策略枚举
 │       ├── AudioInfo.hpp       # 元数据 POD
 │       ├── AudioError.hpp     # 错误码 + Result<T>
 │       ├── AudioFormat.hpp    # SampleFormat / ContainerFormat 枚举
@@ -66,13 +68,14 @@ audio_resover/
 │       └── IAudioResampler.hpp # 重采样策略接口（用于扩展）
 ├── src/
 │   ├── AudioReader.cpp         # facade 实现
+│   ├── ChannelMixer.{hpp,cpp}  # 通道混合器（私有工具，F32 交错布局）
 │   ├── MiniaudioDecoder.{hpp,cpp}  # 默认 IAudioDecoder 实现（私有头）
 │   ├── MiniaudioResampler.{hpp,cpp}# 默认 IAudioResampler 实现（私有头）
 │   ├── MiniaudioGuard.hpp      # miniaudio 初始化 RAII 钩子（预留）
 │   └── miniaudio_impl.cpp      # 唯一定义 MINIAUDIO_IMPLEMENTATION 的 TU
 ├── tests/
 │   ├── CMakeLists.txt
-│   └── test_audio_reader.cpp   # 10 个测试用例，自研断言宏（无 GoogleTest）
+│   └── test_audio_reader.cpp   # 12 个测试用例，自研断言宏（无 GoogleTest）
 └── third_party/
     └── miniaudio/
         ├── miniaudio.h         # v0.11.25 单头文件
@@ -96,22 +99,23 @@ audio_resover/
             │   ─ Open / Close / GetInfo                    │
             │   ─ ReadFrames (F32 / 任意 PCM)               │
             │   ─ ReadTimeRangeMs / SeekToMs                │
-            │   ─ SetResampler / SetTargetSampleRate         │
-            └───────┬───────────────────────┬───────────────┘
-                    │ 组合                   │ 可选组合
-                    ▼                       ▼
-        ┌─────────────────────┐   ┌─────────────────────┐
-        │  IAudioDecoder      │   │  IAudioResampler    │
-        │  (Strategy 接口)    │   │  (Strategy 接口)    │
-        └──────────┬──────────┘   └──────────┬──────────┘
-                   │ 默认实现                 │ 默认实现
-                   ▼                          ▼
-        ┌─────────────────────┐   ┌─────────────────────┐
-        │  MiniaudioDecoder   │   │  MiniaudioResampler │
-        │  (PIMPL, 私有)      │   │  (PIMPL, 私有)      │
-        └──────────┬──────────┘   └──────────┬──────────┘
-                   │                          │
-                   ▼                          ▼
+            │   ─ SetResampler / SetTargetSampleRate        │
+            │   ─ SetTargetChannels / SetChannelMixMode      │
+            └───┬───────────────┬───────────────┬───────────┘
+                │ 组合           │ 内部工具      │ 可选组合
+                ▼               ▼               ▼
+        ┌─────────────┐  ┌──────────────┐  ┌─────────────────────┐
+        │ IAudioDecoder│  │ ChannelMixer │  │  IAudioResampler    │
+        │ (Strategy)  │  │ (内部静态类) │  │  (Strategy 接口)    │
+        └──────┬──────┘  └──────┬───────┘  └──────────┬──────────┘
+               │ 默认实现        │ F32 下混            │ 默认实现
+               ▼                 ▼                     ▼
+        ┌─────────────────┐ ┌──────────┐    ┌─────────────────────┐
+        │ MiniaudioDecoder│ │ in-place │    │  MiniaudioResampler │
+        │ (PIMPL, 私有)   │ │ stride / │    │  (PIMPL, 私有)      │
+        └────────┬────────┘ │ 平均混合 │    └──────────┬──────────┘
+                 │           └──────────┘               │
+                 ▼                                      ▼
         ┌─────────────────────────────────────────────────┐
         │         miniaudio (MIT, 单头文件)               │
         │   ma_decoder / ma_data_converter / ma_pcm_*      │
@@ -127,6 +131,7 @@ audio_resover/
 | PIMPL       | `MiniaudioDecoder` / `MiniaudioResampler`         | 隐藏 miniaudio 私有依赖，缩短编译时间       |
 | Value-like  | `Result<T>`                                       | 用值类型承载错误，避免异常                 |
 | RAII        | `MiniaudioGuard`（预留）                          | 全局资源获取 / 释放（当前为空操作）        |
+| 内部工具类  | `ChannelMixer`（私有静态方法）                    | 通道混合逻辑不暴露为接口；算法固定，三种模式已枚举覆盖 |
 
 ### 模块依赖关系
 
@@ -136,11 +141,13 @@ include/audio_resover/AudioResover.hpp     <- umbrella，用户唯一入口
         ├── AudioError.hpp         (无依赖)
         ├── AudioFormat.hpp        (无依赖)
         ├── AudioInfo.hpp          -> AudioFormat.hpp
+        ├── AudioChannelConverter.hpp -> AudioFormat.hpp
         ├── IAudioDecoder.hpp      -> AudioError.hpp / AudioFormat.hpp / AudioInfo.hpp
         ├── IAudioResampler.hpp     -> AudioError.hpp / AudioFormat.hpp
         └── AudioReader.hpp         -> 上述所有
 
 src/AudioReader.cpp                       -> AudioReader.hpp + 私有头
+src/ChannelMixer.cpp                      -> ChannelMixer.hpp（F32 交错下混）
 src/MiniaudioDecoder.cpp                  -> MiniaudioDecoder.hpp + miniaudio.h
 src/MiniaudioResampler.cpp                -> MiniaudioResampler.hpp + miniaudio.h
 src/miniaudio_impl.cpp                    -> miniaudio.h (定义 MINIAUDIO_IMPLEMENTATION)
@@ -158,6 +165,9 @@ enum class SampleFormat : int { Unknown, U8, S16, S24, S32, F32 };
 
 // 容器格式（按文件内容嗅探，与扩展名无关）
 enum class ContainerFormat : int { Unknown, Wav, Mp3, Flac, Vorbis, Raw };
+
+// 通道混合策略（仅当 targetChannels == 1 且 source > 1 时生效）
+enum class ChannelMixMode : int { Average = 0, First = 1, Last = 2 };
 
 // 元数据 POD（只读）
 struct AudioInfo {
@@ -181,6 +191,7 @@ enum class AudioErrorCode : int {
     UnknownFormat = 2001, UnsupportedFormat, CorruptedFile, DecodeFailed, SeekFailed,
     InvalidArgument = 3001, OutOfRange, NotOpened, AlreadyOpened,
     UnsupportedResampleDirection = 4001, ResamplerNotSet, ResamplerInitFailed, ResampleFailed,
+    UnsupportedChannelDirection = 5001, ChannelMixFailed,
     InternalError = 9001, NotImplemented,
 };
 
@@ -229,6 +240,12 @@ public:
     Result<void> SetResampler(std::unique_ptr<IAudioResampler>);  // nullptr 清除
     Result<void> SetTargetSampleRate(uint32_t rate);              // 0 = 重置
     uint32_t GetTargetSampleRate() const;
+
+    // 4. 通道下混（仅支持 → 单声道）
+    Result<void> SetTargetChannels(uint32_t channels);  // 0 = 关闭；1 = 单声道
+    uint32_t GetTargetChannels() const;
+    void SetChannelMixMode(ChannelMixMode mode);         // 默认 Average
+    ChannelMixMode GetChannelMixMode() const;
 };
 ```
 
@@ -274,7 +291,7 @@ public:
 
 ### 数据流
 
-#### 直通读取（无重采样）
+#### 直通读取（无重采样 / 无通道下混）
 
 ```
 用户 ReadFrames(N, out)
@@ -283,15 +300,28 @@ public:
            └─> ma_decoder_read_pcm_frames(...)
 ```
 
-#### 重采样读取
+#### 通道下混读取（启用 SetTargetChannels(1)）
 
 ```
 用户 ReadFrames(N, out)
-   └─> AudioReader 估算所需输入帧 inputEstimate = N * srcRate / dstRate + 32
+   └─> AudioReader 检查 mTargetChannels == 1 && srcChannels > 1
+       └─> mDecoder->ReadFrames(N, F32, out.data())   // 读立体声到 out
+       └─> ChannelMixer::MixToMono(out.data(), N, srcChannels, mode, out.data())
+           └─> in-place 转换：out[i] = (in[i*C..i*C+C-1]) 平均/首/末
+       └─> out.resize(N)   // 从 N*srcChannels 缩到 N（单声道）
+```
+
+#### 重采样 + 通道下混（顺序：重采样 → 通道下混）
+
+```
+用户 ReadFrames(N, out)
+   └─> AudioReader 估算输入帧 inputEstimate = N * srcRate / dstRate + 32
        └─> mDecoder->ReadFrames(inputEstimate, F32, inBuf)
-           └─> ma_decoder_read_pcm_frames(...)
        └─> mResampler->Process(inBuf, inFrames, out, N)
            └─> ma_data_converter_process_pcm_frames(...)
+       └─> （若启用通道下混）
+           └─> ChannelMixer::MixToMono(out, N, srcChannels, mode, out)
+           └─> out.resize(N)
 ```
 
 #### 随机时间区间读取
@@ -301,7 +331,7 @@ public:
    └─> 计算 startFrame = startMs * SampleRate / 1000
    └─> mDecoder->SeekToFrame(startFrame)
    └─> ReadFrames(endFrame - startFrame, out)
-       └─> （同上：直通 or 重采样路径）
+       └─> （同上：直通 / 通道下混 / 重采样路径）
 ```
 
 ### 关键设计决策
@@ -310,12 +340,17 @@ public:
 | --------------------------------- | ------------------------------------------------------------------------------------- |
 | 不抛异常，全用 `Result<T>`        | 边缘 / 嵌入式场景常禁用异常；显式错误传播更安全                                        |
 | 仅支持下采样                      | 项目需求只要求降采样（大 → 小），简化实现与错误处理                                    |
+| 仅支持通道下混 → 1                | ASR / 单通道分析是主要场景；任意 N→M 下混需要权重矩阵，复杂度高且应用少见             |
+| 通道混合不用策略接口              | 算法本质固定（Average / First / Last 三种），枚举已覆盖；引入 IChannelConverter 会过度设计 |
+| 通道混合在 AudioReader 层做后处理 | 不修改 IAudioDecoder 接口，保持向后兼容；in-place 零拷贝已足够高效                    |
+| 通道混合在重采样之后执行          | 重采样器按原始通道数工作；先通道下混会改变重采样器的输入通道，破坏配置约定             |
+| 通道混合支持 in-place             | 输出长度 ≤ 输入长度，可在原 buffer 前 N 位置覆盖写入，省一次内存分配                  |
 | miniaudio 通过 PIMPL 隐藏         | 避免把 miniaudio 的 95864 行头文件传递到用户编译单元                                  |
 | `ma_data_converter` 用 `void*` 不透明指针 | miniaudio 中 `ma_data_converter` 是匿名 typedef struct，无法前向声明           |
 | 文件头嗅探决定真实格式            | 与文件扩展名无关（测试音频 `.wav` 实际是 MP3）                                         |
-| 字节重载不支持重采样              | 简化实现；多格式输出与重采样解耦，避免组合爆炸                                         |
+| 字节重载不支持重采样 / 通道下混    | 简化实现；多格式输出与转换解耦，避免组合爆炸；F32 重载已覆盖主流场景                   |
 | 默认解码器/重采样器延迟创建        | `AudioReader` 默认构造便宜；用户可 `SetDecoder` / `SetResampler` 替换                 |
-| 错误码命名空间分区                | 1xxx / 2xxx / 3xxx / 4xxx / 9xxx 五大区段，便于分类与扩展                              |
+| 错误码命名空间分区                | 1xxx / 2xxx / 3xxx / 4xxx / 5xxx / 9xxx 六大区段，便于分类与扩展                      |
 
 ---
 
@@ -465,6 +500,39 @@ if (!openRes) {
 }
 ```
 
+### 例 7：下混到单声道（立体声 → 单声道）
+
+适用于语音识别（ASR）、单通道频谱分析等只接受单声道输入的场景。
+通道下混在解码 / 重采样之后做后处理，对原解码路径零侵入，并支持 in-place 零拷贝。
+
+```cpp
+AudioReader reader;
+reader.Open("song.mp3");                          // 立体声 44100 Hz
+reader.SetTargetChannels(1);                      // 启用 → 单声道
+reader.SetChannelMixMode(ChannelMixMode::Average); // 默认即 Average；可选 First / Last
+
+// 可与重采样叠加使用（重采样 → 通道下混 的顺序由库内部保证）。
+// reader.SetTargetSampleRate(16000);
+
+std::vector<float> mono;
+auto r = reader.ReadFrames(4410, mono);            // mono.size() == 4410 * 1
+// r.Value() == 实际读到的帧数（每帧 1 个 float）
+
+// 关闭通道下混，恢复原始通道输出：
+reader.SetTargetChannels(0);
+```
+
+三种混合策略对比（以立体声 `L, R` 为例）：
+
+| 模式                | 输出 sample        | 适用场景                       |
+| ------------------- | ------------------ | ------------------------------ |
+| `ChannelMixMode::Average` | `(L + R) / 2`     | 默认；通用下混，能量均衡       |
+| `ChannelMixMode::First`   | `L`               | 只关心左声道；零拷贝 stride    |
+| `ChannelMixMode::Last`    | `R`               | 只关心右声道；零拷贝 stride    |
+
+> 注：通道下混仅在 F32 重载 `ReadFrames(uint64_t, std::vector<float>&)` 上支持。
+> byte 重载会拒绝带 `SetTargetChannels(1)` 的调用，返回 `InvalidArgument`。
+
 ---
 
 ## 公共 API 参考
@@ -487,6 +555,10 @@ if (!openRes) {
 | `SetResampler(std::unique_ptr<IAudioResampler>)`                                                          | `Result<void>`        | 注入自定义重采样器，`nullptr` 清除         |
 | `SetTargetSampleRate(uint32_t rate)`                                                                       | `Result<void>`        | 设置目标采样率（仅下采样），自动创建默认重采样器 |
 | `GetTargetSampleRate() const`                                                                              | `uint32_t`            | 当前目标采样率                              |
+| `SetTargetChannels(uint32_t channels)`                                                                     | `Result<void>`        | 通道下混（仅支持 `0` 关闭 / `1` 单声道），必须在 `Open` 后调用 |
+| `GetTargetChannels() const`                                                                                | `uint32_t`            | 当前目标通道数（`0` 表示直通原始通道）       |
+| `SetChannelMixMode(ChannelMixMode mode)`                                                                   | `void`                | 选择下混策略（Average / First / Last），默认 Average |
+| `GetChannelMixMode() const`                                                                                | `ChannelMixMode`      | 当前下混策略                                |
 
 ### `AudioInfo` —— 元数据 POD
 
@@ -602,6 +674,8 @@ const char* ToString(ContainerFormat);
 | 4002 | `ResamplerNotSet`               | 未配置重采样器                      |
 | 4003 | `ResamplerInitFailed`           | 重采样器初始化失败                  |
 | 4004 | `ResampleFailed`                | 重采样失败                          |
+| 5001 | `UnsupportedChannelDirection`   | 不支持上混（target > source）       |
+| 5002 | `ChannelMixFailed`              | 通道混合失败                        |
 | 9001 | `InternalError`                 | 内部错误                            |
 | 9002 | `NotImplemented`                | 未实现                              |
 

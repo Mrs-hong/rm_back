@@ -16,6 +16,7 @@ namespace audio_resover
 //   2xxx - 格式 / 解码
 //   3xxx - 参数 / 状态
 //   4xxx - 重采样
+//   5xxx - 通道混合
 //   9xxx - 内部 / 未实现
 enum class AudioErrorCode : int {
 	Ok = 0,
@@ -43,6 +44,10 @@ enum class AudioErrorCode : int {
 	ResamplerNotSet = 4002,
 	ResamplerInitFailed = 4003,
 	ResampleFailed = 4004,
+
+	// --- 通道混合 ---
+	UnsupportedChannelDirection = 5001, // 不支持上混（target > source）
+	ChannelMixFailed = 5002,			// 通道混合失败
 
 	// --- 内部 ---
 	InternalError = 9001,
@@ -91,6 +96,11 @@ inline const char* ToMessage(AudioErrorCode code)
 		return "Resampler init failed";
 	case AudioErrorCode::ResampleFailed:
 		return "Resample failed";
+	// 通道混合
+	case AudioErrorCode::UnsupportedChannelDirection:
+		return "Only channel downmix is supported";
+	case AudioErrorCode::ChannelMixFailed:
+		return "Channel mix failed";
 	// 内部
 	case AudioErrorCode::InternalError:
 		return "Internal error";

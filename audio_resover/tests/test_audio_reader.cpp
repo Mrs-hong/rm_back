@@ -6,6 +6,7 @@
 //   ./test_audio_reader /path/to/audio   # 用 argv[1] 覆盖测试文件路径
 //
 // 退出码：成功为 0，任何失败均非 0。
+#include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -21,6 +22,7 @@
 using audio_resover::AudioErrorCode;
 using audio_resover::AudioInfo;
 using audio_resover::AudioReader;
+using audio_resover::ChannelMixMode;
 using audio_resover::ContainerFormat;
 using audio_resover::IAudioResampler;
 using audio_resover::Result;
@@ -385,6 +387,125 @@ void TestCustomResampler(const std::string& path)
 	std::cout << "   custom resampler invoked " << raw->mProcessCalls << " times\n";
 }
 
+// ---------- 测试 11：下混到单声道（Average）+ 与手动计算对比 ----------
+void TestDownmixToMonoAverage(const std::string& path)
+{
+	Section("Test 11: SetTargetChannels(1) + Average mode");
+	AudioReader reader;
+	CHECK_OK(reader.Open(path));
+
+	// 检查默认状态：未启用通道转换。
+	CHECK_EQ(reader.GetTargetChannels(), 0u);
+	CHECK_EQ(reader.GetChannelMixMode(), ChannelMixMode::Average);
+
+	// 设置单声道下混。
+	CHECK_OK(reader.SetTargetChannels(1));
+	CHECK_EQ(reader.GetTargetChannels(), 1u);
+
+	// targetChannels > 1 必须被拒绝（仅支持 0 或 1）。
+	auto badRes = reader.SetTargetChannels(2);
+	CHECK_FAIL(badRes, AudioErrorCode::InvalidArgument);
+
+	// 读 100ms = 4410 帧。
+	const std::uint64_t wantFrames = 4410;
+	std::vector<float> monoBuf;
+	auto r = reader.ReadFrames(wantFrames, monoBuf);
+	CHECK_OK(r);
+	CHECK_EQ(r.Value(), wantFrames);
+	// 单声道：缓冲区大小 == 帧数 * 1。
+	CHECK_EQ(monoBuf.size(), r.Value() * 1);
+
+	// 与手动 Average 对比：另开一个 reader 读立体声，再 (L+R)/2。
+	AudioReader stereoReader;
+	CHECK_OK(stereoReader.Open(path));
+	std::vector<float> stereoBuf;
+	auto sr = stereoReader.ReadFrames(wantFrames, stereoBuf);
+	CHECK_OK(sr);
+	CHECK_EQ(sr.Value(), wantFrames);
+	CHECK_EQ(stereoBuf.size(), wantFrames * 2); // 立体声
+
+	// 比较 monoBuf[i] 与 (stereoBuf[2i] + stereoBuf[2i+1]) / 2。
+	int mismatchCount = 0;
+	for (std::uint64_t i = 0; i < wantFrames; ++i) {
+		const float expected = (stereoBuf[2 * i] + stereoBuf[2 * i + 1]) * 0.5f;
+		if (std::fabs(monoBuf[i] - expected) > 1e-5f) {
+			++mismatchCount;
+		}
+	}
+	std::cout << "   Average mismatch: " << mismatchCount << " / " << wantFrames << "\n";
+	CHECK(mismatchCount == 0);
+}
+
+// ---------- 测试 12：First / Last / Average 三模式对比 ----------
+void TestDownmixFirstLastAverage(const std::string& path)
+{
+	Section("Test 12: First / Last / Average mode comparison");
+	AudioReader reader;
+	CHECK_OK(reader.Open(path));
+
+	// 先读立体声基线。
+	const std::uint64_t wantFrames = 4410;
+	std::vector<float> stereoBuf;
+	auto sr = reader.ReadFrames(wantFrames, stereoBuf);
+	CHECK_OK(sr);
+	const std::uint64_t frames = sr.Value();
+	CHECK_EQ(stereoBuf.size(), frames * 2);
+
+	// Average 模式。
+	reader.SeekToMs(0);
+	CHECK_OK(reader.SetTargetChannels(1));
+	reader.SetChannelMixMode(ChannelMixMode::Average);
+	std::vector<float> avgBuf;
+	auto ar = reader.ReadFrames(frames, avgBuf);
+	CHECK_OK(ar);
+	CHECK_EQ(avgBuf.size(), frames);
+
+	// First 模式。
+	reader.SeekToMs(0);
+	reader.SetChannelMixMode(ChannelMixMode::First);
+	std::vector<float> firstBuf;
+	auto fr = reader.ReadFrames(frames, firstBuf);
+	CHECK_OK(fr);
+	CHECK_EQ(firstBuf.size(), frames);
+
+	// Last 模式。
+	reader.SeekToMs(0);
+	reader.SetChannelMixMode(ChannelMixMode::Last);
+	std::vector<float> lastBuf;
+	auto lr = reader.ReadFrames(frames, lastBuf);
+	CHECK_OK(lr);
+	CHECK_EQ(lastBuf.size(), frames);
+
+	// 校验：First == 立体声 L 通道；Last == R 通道；Average == (L+R)/2。
+	int firstMismatch = 0, lastMismatch = 0, avgMismatch = 0;
+	for (std::uint64_t i = 0; i < frames; ++i) {
+		const float L = stereoBuf[2 * i];
+		const float R = stereoBuf[2 * i + 1];
+		if (std::fabs(firstBuf[i] - L) > 1e-5f)
+			++firstMismatch;
+		if (std::fabs(lastBuf[i] - R) > 1e-5f)
+			++lastMismatch;
+		const float expectedAvg = (L + R) * 0.5f;
+		if (std::fabs(avgBuf[i] - expectedAvg) > 1e-5f)
+			++avgMismatch;
+	}
+	std::cout << "   First mismatch: " << firstMismatch << " / " << frames << "\n";
+	std::cout << "   Last mismatch: " << lastMismatch << " / " << frames << "\n";
+	std::cout << "   Average mismatch: " << avgMismatch << " / " << frames << "\n";
+	CHECK(firstMismatch == 0);
+	CHECK(lastMismatch == 0);
+	CHECK(avgMismatch == 0);
+
+	// 关闭通道转换后应恢复立体声输出。
+	reader.SeekToMs(0);
+	CHECK_OK(reader.SetTargetChannels(0));
+	CHECK_EQ(reader.GetTargetChannels(), 0u);
+	std::vector<float> restoredBuf;
+	auto rr = reader.ReadFrames(frames, restoredBuf);
+	CHECK_OK(rr);
+	CHECK_EQ(restoredBuf.size(), frames * 2);
+}
+
 } // namespace
 
 int main(int argc, char** argv)
@@ -417,6 +538,8 @@ int main(int argc, char** argv)
 	TestCorruptedFile(path);
 	TestErrorCodes(path);
 	TestCustomResampler(path);
+	TestDownmixToMonoAverage(path);
+	TestDownmixFirstLastAverage(path);
 
 	std::cout << "\n================================\n";
 	std::cout << "checks: " << g_checks << "  failures: " << g_failures << "\n";

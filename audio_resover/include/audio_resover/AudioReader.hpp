@@ -20,6 +20,7 @@
 #include <string>
 #include <vector>
 
+#include "AudioChannelConverter.hpp"
 #include "AudioError.hpp"
 #include "AudioFormat.hpp"
 #include "AudioInfo.hpp"
@@ -89,6 +90,18 @@ class AudioReader
 
 	std::uint32_t GetTargetSampleRate() const;
 
+	// ====== 4. 通道下混（仅支持 → 单声道）======
+	// 设置目标通道数。仅接受 0（关闭转换，按源通道数输出）或 1（下混为单声道）。
+	// 当 targetChannels > 1 时返回 InvalidArgument。
+	// 当 targetChannels > sourceChannels 时返回 UnsupportedChannelDirection。
+	// 当 targetChannels == 1 且 source == 1 时为直通（无开销）。
+	Result<void> SetTargetChannels(std::uint32_t targetChannels);
+	std::uint32_t GetTargetChannels() const;
+
+	// 通道混合策略。默认 Average。仅当 targetChannels == 1 且 source > 1 时生效。
+	void SetChannelMixMode(ChannelMixMode mode);
+	ChannelMixMode GetChannelMixMode() const;
+
   private:
 	// 用当前源 / 目标参数重新配置已激活的重采样器。
 	Result<void> ReconfigureResampler();
@@ -97,6 +110,8 @@ class AudioReader
 	std::unique_ptr<IAudioResampler> mResampler;
 	std::uint32_t mTargetSampleRate = 0;
 	bool mUsingDefaultResampler = false;
+	std::uint32_t mTargetChannels = 0; // 0 = 不做通道转换
+	ChannelMixMode mChannelMixMode = ChannelMixMode::Average;
 };
 
 } // namespace audio_resover

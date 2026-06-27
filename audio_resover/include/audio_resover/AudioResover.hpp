@@ -2,6 +2,7 @@
 // Umbrella 头文件：只需 include 这一个头文件即可拉入全部公开 API。
 #pragma once
 
+#include "AudioChannelConverter.hpp"
 #include "AudioError.hpp"
 #include "AudioFormat.hpp"
 #include "AudioInfo.hpp"
