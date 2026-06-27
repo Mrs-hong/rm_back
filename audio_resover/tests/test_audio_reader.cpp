@@ -1,11 +1,11 @@
-// audio_resover - C++17 audio processing library
-// Test suite (self-contained, no GoogleTest dependency).
+// audio_resover - C++17 音频处理库
+// 测试套件（自包含，无 GoogleTest 依赖）。
 //
-// Usage:
-//   ./test_audio_reader                  # uses compiled-in AUDIO_TEST_FILE
-//   ./test_audio_reader /path/to/audio   # overrides test file path
+// 用法：
+//   ./test_audio_reader                  # 使用编译期默认的 AUDIO_TEST_FILE
+//   ./test_audio_reader /path/to/audio   # 用 argv[1] 覆盖测试文件路径
 //
-// Exits 0 on success, non-zero on any failure.
+// 退出码：成功为 0，任何失败均非 0。
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -100,7 +100,7 @@ void Section(const char* name)
 	std::cout << "=== " << name << " ===\n";
 }
 
-// ---------- Test 1: open + basic metadata ----------
+// ---------- 测试 1：打开 + 基础元数据 ----------
 void TestOpenAndInfo(const std::string& path)
 {
 	Section("Test 1: Open + GetInfo");
@@ -114,13 +114,13 @@ void TestOpenAndInfo(const std::string& path)
 	CHECK_EQ(info.SampleRate, 44100u);
 	CHECK_EQ(info.Channels, 2u);
 	CHECK(info.NativeSampleFormat != SampleFormat::Unknown);
-	CHECK(info.BitsPerSample == 16 || info.BitsPerSample == 32);		 // s16 or f32
-	CHECK(info.DurationMs >= 3'500'000 && info.DurationMs <= 3'700'000); // ~1 hour
+	CHECK(info.BitsPerSample == 16 || info.BitsPerSample == 32);		 // s16 或 f32
+	CHECK(info.DurationMs >= 3'500'000 && info.DurationMs <= 3'700'000); // 约 1 小时
 	CHECK(info.FileSizeBytes > 100'000'000ull);							 // > 100 MB
 	CHECK(info.TotalFrames > 0);
 }
 
-// ---------- Test 2: real-format detection ignores extension ----------
+// ---------- 测试 2：真实格式检测（忽略扩展名）----------
 void TestRealFormatDetection(const std::string& path)
 {
 	Section("Test 2: real-format detection (.wav extension is MP3)");
@@ -132,14 +132,14 @@ void TestRealFormatDetection(const std::string& path)
 			  << "\n";
 }
 
-// ---------- Test 3: streaming sequential read (first 30s only, for speed) ----------
+// ---------- 测试 3：流式顺序读取（仅前 30 秒，加速执行）----------
 void TestStreamingRead(const std::string& path)
 {
 	Section("Test 3: streaming read (first ~30s)");
 	AudioReader reader;
 	CHECK_OK(reader.Open(path));
 
-	// Read first 30s = 30 * 44100 frames
+	// 读前 30 秒 = 30 * 44100 帧
 	const std::uint64_t wantFrames = 30ull * 44100;
 	std::uint64_t totalRead = 0;
 	const std::uint64_t chunkSize = 4096;
@@ -151,7 +151,7 @@ void TestStreamingRead(const std::string& path)
 		CHECK_OK(r);
 		if (r.Value() == 0)
 			break; // EOF
-		// Buffer size must match frames * channels
+		// 缓冲区大小必须等于 frames * channels
 		CHECK_EQ(buf.size(), r.Value() * reader.GetInfo().Channels);
 		totalRead += r.Value();
 	}
@@ -159,7 +159,7 @@ void TestStreamingRead(const std::string& path)
 	CHECK(totalRead == wantFrames);
 }
 
-// ---------- Test 4: random time-range read [1ms, 23ms) ----------
+// ---------- 测试 4：随机时间区间读取 [1ms, 23ms) ----------
 void TestTimeRangeRead(const std::string& path)
 {
 	Section("Test 4: ReadTimeRangeMs(1, 23)");
@@ -169,14 +169,14 @@ void TestTimeRangeRead(const std::string& path)
 	auto r = reader.ReadTimeRangeMs(1, 23, samples);
 	CHECK_OK(r);
 	const auto channels = reader.GetInfo().Channels;
-	const std::uint64_t expectedFrames = (23ull - 1ull) * 44100 / 1000; // ~970
-	// Tolerance of +-5 frames for boundary rounding
+	const std::uint64_t expectedFrames = (23ull - 1ull) * 44100 / 1000; // 约 970
+	// 边界取整容差 ±5 帧
 	CHECK(r.Value() >= expectedFrames - 5 && r.Value() <= expectedFrames + 5);
 	CHECK_EQ(samples.size(), r.Value() * channels);
 	std::cout << "   got " << r.Value() << " frames\n";
 }
 
-// ---------- Test 5: seek + read at 500ms ----------
+// ---------- 测试 5：跳转 + 在 500ms 处读取 ----------
 void TestSeekAndRead(const std::string& path)
 {
 	Section("Test 5: SeekToMs(500) + read 10ms");
@@ -184,17 +184,17 @@ void TestSeekAndRead(const std::string& path)
 	CHECK_OK(reader.Open(path));
 	CHECK_OK(reader.SeekToMs(500));
 	std::vector<float> buf;
-	// 10ms at 44100 Hz = 441 frames
+	// 44100 Hz 下 10ms = 441 帧
 	auto r = reader.ReadFrames(441, buf);
 	CHECK_OK(r);
 	CHECK(r.Value() == 441);
 	const std::uint64_t posMs = reader.GetPositionMs();
 	std::cout << "   position after read: " << posMs << " ms\n";
-	// Allow +-3ms rounding tolerance.
+	// 允许 ±3ms 取整容差。
 	CHECK(posMs >= 507 && posMs <= 513);
 }
 
-// ---------- Test 6: resample down 44.1k -> 22.05k ----------
+// ---------- 测试 6：下采样 44.1k -> 22.05k ----------
 void TestDownsampling(const std::string& path)
 {
 	Section("Test 6: SetTargetSampleRate(22050)");
@@ -203,16 +203,16 @@ void TestDownsampling(const std::string& path)
 	CHECK_OK(reader.SetTargetSampleRate(22050));
 	CHECK_EQ(reader.GetTargetSampleRate(), 22050u);
 
-	// Read 100ms at 22050 Hz = 2205 frames
+	// 22050 Hz 下读 100ms = 2205 帧
 	std::vector<float> buf;
 	auto r = reader.ReadFrames(2205, buf);
 	CHECK_OK(r);
-	// Linear resampler may produce a few frames +/- due to filter latency.
+	// 线性重采样因滤波器延迟可能 ±几帧。
 	CHECK(r.Value() >= 2200 && r.Value() <= 2210);
 	std::cout << "   produced " << r.Value() << " output frames for 100ms at 22050 Hz\n";
 }
 
-// ---------- Test 7: upsampling must be rejected ----------
+// ---------- 测试 7：上采样必须被拒绝 ----------
 void TestUpsamplingRejected(const std::string& path)
 {
 	Section("Test 7: SetTargetSampleRate(96000) must fail");
@@ -222,11 +222,11 @@ void TestUpsamplingRejected(const std::string& path)
 	CHECK_FAIL(r, AudioErrorCode::UnsupportedResampleDirection);
 }
 
-// ---------- Test 8: corrupted / truncated file ----------
+// ---------- 测试 8：损坏 / 截断文件 ----------
 void TestCorruptedFile(const std::string& path)
 {
 	Section("Test 8: truncated file (last 1KB removed)");
-	// Build a truncated copy: original minus last 1024 bytes.
+	// 构造截断副本：原文件去掉最后 1024 字节。
 	std::ifstream in(path, std::ios::binary);
 	if (!in) {
 		std::cerr << "   skipped (cannot open source)\n";
@@ -259,7 +259,7 @@ void TestCorruptedFile(const std::string& path)
 				  << " - acceptable (file is severely truncated)\n";
 		return;
 	}
-	// If Open succeeded, read the entire file - we should hit a premature EOF.
+	// 若 Open 成功，读完整个文件 —— 应当命中提前 EOF。
 	std::vector<float> buf;
 	std::uint64_t total = 0;
 	while (true) {
@@ -272,24 +272,24 @@ void TestCorruptedFile(const std::string& path)
 	}
 	std::cout << "   read " << total << " frames from truncated file; corrupted="
 			  << (reader.GetInfo().IsCorrupted ? "yes" : "no") << "\n";
-	// The truncated file should report fewer frames than the original.
+	// 截断文件读取的帧数应少于原文件总帧数。
 	CHECK(total < reader.GetInfo().TotalFrames || reader.GetInfo().IsCorrupted);
 	std::remove(tmpPath.c_str());
 }
 
-// ---------- Test 9: error code coverage ----------
+// ---------- 测试 9：错误码覆盖 ----------
 void TestErrorCodes(const std::string& path)
 {
 	Section("Test 9: error codes");
 
-	// 9a: open nonexistent file -> FileNotFound
+	// 9a：打开不存在的文件 -> FileNotFound
 	{
 		AudioReader reader;
 		auto r = reader.Open("/tmp/__definitely_does_not_exist__.xyz");
 		CHECK_FAIL(r, AudioErrorCode::FileNotFound);
 	}
 
-	// 9b: ReadFrames before Open -> NotOpened
+	// 9b：Open 之前 ReadFrames -> NotOpened
 	{
 		AudioReader reader;
 		std::vector<float> buf;
@@ -297,21 +297,21 @@ void TestErrorCodes(const std::string& path)
 		CHECK_FAIL(r, AudioErrorCode::NotOpened);
 	}
 
-	// 9c: SeekToMs before Open -> NotOpened
+	// 9c：Open 之前 SeekToMs -> NotOpened
 	{
 		AudioReader reader;
 		auto r = reader.SeekToMs(100);
 		CHECK_FAIL(r, AudioErrorCode::NotOpened);
 	}
 
-	// 9d: SetTargetSampleRate before Open -> NotOpened
+	// 9d：Open 之前 SetTargetSampleRate -> NotOpened
 	{
 		AudioReader reader;
 		auto r = reader.SetTargetSampleRate(22050);
 		CHECK_FAIL(r, AudioErrorCode::NotOpened);
 	}
 
-	// 9e: ReadTimeRangeMs with end<=start -> InvalidArgument
+	// 9e：ReadTimeRangeMs 传入 end<=start -> InvalidArgument
 	{
 		AudioReader reader;
 		CHECK_OK(reader.Open(path));
@@ -321,7 +321,7 @@ void TestErrorCodes(const std::string& path)
 	}
 }
 
-// ---------- Test 10: inject a custom (passthrough) resampler ----------
+// ---------- 测试 10：注入自定义（passthrough）重采样器 ----------
 class PassthroughResampler final : public IAudioResampler
 {
   public:

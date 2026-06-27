@@ -1,5 +1,5 @@
-// audio_resover - C++17 audio processing library
-// Implementation: miniaudio-backed IAudioDecoder.
+// audio_resover - C++17 音频处理库
+// 实现文件：基于 miniaudio 的 IAudioDecoder。
 #include "MiniaudioDecoder.hpp"
 
 #include <sys/stat.h>
@@ -10,8 +10,8 @@
 #include <string>
 #include <vector>
 
-// Include miniaudio as header-only (no MINIAUDIO_IMPLEMENTATION here - that
-// lives in miniaudio_impl.cpp). We only need the API declarations.
+// 以 header-only 方式 include miniaudio（此处不定义 MINIAUDIO_IMPLEMENTATION ——
+// 那个定义在 miniaudio_impl.cpp 中）。这里只需要 API 声明。
 #include "miniaudio.h"
 
 namespace audio_resover
@@ -76,7 +76,7 @@ std::uint32_t BitsForFormat(SampleFormat f)
 	return 0;
 }
 
-// Get file size in bytes; 0 on failure (treated as unknown).
+// 获取文件大小（字节数）；失败返回 0（视为未知）。
 std::uint64_t GetFileSizeBytes(const std::string& filePath)
 {
 	struct stat st;
@@ -111,7 +111,7 @@ ContainerFormat MiniaudioDecoder::SniffContainerFormat(const std::string& filePa
 	if (got >= 12 && std::memcmp(hdr, "RIFF", 4) == 0 && std::memcmp(hdr + 8, "WAVE", 4) == 0) {
 		return ContainerFormat::Wav;
 	}
-	// OggS container (we assume Vorbis; miniaudio native Ogg support is Vorbis)
+	// OggS 容器（假定为 Vorbis；miniaudio 原生 Ogg 支持即 Vorbis）
 	if (std::memcmp(hdr, "OggS", 4) == 0) {
 		return ContainerFormat::Vorbis;
 	}
@@ -119,11 +119,11 @@ ContainerFormat MiniaudioDecoder::SniffContainerFormat(const std::string& filePa
 	if (std::memcmp(hdr, "fLaC", 4) == 0) {
 		return ContainerFormat::Flac;
 	}
-	// ID3v2 tag at start of MP3
+	// 文件起始的 ID3v2 标签（MP3）
 	if (std::memcmp(hdr, "ID3", 3) == 0) {
 		return ContainerFormat::Mp3;
 	}
-	// Raw MP3 frame sync: 0xFF followed by 0xE0..0xFF (11-bit sync word).
+	// 原始 MP3 帧同步字：0xFF 后跟 0xE0..0xFF（11 位同步字）。
 	if (hdr[0] == 0xFF && (hdr[1] & 0xE0) == 0xE0) {
 		return ContainerFormat::Mp3;
 	}
@@ -136,7 +136,7 @@ Result<void> MiniaudioDecoder::Open(const std::string& filePath)
 		return Result<void>::Fail(AudioErrorCode::AlreadyOpened);
 	}
 
-	// Existence check (more specific than miniaudio's MA_DOES_NOT_EXIST).
+	// 存在性检查（比 miniaudio 的 MA_DOES_NOT_EXIST 更具体）。
 	std::ifstream test(filePath, std::ios::binary);
 	if (!test) {
 		return Result<void>::Fail(AudioErrorCode::FileNotFound, "File not found: " + filePath);
@@ -147,8 +147,8 @@ Result<void> MiniaudioDecoder::Open(const std::string& filePath)
 	mInfo.FileSizeBytes = GetFileSizeBytes(filePath);
 	mInfo.Format = SniffContainerFormat(filePath, mInfo.FileSizeBytes);
 
-	// Init miniaudio decoder with outputFormat=unknown to preserve native
-	// sample format; miniaudio will keep the file's native format/channels/rate.
+	// 用 outputFormat=unknown 初始化 miniaudio decoder，保留原始采样格式；
+	// miniaudio 会保留文件的原始格式 / 通道数 / 采样率。
 	ma_decoder_config config = ma_decoder_config_init(ma_format_unknown, 0, 0);
 	mDecoder = new (std::nothrow) ma_decoder;
 	if (mDecoder == nullptr) {
@@ -167,7 +167,7 @@ Result<void> MiniaudioDecoder::Open(const std::string& filePath)
 								  "ma_decoder_init_file failed (code=" + std::to_string(mr) + ")");
 	}
 
-	// Probe native data format.
+	// 探测原始数据格式。
 	ma_format nativeFmt = ma_format_unknown;
 	ma_uint32 channels = 0;
 	ma_uint32 sampleRate = 0;
@@ -185,7 +185,7 @@ Result<void> MiniaudioDecoder::Open(const std::string& filePath)
 	mInfo.Channels = channels;
 	mInfo.BitsPerSample = BitsForFormat(mInfo.NativeSampleFormat);
 
-	// Total frames / duration.
+	// 总帧数 / 时长。
 	ma_uint64 totalFrames = 0;
 	mr = ma_decoder_get_length_in_pcm_frames(mDecoder, &totalFrames);
 	if (mr == MA_SUCCESS && totalFrames > 0) {
@@ -193,7 +193,7 @@ Result<void> MiniaudioDecoder::Open(const std::string& filePath)
 		mInfo.DurationMs = totalFrames * 1000ULL / sampleRate;
 	}
 
-	// Average bitrate for compressed formats (PCM = 0).
+	// 压缩格式的平均码率（PCM 为 0）。
 	if (mInfo.Format != ContainerFormat::Wav && mInfo.Format != ContainerFormat::Raw &&
 		mInfo.DurationMs > 0 && mInfo.FileSizeBytes > 0) {
 		// bits/sec = (size_bytes * 8) / (duration_sec) ; kbps = bits/sec / 1000
@@ -246,7 +246,7 @@ Result<std::uint64_t> MiniaudioDecoder::ReadFrames(std::uint64_t frameCount, Sam
 	const ma_format reqFmt = ToMaFormat(outFormat);
 
 	if (reqFmt == nativeFmt) {
-		// Direct read - no format conversion needed.
+		// 直接读取，无需格式转换。
 		ma_uint64 framesRead = 0;
 		const ma_result mr =
 			ma_decoder_read_pcm_frames(mDecoder, outBuffer, frameCount, &framesRead);
@@ -257,13 +257,13 @@ Result<std::uint64_t> MiniaudioDecoder::ReadFrames(std::uint64_t frameCount, Sam
 				"ma_decoder_read_pcm_frames failed (code=" + std::to_string(mr) + ")");
 		}
 		if (framesRead < frameCount && mr != MA_AT_END) {
-			// Premature EOF / decode error: mark as possibly corrupted.
+			// 提前 EOF / 解码错误：标记为可能已损坏。
 			mInfo.IsCorrupted = true;
 		}
 		return Result<std::uint64_t>::Ok(framesRead);
 	}
 
-	// Need format conversion: read in native format, then convert.
+	// 需要格式转换：先按原始格式读取，再转换。
 	const std::size_t nativeSampleSize = ma_get_bytes_per_sample(nativeFmt);
 	if (nativeSampleSize == 0) {
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError,

@@ -1,30 +1,30 @@
-// audio_resover - C++17 audio processing library
-// Public header: sample / container format enums.
+// audio_resover - C++17 音频处理库
+// 公开头文件：采样格式 / 容器格式枚举。
 #pragma once
 
 namespace audio_resover
 {
 
-// PCM sample format. Determines how each individual sample is laid out in
-// memory. F32 is the recommended output format ([-1.0, 1.0] normalised).
+// PCM 采样格式。决定每个采样在内存中的布局。
+// F32 是推荐的输出格式（[-1.0, 1.0] 归一化）。
 enum class SampleFormat : int {
 	Unknown = 0,
-	U8,	 // 8-bit unsigned PCM, [0, 255]
-	S16, // 16-bit signed PCM
-	S24, // 24-bit signed PCM (packed, 3 bytes per sample)
-	S32, // 32-bit signed PCM
-	F32, // 32-bit IEEE float, [-1.0, 1.0] (default for ReadFrames)
+	U8,	 // 8 位无符号 PCM，[0, 255]
+	S16, // 16 位有符号 PCM
+	S24, // 24 位有符号 PCM（紧凑布局，每个采样 3 字节）
+	S32, // 32 位有符号 PCM
+	F32, // 32 位 IEEE 浮点，[-1.0, 1.0]（ReadFrames 默认格式）
 };
 
-// Audio container / coding format. This is the *real* format of the file as
-// detected from its content (independent of the file extension).
+// 音频容器 / 编码格式。这是按文件内容嗅探得到的“真实”格式
+// （与文件扩展名无关）。
 enum class ContainerFormat : int {
 	Unknown = 0,
-	Wav,	// RIFF/WAVE (PCM, ADPCM, IEEE float, etc.)
+	Wav,	// RIFF/WAVE（PCM、ADPCM、IEEE float 等）
 	Mp3,	// MPEG audio layer III
 	Flac,	// Free Lossless Audio Codec
 	Vorbis, // Ogg Vorbis
-	Raw,	// Headerless raw PCM
+	Raw,	// 无文件头的原始 PCM
 };
 
 inline const char* ToString(SampleFormat f)

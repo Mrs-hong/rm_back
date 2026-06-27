@@ -1,5 +1,5 @@
-// audio_resover - C++17 audio processing library
-// Implementation: AudioReader facade.
+// audio_resover - C++17 音频处理库
+// 实现文件：AudioReader facade。
 #include "audio_resover/AudioReader.hpp"
 
 #include <algorithm>
@@ -29,7 +29,7 @@ Result<void> AudioReader::Open(const std::string& filePath)
 	if (!r) {
 		return r;
 	}
-	// On a fresh open, reset any prior resampler target.
+	// 重新打开时，重置已有的重采样目标。
 	if (mResampler && mTargetSampleRate != 0) {
 		auto rc = ReconfigureResampler();
 		if (!rc)
@@ -68,7 +68,7 @@ const AudioInfo& AudioReader::GetInfo() const
 	return mDecoder ? mDecoder->GetInfo() : kEmpty;
 }
 
-// --- Sequential reads ---
+// --- 顺序读取 ---
 
 Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount,
 											  std::vector<float>& outSamples)
@@ -85,7 +85,7 @@ Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount,
 	}
 
 	if (mTargetSampleRate == 0 || mResampler == nullptr) {
-		// Direct path: read F32 frames straight from the decoder.
+		// 直通路径：从解码器直接读 F32 帧。
 		outSamples.resize(static_cast<std::size_t>(frameCount * channels));
 		auto r = mDecoder->ReadFrames(frameCount, SampleFormat::F32, outSamples.data());
 		if (!r)
@@ -94,15 +94,15 @@ Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount,
 		return r;
 	}
 
-	// Resampled path.
+	// 重采样路径。
 	const std::uint32_t srcRate = GetInfo().SampleRate;
 	const std::uint32_t dstRate = mTargetSampleRate;
 	if (srcRate == 0 || dstRate == 0) {
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError, "invalid sample rate");
 	}
 
-	// Estimate input frames needed to produce frameCount output frames,
-	// with a small slack to absorb filter latency.
+	// 估算产出 frameCount 个输出帧需要多少输入帧，
+	// 加少量 slack 以吸收滤波器延迟。
 	const std::uint64_t inputEstimate = frameCount * srcRate / dstRate + 32;
 
 	std::vector<float> inBuf(static_cast<std::size_t>(inputEstimate * channels));
@@ -137,10 +137,8 @@ Result<std::uint64_t> AudioReader::ReadFrames(std::uint64_t frameCount, SampleFo
 	}
 
 	const auto channels = GetInfo().Channels;
-	// Resampling currently supported only on the F32 overload; for arbitrary
-	// formats, the caller must disable resampling first. This keeps the
-	// implementation simple and matches typical usage (F32 streaming +
-	// occasional raw int extraction).
+	// 重采样目前仅在 F32 重载上支持；对于任意格式，调用方必须先关闭重采样。
+	// 这样保持实现简单，也符合典型用法（F32 流式 + 偶尔的原始 int 提取）。
 	if (mTargetSampleRate != 0 && mResampler != nullptr) {
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InvalidArgument,
 										   "byte-overload ReadFrames does not "
@@ -195,7 +193,7 @@ Result<std::uint64_t> AudioReader::ReadTimeRangeMs(std::uint64_t startMs, std::u
 		return Result<std::uint64_t>::Fail(AudioErrorCode::InternalError, "sample rate is 0");
 	}
 
-	// Source-rate frame indices for the [startMs, endMs) window.
+	// [startMs, endMs) 窗口对应的源采样率帧索引。
 	const std::uint64_t startFrame = startMs * info.SampleRate / 1000ULL;
 	const std::uint64_t endFrame = endMs * info.SampleRate / 1000ULL;
 	if (startFrame >= endFrame) {
@@ -215,7 +213,7 @@ Result<std::uint64_t> AudioReader::ReadTimeRangeMs(std::uint64_t startMs, std::u
 	return ReadFrames(wantFrames, outSamples);
 }
 
-// --- Position / seek ---
+// --- 位置 / 跳转 ---
 
 Result<void> AudioReader::SeekToMs(std::uint64_t ms)
 {
@@ -252,8 +250,8 @@ std::uint64_t AudioReader::GetPositionFrames() const
 {
 	if (!IsOpen())
 		return 0;
-	// When resampling is active, express position in OUTPUT frame units so
-	// that GetPositionFrames() * GetTargetSampleRate() == GetPositionMs() * 1000.
+	// 当重采样激活时，位置以“输出帧”单位表示，从而满足
+	// GetPositionFrames() * GetTargetSampleRate() == GetPositionMs() * 1000。
 	const std::uint64_t inPos = mDecoder->GetPositionFrames();
 	if (mTargetSampleRate == 0 || mResampler == nullptr)
 		return inPos;
@@ -269,18 +267,18 @@ bool AudioReader::HasMore() const
 		return false;
 	const auto& info = GetInfo();
 	if (info.TotalFrames == 0)
-		return true; // unknown length: assume more
+		return true; // 长度未知：假定还有
 	return GetPositionFrames() < info.TotalFrames;
 }
 
-// --- Resampler management ---
+// --- 重采样器管理 ---
 
 Result<void> AudioReader::SetResampler(std::unique_ptr<IAudioResampler> resampler)
 {
 	mResampler = std::move(resampler);
 	mUsingDefaultResampler = false;
 	if (mResampler == nullptr) {
-		// Cleared: also reset target sample rate.
+		// 已清除：同时重置目标采样率。
 		mTargetSampleRate = 0;
 		return Result<void>::Ok();
 	}
@@ -297,7 +295,7 @@ Result<void> AudioReader::SetTargetSampleRate(std::uint32_t targetSampleRate)
 	}
 	const auto srcRate = GetInfo().SampleRate;
 	if (targetSampleRate == 0) {
-		// Reset to native rate.
+		// 重置为原始采样率。
 		mResampler.reset();
 		mTargetSampleRate = 0;
 		mUsingDefaultResampler = false;
@@ -310,7 +308,7 @@ Result<void> AudioReader::SetTargetSampleRate(std::uint32_t targetSampleRate)
 									  "); upsampling not supported");
 	}
 	if (targetSampleRate == srcRate) {
-		// No-op: clear resampler.
+		// 空操作：清除重采样器。
 		mResampler.reset();
 		mTargetSampleRate = 0;
 		mUsingDefaultResampler = false;

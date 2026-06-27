@@ -11,6 +11,7 @@
 - [核心特性](#核心特性)
 - [依赖](#依赖)
 - [目录结构](#目录结构)
+- [结构设计与类接口说明](#结构设计与类接口说明)
 - [快速开始](#快速开始)
 - [使用示例](#使用示例)
 - [公共 API 参考](#公共-api-参考)
@@ -77,6 +78,244 @@ audio_resover/
         ├── miniaudio.h         # v0.11.25 单头文件
         └── LICENSE             # MIT
 ```
+
+---
+
+## 结构设计与类接口说明
+
+### 整体架构
+
+```
+                ┌─────────────────────────────────────────┐
+                │              用户代码                    │
+                └───────────────┬─────────────────────────┘
+                                │ 仅依赖公开 API
+                                ▼
+            ┌───────────────────────────────────────────────┐
+            │           AudioReader (Facade)                │
+            │   ─ Open / Close / GetInfo                    │
+            │   ─ ReadFrames (F32 / 任意 PCM)               │
+            │   ─ ReadTimeRangeMs / SeekToMs                │
+            │   ─ SetResampler / SetTargetSampleRate         │
+            └───────┬───────────────────────┬───────────────┘
+                    │ 组合                   │ 可选组合
+                    ▼                       ▼
+        ┌─────────────────────┐   ┌─────────────────────┐
+        │  IAudioDecoder      │   │  IAudioResampler    │
+        │  (Strategy 接口)    │   │  (Strategy 接口)    │
+        └──────────┬──────────┘   └──────────┬──────────┘
+                   │ 默认实现                 │ 默认实现
+                   ▼                          ▼
+        ┌─────────────────────┐   ┌─────────────────────┐
+        │  MiniaudioDecoder   │   │  MiniaudioResampler │
+        │  (PIMPL, 私有)      │   │  (PIMPL, 私有)      │
+        └──────────┬──────────┘   └──────────┬──────────┘
+                   │                          │
+                   ▼                          ▼
+        ┌─────────────────────────────────────────────────┐
+        │         miniaudio (MIT, 单头文件)               │
+        │   ma_decoder / ma_data_converter / ma_pcm_*      │
+        └─────────────────────────────────────────────────┘
+```
+
+### 设计模式
+
+| 模式        | 应用位置                                          | 目的                                       |
+| ----------- | ------------------------------------------------- | ------------------------------------------ |
+| Facade      | `AudioReader`                                     | 为外部提供统一简化入口，隔离策略切换细节   |
+| Strategy    | `IAudioDecoder` / `IAudioResampler`               | 解码器 / 重采样器可替换，降低耦合          |
+| PIMPL       | `MiniaudioDecoder` / `MiniaudioResampler`         | 隐藏 miniaudio 私有依赖，缩短编译时间       |
+| Value-like  | `Result<T>`                                       | 用值类型承载错误，避免异常                 |
+| RAII        | `MiniaudioGuard`（预留）                          | 全局资源获取 / 释放（当前为空操作）        |
+
+### 模块依赖关系
+
+```
+include/audio_resover/AudioResover.hpp     <- umbrella，用户唯一入口
+        │
+        ├── AudioError.hpp         (无依赖)
+        ├── AudioFormat.hpp        (无依赖)
+        ├── AudioInfo.hpp          -> AudioFormat.hpp
+        ├── IAudioDecoder.hpp      -> AudioError.hpp / AudioFormat.hpp / AudioInfo.hpp
+        ├── IAudioResampler.hpp     -> AudioError.hpp / AudioFormat.hpp
+        └── AudioReader.hpp         -> 上述所有
+
+src/AudioReader.cpp                       -> AudioReader.hpp + 私有头
+src/MiniaudioDecoder.cpp                  -> MiniaudioDecoder.hpp + miniaudio.h
+src/MiniaudioResampler.cpp                -> MiniaudioResampler.hpp + miniaudio.h
+src/miniaudio_impl.cpp                    -> miniaudio.h (定义 MINIAUDIO_IMPLEMENTATION)
+```
+
+### 公开类型一览
+
+#### 枚举与 POD
+
+```cpp
+namespace audio_resover {
+
+// 采样格式（决定 PCM 在内存中的布局）
+enum class SampleFormat : int { Unknown, U8, S16, S24, S32, F32 };
+
+// 容器格式（按文件内容嗅探，与扩展名无关）
+enum class ContainerFormat : int { Unknown, Wav, Mp3, Flac, Vorbis, Raw };
+
+// 元数据 POD（只读）
+struct AudioInfo {
+    bool IsValid, IsCorrupted;
+    ContainerFormat Format;
+    SampleFormat NativeSampleFormat;
+    uint32_t SampleRate, Channels, BitsPerSample;
+    uint64_t TotalFrames, DurationMs, FileSizeBytes;
+    uint32_t AvgBitRateKbps;
+};
+
+} // namespace audio_resover
+```
+
+#### 错误码与 Result
+
+```cpp
+enum class AudioErrorCode : int {
+    Ok = 0,
+    FileNotFound = 1001, FileOpenFailed, FileReadFailed,
+    UnknownFormat = 2001, UnsupportedFormat, CorruptedFile, DecodeFailed, SeekFailed,
+    InvalidArgument = 3001, OutOfRange, NotOpened, AlreadyOpened,
+    UnsupportedResampleDirection = 4001, ResamplerNotSet, ResamplerInitFailed, ResampleFailed,
+    InternalError = 9001, NotImplemented,
+};
+
+template <typename T> class Result {
+public:
+    bool IsOk() const;
+    explicit operator bool() const;
+    const T& Value() const;                // 仅 IsOk() 时合法
+    AudioErrorCode Code() const;
+    const std::string& Message() const;
+    static Result Ok(T value);
+    static Result Fail(AudioErrorCode code, std::string msg = "");
+};
+// Result<void> 特化：不含 Value()。
+```
+
+#### AudioReader（Facade 主入口）
+
+```cpp
+class AudioReader {
+public:
+    // 0. 打开 / 关闭
+    Result<void> Open(const std::string& filePath);
+    Result<void> SetDecoder(std::unique_ptr<IAudioDecoder>);  // Open 之前替换
+    bool IsOpen() const;
+    void Close();
+
+    // 1. 元数据
+    const AudioInfo& GetInfo() const;
+
+    // 2. 读取（F32 流式 / 字节流 / 时间区间）
+    Result<uint64_t> ReadFrames(uint64_t frameCount, std::vector<float>& out);
+    Result<uint64_t> ReadFrames(uint64_t frameCount, SampleFormat fmt,
+                                std::vector<uint8_t>& out);
+    Result<uint64_t> ReadTimeRangeMs(uint64_t startMs, uint64_t endMs,
+                                     std::vector<float>& out);
+
+    // 位置 / 跳转
+    Result<void> SeekToMs(uint64_t ms);
+    Result<void> SeekToFrame(uint64_t frameIndex);
+    uint64_t GetPositionMs() const;
+    uint64_t GetPositionFrames() const;
+    bool HasMore() const;
+
+    // 3. 重采样（仅下采样）
+    Result<void> SetResampler(std::unique_ptr<IAudioResampler>);  // nullptr 清除
+    Result<void> SetTargetSampleRate(uint32_t rate);              // 0 = 重置
+    uint32_t GetTargetSampleRate() const;
+};
+```
+
+#### IAudioDecoder（解码器策略接口）
+
+```cpp
+class IAudioDecoder {
+public:
+    virtual ~IAudioDecoder() = default;
+    virtual Result<void> Open(const std::string& filePath) = 0;
+    virtual bool IsOpen() const = 0;
+    virtual void Close() = 0;
+    virtual const AudioInfo& GetInfo() const = 0;
+    virtual Result<uint64_t> ReadFrames(uint64_t frameCount,
+                                        SampleFormat outFormat,
+                                        void* outBuffer) = 0;
+    virtual Result<void> SeekToFrame(uint64_t frameIndex) = 0;
+    virtual uint64_t GetPositionFrames() const = 0;
+};
+```
+
+#### IAudioResampler（重采样策略接口）
+
+```cpp
+class IAudioResampler {
+public:
+    virtual ~IAudioResampler() = default;
+    virtual Result<void> Configure(uint32_t inSampleRate,
+                                   uint32_t outSampleRate,
+                                   uint32_t channels,
+                                   SampleFormat format) = 0;
+    virtual Result<uint64_t> Process(const void* inBuffer, uint64_t inFrameCount,
+                                    void* outBuffer, uint64_t outFrameCountCap) = 0;
+    virtual uint64_t EstimateOutFrames(uint64_t inFrameCount) const = 0;
+};
+```
+
+契约：
+
+- 仅下采样（`outSampleRate <= inSampleRate`）
+- 采样格式与通道数保持不变
+- `Process` 可增量调用，内部状态跨调用保留
+
+### 数据流
+
+#### 直通读取（无重采样）
+
+```
+用户 ReadFrames(N, out)
+   └─> AudioReader 检查 mResampler == nullptr
+       └─> mDecoder->ReadFrames(N, F32, out.data())
+           └─> ma_decoder_read_pcm_frames(...)
+```
+
+#### 重采样读取
+
+```
+用户 ReadFrames(N, out)
+   └─> AudioReader 估算所需输入帧 inputEstimate = N * srcRate / dstRate + 32
+       └─> mDecoder->ReadFrames(inputEstimate, F32, inBuf)
+           └─> ma_decoder_read_pcm_frames(...)
+       └─> mResampler->Process(inBuf, inFrames, out, N)
+           └─> ma_data_converter_process_pcm_frames(...)
+```
+
+#### 随机时间区间读取
+
+```
+用户 ReadTimeRangeMs(startMs, endMs, out)
+   └─> 计算 startFrame = startMs * SampleRate / 1000
+   └─> mDecoder->SeekToFrame(startFrame)
+   └─> ReadFrames(endFrame - startFrame, out)
+       └─> （同上：直通 or 重采样路径）
+```
+
+### 关键设计决策
+
+| 决策                              | 理由                                                                                  |
+| --------------------------------- | ------------------------------------------------------------------------------------- |
+| 不抛异常，全用 `Result<T>`        | 边缘 / 嵌入式场景常禁用异常；显式错误传播更安全                                        |
+| 仅支持下采样                      | 项目需求只要求降采样（大 → 小），简化实现与错误处理                                    |
+| miniaudio 通过 PIMPL 隐藏         | 避免把 miniaudio 的 95864 行头文件传递到用户编译单元                                  |
+| `ma_data_converter` 用 `void*` 不透明指针 | miniaudio 中 `ma_data_converter` 是匿名 typedef struct，无法前向声明           |
+| 文件头嗅探决定真实格式            | 与文件扩展名无关（测试音频 `.wav` 实际是 MP3）                                         |
+| 字节重载不支持重采样              | 简化实现；多格式输出与重采样解耦，避免组合爆炸                                         |
+| 默认解码器/重采样器延迟创建        | `AudioReader` 默认构造便宜；用户可 `SetDecoder` / `SetResampler` 替换                 |
+| 错误码命名空间分区                | 1xxx / 2xxx / 3xxx / 4xxx / 9xxx 五大区段，便于分类与扩展                              |
 
 ---
 

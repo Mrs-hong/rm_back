@@ -1,5 +1,5 @@
-// audio_resover - C++17 audio processing library
-// Private header: miniaudio-backed IAudioDecoder implementation.
+// audio_resover - C++17 音频处理库
+// 私有头文件：基于 miniaudio 的 IAudioDecoder 实现。
 #pragma once
 
 #include <cstdint>
@@ -10,8 +10,8 @@
 #include "audio_resover/AudioInfo.hpp"
 #include "audio_resover/IAudioDecoder.hpp"
 
-// Forward-declare the miniaudio type so the public PIMPL does not leak
-// miniaudio symbols into the rest of the project.
+// 前向声明 miniaudio 类型，避免把 miniaudio 符号泄漏到公开 PIMPL 之外的
+// 工程其它部分。
 struct ma_decoder;
 
 namespace audio_resover
@@ -36,16 +36,14 @@ class MiniaudioDecoder final : public IAudioDecoder
 	std::uint64_t GetPositionFrames() const override;
 
   private:
-	// Sniff the first bytes of the file to determine its real container format
-	// (independent of file extension).
+	// 嗅探文件首部字节，判定其真实容器格式（与文件扩展名无关）。
 	static ContainerFormat SniffContainerFormat(const std::string& filePath,
 												std::uint64_t fileSize);
 
-	// Allocate and configure the underlying ma_decoder. Returns nullptr on
-	// failure (caller translates the error code).
+	// 分配并配置底层 ma_decoder。失败返回 false（由调用方翻译错误码）。
 	bool InitMiniaudioDecoder(const std::string& filePath);
 
-	ma_decoder* mDecoder = nullptr; // owned; freed in Close()/dtor
+	ma_decoder* mDecoder = nullptr; // 持有所有权；在 Close()/析构中释放
 	AudioInfo mInfo{};
 	bool mIsOpen = false;
 };

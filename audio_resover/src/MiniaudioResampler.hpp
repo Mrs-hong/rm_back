@@ -1,10 +1,10 @@
-// audio_resover - C++17 audio processing library
-// Private header: miniaudio-backed IAudioResampler implementation.
+// audio_resover - C++17 音频处理库
+// 私有头文件：基于 miniaudio 的 IAudioResampler 实现。
 //
-// Note: ma_data_converter in miniaudio is an *anonymous* typedef'd struct
-// (no struct tag), so it cannot be forward-declared in C++ without conflicting
-// with the typedef. We therefore store the converter as an opaque void* and
-// cast to ma_data_converter* inside the .cpp where miniaudio.h is included.
+// 注意：miniaudio 中的 ma_data_converter 是一个*匿名* typedef 结构体
+// （没有 struct tag），所以在 C++ 中无法在不与 typedef 冲突的前提下
+// 前向声明。因此这里把 converter 存为不透明 void*，在 .cpp 中
+// （那里 include 了 miniaudio.h）再 cast 回 ma_data_converter*。
 #pragma once
 
 #include <cstdint>
@@ -32,8 +32,8 @@ class MiniaudioResampler final : public IAudioResampler
 	std::uint64_t EstimateOutFrames(std::uint64_t inFrameCount) const override;
 
   private:
-	// Cast to ma_data_converter* in the .cpp (miniaudio.h is included there).
-	void* mConverterRaw = nullptr; // owned; opaque pointer to ma_data_converter
+	// 在 .cpp 中转换为 ma_data_converter*（miniaudio.h 在那里 include）。
+	void* mConverterRaw = nullptr; // 持有所有权；指向 ma_data_converter 的不透明指针
 	std::uint32_t mInSampleRate = 0;
 	std::uint32_t mOutSampleRate = 0;
 	std::uint32_t mChannels = 0;

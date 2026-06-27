@@ -1,9 +1,8 @@
-// audio_resover - C++17 audio processing library
-// Public header: error codes + Result<T> return type.
+// audio_resover - C++17 音频处理库
+// 公开头文件：错误码 + Result<T> 返回类型。
 //
-// All public APIs return Result<T> instead of throwing exceptions. This keeps
-// the library suitable for embedded / edge runtimes where exceptions may be
-// disabled, and makes error propagation explicit at every call site.
+// 所有公开 API 都返回 Result<T>，而不是抛异常。这样可以让本库适用于
+// 禁用异常的嵌入式 / 边缘运行时，同时让错误传播在每个调用点都显式可见。
 #pragma once
 
 #include <string>
@@ -12,58 +11,58 @@
 namespace audio_resover
 {
 
-// Error code namespace partitioning:
-//   1xxx - file / IO
-//   2xxx - format / decode
-//   3xxx - argument / state
-//   4xxx - resampling
-//   9xxx - internal / not implemented
+// 错误码命名空间分区：
+//   1xxx - 文件 / IO
+//   2xxx - 格式 / 解码
+//   3xxx - 参数 / 状态
+//   4xxx - 重采样
+//   9xxx - 内部 / 未实现
 enum class AudioErrorCode : int {
 	Ok = 0,
 
-	// --- File / IO ---
+	// --- 文件 / IO ---
 	FileNotFound = 1001,
 	FileOpenFailed = 1002,
 	FileReadFailed = 1003,
 
-	// --- Format / decode ---
+	// --- 格式 / 解码 ---
 	UnknownFormat = 2001,
 	UnsupportedFormat = 2002,
 	CorruptedFile = 2003,
 	DecodeFailed = 2004,
 	SeekFailed = 2005,
 
-	// --- Argument / state ---
+	// --- 参数 / 状态 ---
 	InvalidArgument = 3001,
 	OutOfRange = 3002,
 	NotOpened = 3003,
 	AlreadyOpened = 3004,
 
-	// --- Resampling ---
-	UnsupportedResampleDirection = 4001, // attempted upsampling (only downsample supported)
+	// --- 重采样 ---
+	UnsupportedResampleDirection = 4001, // 尝试上采样（仅支持下采样）
 	ResamplerNotSet = 4002,
 	ResamplerInitFailed = 4003,
 	ResampleFailed = 4004,
 
-	// --- Internal ---
+	// --- 内部 ---
 	InternalError = 9001,
 	NotImplemented = 9002,
 };
 
-// Human-readable short description of an error code.
+// 返回错误码对应的简短中文描述。
 inline const char* ToMessage(AudioErrorCode code)
 {
 	switch (code) {
 	case AudioErrorCode::Ok:
 		return "Ok";
-	// File / IO
+	// 文件 / IO
 	case AudioErrorCode::FileNotFound:
 		return "File not found";
 	case AudioErrorCode::FileOpenFailed:
 		return "Failed to open file";
 	case AudioErrorCode::FileReadFailed:
 		return "Failed to read file";
-	// Format / decode
+	// 格式 / 解码
 	case AudioErrorCode::UnknownFormat:
 		return "Unknown audio format";
 	case AudioErrorCode::UnsupportedFormat:
@@ -74,7 +73,7 @@ inline const char* ToMessage(AudioErrorCode code)
 		return "Decode failed";
 	case AudioErrorCode::SeekFailed:
 		return "Seek failed";
-	// Argument / state
+	// 参数 / 状态
 	case AudioErrorCode::InvalidArgument:
 		return "Invalid argument";
 	case AudioErrorCode::OutOfRange:
@@ -83,7 +82,7 @@ inline const char* ToMessage(AudioErrorCode code)
 		return "Audio not opened";
 	case AudioErrorCode::AlreadyOpened:
 		return "Audio already opened";
-	// Resampling
+	// 重采样
 	case AudioErrorCode::UnsupportedResampleDirection:
 		return "Only downsampling is supported";
 	case AudioErrorCode::ResamplerNotSet:
@@ -92,7 +91,7 @@ inline const char* ToMessage(AudioErrorCode code)
 		return "Resampler init failed";
 	case AudioErrorCode::ResampleFailed:
 		return "Resample failed";
-	// Internal
+	// 内部
 	case AudioErrorCode::InternalError:
 		return "Internal error";
 	case AudioErrorCode::NotImplemented:
@@ -101,18 +100,18 @@ inline const char* ToMessage(AudioErrorCode code)
 	return "Unknown error code";
 }
 
-// Generic Result<T>: carries either a value (Ok) or an error code + message.
-// Designed to be cheap to copy for small T; for large T prefer move construction.
+// 泛型 Result<T>：要么持有值（Ok），要么持有错误码 + 消息。
+// 对小尺寸 T 拷贝代价很低；对大尺寸 T 建议用 move 构造。
 template <typename T> class Result
 {
   public:
-	// Constructs an Ok result holding a default-constructed value.
+	// 构造一个持有默认值（Ok）的 Result。
 	Result() = default;
 
 	bool IsOk() const { return mCode == AudioErrorCode::Ok; }
 	explicit operator bool() const { return IsOk(); }
 
-	// Access the stored value. Undefined behaviour if !IsOk().
+	// 访问存储的值。在 !IsOk() 时调用为未定义行为。
 	const T& Value() const { return mValue; }
 	T& Value() { return mValue; }
 
@@ -141,7 +140,7 @@ template <typename T> class Result
 	std::string mMessage;
 };
 
-// Specialisation for void: carries only status, no value.
+// void 特化：只承载状态，不含值。
 template <> class Result<void>
 {
   public:

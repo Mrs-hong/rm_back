@@ -1,7 +1,7 @@
-// audio_resover - C++17 audio processing library
-// Translation unit hosting the miniaudio implementation. miniaudio requires
-// MINIAUDIO_IMPLEMENTATION to be defined in exactly one TU; this file is it.
+// audio_resover - C++17 音频处理库
+// 承载 miniaudio 实现的翻译单元。miniaudio 要求 MINIAUDIO_IMPLEMENTATION
+// 必须在且仅在一个 TU 中定义；本文件即此 TU。
 //
-// Keep this file minimal: do NOT add audio_resover logic here.
+// 保持本文件最小化：不要在这里加入 audio_resover 的业务逻辑。
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio.h"

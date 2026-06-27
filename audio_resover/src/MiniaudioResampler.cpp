@@ -1,5 +1,5 @@
-// audio_resover - C++17 audio processing library
-// Implementation: miniaudio-backed IAudioResampler.
+// audio_resover - C++17 音频处理库
+// 实现文件：基于 miniaudio 的 IAudioResampler。
 #include "MiniaudioResampler.hpp"
 
 #include <new>
@@ -32,7 +32,7 @@ ma_format ToMaFormat(SampleFormat f)
 	return ma_format_unknown;
 }
 
-// Convenience cast from the opaque void* member to ma_data_converter*.
+// 把不透明 void* 成员便捷地 cast 回 ma_data_converter*。
 inline ma_data_converter* AsConverter(void* p)
 {
 	return static_cast<ma_data_converter*>(p);
@@ -46,7 +46,7 @@ MiniaudioResampler::~MiniaudioResampler()
 {
 	if (mConverterRaw) {
 		ma_data_converter_uninit(AsConverter(mConverterRaw), nullptr);
-		// ma_data_converter was allocated with operator new; cast back to free.
+		// ma_data_converter 用 operator new 分配；这里 cast 回来释放。
 		delete AsConverter(mConverterRaw);
 		mConverterRaw = nullptr;
 	}
@@ -62,7 +62,7 @@ Result<void> MiniaudioResampler::Configure(std::uint32_t inSampleRate, std::uint
 	if (format == SampleFormat::Unknown) {
 		return Result<void>::Fail(AudioErrorCode::InvalidArgument, "format must not be Unknown");
 	}
-	// Per project scope: only downsampling is supported.
+	// 项目范围限制：仅支持下采样。
 	if (outSampleRate > inSampleRate) {
 		return Result<void>::Fail(AudioErrorCode::UnsupportedResampleDirection,
 								  "outSampleRate (" + std::to_string(outSampleRate) +
@@ -70,7 +70,7 @@ Result<void> MiniaudioResampler::Configure(std::uint32_t inSampleRate, std::uint
 									  "); upsampling is not supported");
 	}
 
-	// Tear down any existing converter.
+	// 销毁已有的 converter。
 	if (mConverterRaw) {
 		ma_data_converter_uninit(AsConverter(mConverterRaw), nullptr);
 		delete AsConverter(mConverterRaw);
@@ -80,8 +80,7 @@ Result<void> MiniaudioResampler::Configure(std::uint32_t inSampleRate, std::uint
 	const ma_format maFmt = ToMaFormat(format);
 	ma_data_converter_config config = ma_data_converter_config_init(
 		maFmt, maFmt, channels, channels, inSampleRate, outSampleRate);
-	// Use the linear resampler (miniaudio default); force it explicitly so
-	// external config changes do not silently alter behaviour.
+	// 使用线性重采样器（miniaudio 默认）；显式指定以防外部配置静默改变行为。
 	config.resampling.algorithm = ma_resample_algorithm_linear;
 
 	auto* conv = new (std::nothrow) ma_data_converter;
