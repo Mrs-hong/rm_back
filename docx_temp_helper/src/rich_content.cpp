@@ -668,4 +668,16 @@ std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs) {
     return oss.str();
 }
 
+void appendParagraphsBefore(pugi::xml_node parent,
+                             const std::vector<RichParagraph>& paragraphs,
+                             pugi::xml_node beforeNode) {
+    for (const auto& para : paragraphs) {
+        // 先 append 到 parent 末尾，再移动到 beforeNode 之前
+        pugi::xml_node newPara = createParagraphNode(parent, para);
+        if (beforeNode) {
+            parent.insert_move_before(newPara, beforeNode);
+        }
+    }
+}
+
 } // namespace docx_temp_helper

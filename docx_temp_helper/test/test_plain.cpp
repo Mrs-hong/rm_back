@@ -79,13 +79,14 @@ int main() {
     ASSERT_TRUE(unzipOk, "输出文件可解压（合法 docx）");
     ASSERT_TRUE(fs::exists(verifyDir + "/word/document.xml"), "输出包含 word/document.xml");
 
-    // 清理
+    // 关闭文档（输出文件保留供人工检查）
     doc.close();
-    fs::remove_all(verifyDir);
-    fs::remove(outputPath);
+    fs::remove_all(verifyDir);  // 仅清理解压验证目录，保留输出 docx
+    std::cout << "  输出文件: " << outputPath << std::endl;
 
     // 测试通配符替换
     std::cout << std::endl << "  --- 通配符替换测试 ---" << std::endl;
+    std::string outputPath2 = dataDir + "/output_plain_wildcard.docx";
     docx_temp_helper::DocxDocument doc2;
     openErr = doc2.open(templatePath);
     ASSERT_TRUE(openErr.ok(), "通配符: 打开模板");
@@ -94,10 +95,10 @@ int main() {
     ASSERT_TRUE(result2.ok(), "通配符替换成功");
     ASSERT_TRUE(result2.totalReplaced >= 1, "通配符至少替换1处");
 
-    saveErr = doc2.save(outputPath);
+    saveErr = doc2.save(outputPath2);
     ASSERT_TRUE(saveErr.ok(), "通配符: 保存输出");
     doc2.close();
-    fs::remove(outputPath);
+    std::cout << "  输出文件: " << outputPath2 << std::endl;
 
     // 结果汇总
     std::cout << std::endl;

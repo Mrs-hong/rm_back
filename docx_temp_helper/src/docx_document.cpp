@@ -513,6 +513,114 @@ ReplaceResult DocxDocument::replaceRich(const std::map<std::string, RichReplacem
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// 文档生成（从空白模板）
+// ═══════════════════════════════════════════════════════════════════════════════
+
+ReplaceResult DocxDocument::generateDocument(const std::string& title,
+                                               const std::string& bodyContent,
+                                               ContentType contentType) {
+    ReplaceResult result;
+
+    if (!opened_) {
+        result.error = makeError(ErrorCode::NotOpened, "文档未打开", "");
+        return result;
+    }
+
+    if (bodyContent.empty()) {
+        result.error = makeError(ErrorCode::InvalidPattern, "正文内容为空", "");
+        return result;
+    }
+
+    // generateDocument 始终使用 DOM 模式（空白模板很小，无需流式）
+    if (!domLoaded_) {
+        auto err = parseXmlDom_();
+        if (!err.ok()) {
+            result.error = err;
+            return result;
+        }
+        domLoaded_ = true;
+        streamingMode_ = false;
+    }
+
+    // 找到 <w:body> 和 <w:sectPr>
+    pugi::xml_node root = domDoc_.document_element();  // <w:document>
+    pugi::xml_node body = root.child("w:body");
+    if (!body) {
+        result.error = makeError(ErrorCode::XmlParseFailed,
+                                 "未找到 <w:body> 元素", "");
+        return result;
+    }
+
+    // <w:sectPr> 是页面属性节点，新段落需插入到它之前
+    pugi::xml_node sectPr = body.child("w:sectPr");
+
+    // 构建段落列表
+    std::vector<RichParagraph> paragraphs;
+
+    // 添加标题（如果提供）—— h1 格式：方正小标宋简体 22pt 居中
+    if (!title.empty()) {
+        RichParagraph titlePara;
+        titlePara.headingLevel = 1;
+        RichRun titleRun;
+        titleRun.text = title;
+        titlePara.runs.push_back(titleRun);
+        paragraphs.push_back(titlePara);
+    }
+
+    // 根据内容类型解析正文
+    if (contentType == ContentType::HTML) {
+        auto bodyParas = parseHtml(bodyContent);
+        paragraphs.insert(paragraphs.end(), bodyParas.begin(), bodyParas.end());
+    } else if (contentType == ContentType::Markdown) {
+        auto bodyParas = parseMarkdown(bodyContent);
+        paragraphs.insert(paragraphs.end(), bodyParas.begin(), bodyParas.end());
+    } else {
+        // Plain：按行分割，每行渲染为仿宋正文段落（首行缩进 32pt = 640 twips）
+        std::istringstream iss(bodyContent);
+        std::string line;
+        while (std::getline(iss, line)) {
+            // 跳过空行
+            if (line.find_first_not_of(" \t\r\n") == std::string::npos) continue;
+
+            RichParagraph para;
+            RichRun run;
+            run.text = line;
+            para.runs.push_back(run);
+            para.alignment = "justify";
+            para.firstLineIndent = 640;  // 32pt 首行缩进
+            para.lineSpacing = 1.0;
+            paragraphs.push_back(para);
+        }
+    }
+
+    if (paragraphs.empty()) {
+        result.error = makeError(ErrorCode::InvalidPattern,
+                                 "解析后无有效段落", "");
+        return result;
+    }
+
+    // 渲染并插入到 <w:sectPr> 之前
+    appendParagraphsBefore(body, paragraphs, sectPr);
+
+    // 记录生成结果
+    ReplaceRecord record;
+    record.placeholder = "[Generated]";
+    record.replacement = "title=" + (title.empty() ? std::string("(none)") : title) +
+                         ", paragraphs=" + std::to_string(paragraphs.size()) +
+                         ", type=" + std::string(contentType == ContentType::HTML ? "HTML" :
+                                                contentType == ContentType::Markdown ? "Markdown" : "Plain");
+    record.count = static_cast<int>(paragraphs.size());
+    result.records.push_back(record);
+    result.totalReplaced = 1;
+
+    if (config_.verbose) {
+        std::cout << "文档生成完成: " << paragraphs.size() << " 个段落" << std::endl;
+    }
+
+    return result;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // 状态查询
 // ═══════════════════════════════════════════════════════════════════════════════
 

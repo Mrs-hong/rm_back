@@ -101,4 +101,13 @@ void renderParagraphsToXml(pugi::xml_node parent,
 /// @note 用于流式模式下替换占位符段落
 std::string serializeParagraphs(const std::vector<RichParagraph>& paragraphs);
 
+/// 将结构化段落渲染为 OOXML <w:p> 元素并插入到指定节点之前
+/// @param parent 父节点（通常是 <w:body>）
+/// @param paragraphs 段落列表
+/// @param beforeNode 新段落将插入到此节点之前（如 <w:sectPr>），为空则追加到末尾
+/// @note 用于从空白模板生成文档（generateDocument）
+void appendParagraphsBefore(pugi::xml_node parent,
+                             const std::vector<RichParagraph>& paragraphs,
+                             pugi::xml_node beforeNode);
+
 } // namespace docx_temp_helper

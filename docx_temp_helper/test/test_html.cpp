@@ -101,10 +101,10 @@ int main() {
     // HTML 中应包含 "项目进度" 文本
     ASSERT_TRUE(docXml.find("项目进度") != std::string::npos, "输出包含 HTML 文本 '项目进度'");
 
-    // 清理
+    // 关闭文档（输出文件保留供人工检查）
     doc.close();
-    fs::remove_all(verifyDir);
-    fs::remove(outputPath);
+    fs::remove_all(verifyDir);  // 仅清理解压验证目录，保留输出 docx
+    std::cout << "  输出文件: " << outputPath << std::endl;
 
     std::cout << std::endl;
     std::cout << "=== 测试结果: " << testPassCount << " passed, "

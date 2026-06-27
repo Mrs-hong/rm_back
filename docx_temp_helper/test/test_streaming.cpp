@@ -9,11 +9,11 @@
 #include "docx_temp_helper/docx_document.h"
 #include "zip_utils.h"
 
-#include <iostream>
-#include <fstream>
-#include <sstream>
 #include <filesystem>
+#include <fstream>
+#include <iostream>
 #include <map>
+#include <sstream>
 
 #ifndef TEST_DATA_DIR
 #define TEST_DATA_DIR "."
@@ -24,133 +24,138 @@ namespace fs = std::filesystem;
 static int testPassCount = 0;
 static int testFailCount = 0;
 
-#define ASSERT_TRUE(cond, msg) \
-    do { \
-        if (cond) { \
-            std::cout << "  [PASS] " << msg << std::endl; \
-            testPassCount++; \
-        } else { \
-            std::cout << "  [FAIL] " << msg << std::endl; \
-            testFailCount++; \
-        } \
-    } while (0)
+#define ASSERT_TRUE(cond, msg)                                                 \
+  do {                                                                         \
+    if (cond) {                                                                \
+      std::cout << "  [PASS] " << msg << std::endl;                            \
+      testPassCount++;                                                         \
+    } else {                                                                   \
+      std::cout << "  [FAIL] " << msg << std::endl;                            \
+      testFailCount++;                                                         \
+    }                                                                          \
+  } while (0)
 
 /// 读取文件内容到字符串
-static std::string readFile(const std::string& path) {
-    std::ifstream in(path, std::ios::binary);
-    std::ostringstream oss;
-    oss << in.rdbuf();
-    return oss.str();
+static std::string readFile(const std::string &path) {
+  std::ifstream in(path, std::ios::binary);
+  std::ostringstream oss;
+  oss << in.rdbuf();
+  return oss.str();
 }
 
 int main() {
-    std::cout << "=== 测试5：流式处理模式 ===" << std::endl;
+  std::cout << "=== 测试5：流式处理模式 ===" << std::endl;
 
-    std::string dataDir = TEST_DATA_DIR;
-    std::string templatePath = dataDir + "/template.docx";
-    std::string mdPath = dataDir + "/content.md";
-    std::string outputPath = dataDir + "/output_streaming.docx";
+  std::string dataDir = TEST_DATA_DIR;
+  std::string templatePath = dataDir + "/template.docx";
+  std::string mdPath = dataDir + "/content.md";
+  std::string outputPath = dataDir + "/output_streaming.docx";
 
-    // ── 测试5.1：流式纯文本替换 ──
-    std::cout << std::endl << "  --- 5.1 流式纯文本替换 ---" << std::endl;
+  // ── 测试5.1：流式纯文本替换 ──
+  std::cout << std::endl << "  --- 5.1 流式纯文本替换 ---" << std::endl;
 
-    // 设置极小内存限制（1KB），强制启用流式模式
-    docx_temp_helper::DocxConfig config;
-    config.memoryLimit = 1024;  // 1KB，远小于文件大小
-    config.verbose = false;
+  // 设置极小内存限制（1KB），强制启用流式模式
+  docx_temp_helper::DocxConfig config;
+  config.memoryLimit = 1024; // 1KB，远小于文件大小
+  config.verbose = false;
 
-    docx_temp_helper::DocxDocument doc(config);
+  docx_temp_helper::DocxDocument doc(config);
 
-    auto openErr = doc.open(templatePath);
-    ASSERT_TRUE(openErr.ok(), "打开模板文件");
+  auto openErr = doc.open(templatePath);
+  ASSERT_TRUE(openErr.ok(), "打开模板文件");
 
-    // 通配符替换
-    auto result = doc.replaceText("{{*}}", "流式替换文本");
-    ASSERT_TRUE(result.ok(), "流式纯文本替换成功");
-    ASSERT_TRUE(result.totalReplaced >= 1, "至少替换1处");
+  // 通配符替换
+  auto result = doc.replaceText("{{*}}", "流式替换文本");
+  ASSERT_TRUE(result.ok(), "流式纯文本替换成功");
+  ASSERT_TRUE(result.totalReplaced >= 1, "至少替换1处");
 
-    // 验证处于流式模式
-    ASSERT_TRUE(doc.isStreamingMode(), "确认处于流式处理模式");
+  // 验证处于流式模式
+  ASSERT_TRUE(doc.isStreamingMode(), "确认处于流式处理模式");
 
-    auto saveErr = doc.save(outputPath);
-    ASSERT_TRUE(saveErr.ok(), "保存输出文件");
-    ASSERT_TRUE(fs::exists(outputPath), "输出文件存在");
+  auto saveErr = doc.save(outputPath);
+  ASSERT_TRUE(saveErr.ok(), "保存输出文件");
+  ASSERT_TRUE(fs::exists(outputPath), "输出文件存在");
 
-    // 验证输出可解压
-    std::string verifyDir = dataDir + "/verify_streaming";
-    fs::create_directories(verifyDir);
-    bool unzipOk = docx_temp_helper::unzipToDir(outputPath, verifyDir);
-    ASSERT_TRUE(unzipOk, "输出文件可解压");
+  // 验证输出可解压
+  std::string verifyDir = dataDir + "/verify_streaming";
+  fs::create_directories(verifyDir);
+  bool unzipOk = docx_temp_helper::unzipToDir(outputPath, verifyDir);
+  ASSERT_TRUE(unzipOk, "输出文件可解压");
 
-    std::string docXml = readFile(verifyDir + "/word/document.xml");
-    ASSERT_TRUE(docXml.find("流式替换文本") != std::string::npos, "输出包含流式替换文本");
+  std::string docXml = readFile(verifyDir + "/word/document.xml");
+  ASSERT_TRUE(docXml.find("流式替换文本") != std::string::npos,
+              "输出包含流式替换文本");
 
-    // 清理
-    doc.close();
-    fs::remove_all(verifyDir);
-    fs::remove(outputPath);
+  // 关闭文档（输出文件保留供人工检查）
+  doc.close();
+  fs::remove_all(verifyDir); // 仅清理解压验证目录，保留输出 docx
+  std::cout << "  输出文件: " << outputPath << std::endl;
 
-    // ── 测试5.2：流式 Markdown 替换 ──
-    std::cout << std::endl << "  --- 5.2 流式 Markdown 替换 ---" << std::endl;
+  // ── 测试5.2：流式 Markdown 替换 ──
+  std::cout << std::endl << "  --- 5.2 流式 Markdown 替换 ---" << std::endl;
 
-    std::string mdContent = readFile(mdPath);
+  std::string mdContent = readFile(mdPath);
 
-    std::map<std::string, docx_temp_helper::RichReplacement> replacements;
-    docx_temp_helper::RichReplacement rich;
-    rich.content = mdContent;
-    rich.type = docx_temp_helper::ContentType::Markdown;
-    replacements["正文"] = rich;
+  std::map<std::string, docx_temp_helper::RichReplacement> replacements;
+  docx_temp_helper::RichReplacement rich;
+  rich.content = mdContent;
+  rich.type = docx_temp_helper::ContentType::Markdown;
+  replacements["正文"] = rich;
 
-    docx_temp_helper::DocxConfig config2;
-    config2.memoryLimit = 1024;  // 强制流式
-    config2.verbose = false;
+  docx_temp_helper::DocxConfig config2;
+  config2.memoryLimit = 1024; // 强制流式
+  config2.verbose = false;
 
-    docx_temp_helper::DocxDocument doc2(config2);
-    openErr = doc2.open(templatePath);
-    ASSERT_TRUE(openErr.ok(), "流式 MD: 打开模板");
+  docx_temp_helper::DocxDocument doc2(config2);
+  openErr = doc2.open(templatePath);
+  ASSERT_TRUE(openErr.ok(), "流式 MD: 打开模板");
 
-    auto result2 = doc2.replaceRich(replacements);
-    ASSERT_TRUE(result2.ok(), "流式 Markdown 替换成功");
-    ASSERT_TRUE(doc2.isStreamingMode(), "确认 MD 流式模式");
-    ASSERT_TRUE(result2.totalReplaced >= 1, "MD 至少替换1处");
+  auto result2 = doc2.replaceRich(replacements);
+  ASSERT_TRUE(result2.ok(), "流式 Markdown 替换成功");
+  ASSERT_TRUE(doc2.isStreamingMode(), "确认 MD 流式模式");
+  ASSERT_TRUE(result2.totalReplaced >= 1, "MD 至少替换1处");
 
-    saveErr = doc2.save(outputPath);
-    ASSERT_TRUE(saveErr.ok(), "流式 MD: 保存输出");
+  std::string outputPath2 = dataDir + "/output_streaming_md.docx";
+  saveErr = doc2.save(outputPath2);
+  ASSERT_TRUE(saveErr.ok(), "流式 MD: 保存输出");
 
-    // 验证输出
-    fs::create_directories(verifyDir);
-    unzipOk = docx_temp_helper::unzipToDir(outputPath, verifyDir);
-    ASSERT_TRUE(unzipOk, "流式 MD: 输出可解压");
+  // 验证输出
+  std::string verifyDir2 = dataDir + "/verify_streaming_md";
+  fs::create_directories(verifyDir2);
+  unzipOk = docx_temp_helper::unzipToDir(outputPath2, verifyDir2);
+  ASSERT_TRUE(unzipOk, "流式 MD: 输出可解压");
 
-    docXml = readFile(verifyDir + "/word/document.xml");
-    ASSERT_TRUE(docXml.find("会议内容") != std::string::npos, "流式 MD: 输出包含 '会议内容'");
-    ASSERT_TRUE(docXml.find("仿宋") != std::string::npos, "流式 MD: 输出包含仿宋字体");
+  docXml = readFile(verifyDir2 + "/word/document.xml");
+  ASSERT_TRUE(docXml.find("会议内容") != std::string::npos,
+              "流式 MD: 输出包含 '会议内容'");
+  ASSERT_TRUE(docXml.find("仿宋") != std::string::npos,
+              "流式 MD: 输出包含仿宋字体");
 
-    // 清理
-    doc2.close();
-    fs::remove_all(verifyDir);
-    fs::remove(outputPath);
+  // 关闭文档（输出文件保留供人工检查）
+  doc2.close();
+  fs::remove_all(verifyDir2); // 仅清理解压验证目录，保留输出 docx
+  std::cout << "  输出文件: " << outputPath2 << std::endl;
 
-    // ── 测试5.3：DOM 模式对比（大内存限制，应使用 DOM）──
-    std::cout << std::endl << "  --- 5.3 DOM 模式对比 ---" << std::endl;
+  // ── 测试5.3：DOM 模式对比（大内存限制，应使用 DOM）──
+  std::cout << std::endl << "  --- 5.3 DOM 模式对比 ---" << std::endl;
 
-    docx_temp_helper::DocxConfig config3;
-    config3.memoryLimit = 100 * 1024 * 1024;  // 100MB，足够大，使用 DOM
-    config3.verbose = false;
+  docx_temp_helper::DocxConfig config3;
+  config3.memoryLimit = 100 * 1024 * 1024; // 100MB，足够大，使用 DOM
+  config3.verbose = false;
 
-    docx_temp_helper::DocxDocument doc3(config3);
-    openErr = doc3.open(templatePath);
-    ASSERT_TRUE(openErr.ok(), "DOM 模式: 打开模板");
+  docx_temp_helper::DocxDocument doc3(config3);
+  openErr = doc3.open(templatePath);
+  ASSERT_TRUE(openErr.ok(), "DOM 模式: 打开模板");
 
-    auto result3 = doc3.replaceText("{{*}}", "DOM替换文本");
-    ASSERT_TRUE(result3.ok(), "DOM 模式替换成功");
-    ASSERT_TRUE(!doc3.isStreamingMode(), "确认处于 DOM 模式（非流式）");
+  auto result3 = doc3.replaceText("{{*}}", "DOM替换文本");
+  ASSERT_TRUE(result3.ok(), "DOM 模式替换成功");
+  ASSERT_TRUE(!doc3.isStreamingMode(), "确认处于 DOM 模式（非流式）");
 
-    doc3.close();
+  doc3.close();
 
-    std::cout << std::endl;
-    std::cout << "=== 测试结果: " << testPassCount << " passed, "
-              << testFailCount << " failed ===" << std::endl;
+  std::cout << std::endl;
+  std::cout << "=== 测试结果: " << testPassCount << " passed, " << testFailCount
+            << " failed ===" << std::endl;
 
-    return testFailCount == 0 ? 0 : 1;
+  return testFailCount == 0 ? 0 : 1;
 }
