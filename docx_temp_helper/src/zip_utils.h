@@ -21,15 +21,19 @@ bool UnzipToDir(const std::string& zipPath, const std::string& destDir);
 /// 将目录压缩为 ZIP/docx 文件
 /// @param srcDir   源目录
 /// @param zipPath  输出 ZIP/docx 文件路径
+/// @param storeOnly true=仅存储不压缩（Store 方法），false=使用 Deflate 压缩
 /// @return true=成功, false=失败
 /// @note docx 要求 [Content_Types].xml 在 ZIP 中，本函数保持目录结构
-bool ZipDir(const std::string& srcDir, const std::string& zipPath);
+bool ZipDir(const std::string& srcDir, const std::string& zipPath,
+            bool storeOnly = false);
 
 /// 将单个文件压缩为 ZIP
 /// @param filePath 源文件路径
 /// @param zipPath  输出 ZIP 文件路径
+/// @param storeOnly true=仅存储不压缩（Store 方法），false=使用 Deflate 压缩
 /// @return true=成功, false=失败
 /// @note ZIP 内仅包含该文件（不含目录结构）
-bool ZipSingleFile(const std::string& filePath, const std::string& zipPath);
+bool ZipSingleFile(const std::string& filePath, const std::string& zipPath,
+                   bool storeOnly = false);
 
 } // namespace docx_temp_helper

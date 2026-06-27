@@ -285,15 +285,25 @@ private:
 /// @note 若 srcPath 为目录，递归打包其下所有文件，保持目录结构
 /// @note 若 srcPath 为文件，打包该单个文件（ZIP 内仅含文件名，不含目录路径）
 /// @note 最终输出路径为 outputPath/zipName
-ErrorInfo ZipCompress(const std::string& srcPath,
-                       const std::string& outputPath,
-                       const std::string& zipName);
+ErrorInfo ZipCompress(const std::string &srcPath, const std::string &outputPath,
+                      const std::string &zipName);
+
+/// 将目录或文件打包为 ZIP（仅存储不压缩，速度优先）
+/// @param srcPath    源路径（目录或文件均可）
+/// @param outputPath 输出目录路径（不存在则自动创建）
+/// @param zipName    ZIP 包名（如 "archive.zip"）
+/// @return 错误信息（ok=成功）
+/// @note 与 ZipCompress 参数完全一致，区别仅在于不进行压缩（method=Store）
+/// @note 适用于对速度要求高、或数据本身已压缩（如 docx 内部 XML 已
+/// deflate）的场景
+/// @note 最终输出路径为 outputPath/zipName
+ErrorInfo ZipStore(const std::string &srcPath, const std::string &outputPath,
+                   const std::string &zipName);
 
 /// 解压 ZIP 文件到指定目录
 /// @param zipPath  ZIP 文件路径
 /// @param destDir  解压目标目录（不存在则自动创建）
 /// @return 错误信息（ok=成功）
-ErrorInfo ZipExtract(const std::string& zipPath,
-                      const std::string& destDir);
+ErrorInfo ZipExtract(const std::string &zipPath, const std::string &destDir);
 
 } // namespace docx_temp_helper

@@ -147,7 +147,8 @@ static void CollectFiles(const fs::path& baseDir,
     }
 }
 
-bool ZipDir(const std::string& srcDir, const std::string& zipPath) {
+bool ZipDir(const std::string& srcDir, const std::string& zipPath,
+            bool storeOnly) {
     // 打开输出 ZIP 文件
     zipFile zf = zipOpen(zipPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == nullptr) {
@@ -157,6 +158,10 @@ bool ZipDir(const std::string& srcDir, const std::string& zipPath) {
     // 收集所有文件（相对路径, 绝对路径）
     std::vector<std::pair<std::string, std::string>> files;
     CollectFiles(srcDir, srcDir, files);
+
+    // 压缩方法与级别：storeOnly 时使用 Store（method=0），否则使用 Deflate
+    const int method = storeOnly ? 0 : Z_DEFLATED;
+    const int level = storeOnly ? 0 : Z_DEFAULT_COMPRESSION;
 
     bool success = true;
     constexpr int BUFFER_SIZE = 8192;
@@ -175,7 +180,7 @@ bool ZipDir(const std::string& srcDir, const std::string& zipPath) {
         memset(&zi, 0, sizeof(zi));
         if (zipOpenNewFileInZip(zf, relPath.c_str(), &zi,
                                  nullptr, 0, nullptr, 0, nullptr,
-                                 Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
+                                 method, level) != ZIP_OK) {
             fclose(inFile);
             success = false;
             continue;
@@ -200,11 +205,16 @@ bool ZipDir(const std::string& srcDir, const std::string& zipPath) {
 
 // ───────── 单文件压缩实现 ─────────
 
-bool ZipSingleFile(const std::string& filePath, const std::string& zipPath) {
+bool ZipSingleFile(const std::string& filePath, const std::string& zipPath,
+                   bool storeOnly) {
     zipFile zf = zipOpen(zipPath.c_str(), APPEND_STATUS_CREATE);
     if (zf == nullptr) {
         return false;
     }
+
+    // 压缩方法与级别：storeOnly 时使用 Store（method=0），否则使用 Deflate
+    const int method = storeOnly ? 0 : Z_DEFLATED;
+    const int level = storeOnly ? 0 : Z_DEFAULT_COMPRESSION;
 
     bool success = true;
     constexpr int BUFFER_SIZE = 8192;
@@ -224,7 +234,7 @@ bool ZipSingleFile(const std::string& filePath, const std::string& zipPath) {
     memset(&zi, 0, sizeof(zi));
     if (zipOpenNewFileInZip(zf, entryName.c_str(), &zi,
                              nullptr, 0, nullptr, 0, nullptr,
-                             Z_DEFLATED, Z_DEFAULT_COMPRESSION) != ZIP_OK) {
+                             method, level) != ZIP_OK) {
         fclose(inFile);
         zipClose(zf, nullptr);
         return false;

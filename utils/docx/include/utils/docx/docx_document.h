@@ -16,7 +16,8 @@
  *   - 详细的错误码与错误信息
  *
  * 错误处理统一使用 utils::Result<T>（由 utils/common 提供）。
- * 本域 ErrorCode 按 1xxx(IO) / 2xxx(XML/处理) 分区，与 audio 域保持一致的分区风格。
+ * 本域 ErrorCode 按 1xxx(IO) / 2xxx(XML/处理) 分区，与 audio
+ * 域保持一致的分区风格。
  *
  * 使用示例（纯文本）：
  * @code
@@ -63,29 +64,30 @@ enum class ErrorCode : int {
   Ok = 0,
 
   // ── 1xxx: 文件 / IO ──
-  FileNotFound         = 1001, ///< 输入文件不存在
-  FileNotReadable      = 1002, ///< 输入文件无法读取
-  InvalidDocxFormat    = 1003, ///< 非合法 docx 文件（zip 结构损坏）
-  UnzipFailed          = 1004, ///< 解压失败
-  TempDirCreateFailed  = 1005, ///< 临时目录创建失败
-  OutputWriteFailed    = 1006, ///< 输出文件写入失败
+  FileNotFound = 1001,        ///< 输入文件不存在
+  FileNotReadable = 1002,     ///< 输入文件无法读取
+  InvalidDocxFormat = 1003,   ///< 非合法 docx 文件（zip 结构损坏）
+  UnzipFailed = 1004,         ///< 解压失败
+  TempDirCreateFailed = 1005, ///< 临时目录创建失败
+  OutputWriteFailed = 1006,   ///< 输出文件写入失败
 
   // ── 2xxx: XML / 处理 ──
-  XmlParseFailed       = 2001, ///< XML 解析失败
-  XmlSaveFailed        = 2002, ///< XML 保存失败
-  ZipFailed            = 2003, ///< 压缩失败
-  NoMatchFound         = 2004, ///< 未找到匹配的占位符
-  InvalidPattern       = 2005, ///< 占位符模式格式非法
-  NotOpened            = 2006, ///< 文档未打开（未调用 Open 或已 Close）
-  UnknownError         = 2099, ///< 未知错误
+  XmlParseFailed = 2001, ///< XML 解析失败
+  XmlSaveFailed = 2002,  ///< XML 保存失败
+  ZipFailed = 2003,      ///< 压缩失败
+  NoMatchFound = 2004,   ///< 未找到匹配的占位符
+  InvalidPattern = 2005, ///< 占位符模式格式非法
+  NotOpened = 2006,      ///< 文档未打开（未调用 Open 或已 Close）
+  UnknownError = 2099,   ///< 未知错误
 };
 
 /// 返回错误码对应的简短描述
 /// @param code 错误码（接受 int 以兼容 utils::Result<T>::Code() 的返回值）
 /// @return 错误码对应的人可读简短描述（英文标识，与枚举名一致）
-const char* ToMessage(int code);
+const char *ToMessage(int code);
 
-// 引入 utils::Result 模板到 utils::docx 域，使本域内可直接使用非限定名 Result<T>
+// 引入 utils::Result 模板到 utils::docx 域，使本域内可直接使用非限定名
+// Result<T>
 using utils::Result;
 
 // ───────── 替换结果 ─────────
@@ -176,7 +178,7 @@ public:
   /// @param replacement 替换文本
   /// @return Result<ReplaceStats>（含错误状态与逐项替换记录）
   Result<ReplaceStats> ReplaceText(const std::string &pattern,
-                            const std::string &replacement);
+                                   const std::string &replacement);
 
   // ── 富文本替换 ──
 
@@ -208,8 +210,8 @@ public:
   /// @note Plain 类型按行分割，每行渲染为仿宋正文段落
   /// @note HTML/Markdown 类型使用富文本解析器生成格式化段落
   Result<ReplaceStats> GenerateDocument(const std::string &title,
-                                 const std::string &bodyContent,
-                                 ContentType contentType);
+                                        const std::string &bodyContent,
+                                        ContentType contentType);
 
   // ── 状态查询 ──
 
@@ -287,15 +289,26 @@ private:
 /// @note 若 srcPath 为目录，递归打包其下所有文件，保持目录结构
 /// @note 若 srcPath 为文件，打包该单个文件（ZIP 内仅含文件名，不含目录路径）
 /// @note 最终输出路径为 outputPath/zipName
-Result<void> ZipCompress(const std::string& srcPath,
-                        const std::string& outputPath,
-                        const std::string& zipName);
+Result<void> ZipCompress(const std::string &srcPath,
+                         const std::string &outputPath,
+                         const std::string &zipName);
+
+/// 将目录或文件打包为 ZIP（仅存储不压缩，速度优先）
+/// @param srcPath    源路径（目录或文件均可）
+/// @param outputPath 输出目录路径（不存在则自动创建）
+/// @param zipName    ZIP 包名（如 "archive.zip"）
+/// @return Result<void>（ok=成功）
+/// @note 与 ZipCompress 参数完全一致，区别仅在于不进行压缩（method=Store）
+/// @note 适用于对速度要求高、或数据本身已压缩（如 docx 内部 XML 已
+/// deflate）的场景
+/// @note 最终输出路径为 outputPath/zipName
+Result<void> ZipStore(const std::string &srcPath, const std::string &outputPath,
+                      const std::string &zipName);
 
 /// 解压 ZIP 文件到指定目录
 /// @param zipPath  ZIP 文件路径
 /// @param destDir  解压目标目录（不存在则自动创建）
 /// @return Result<void>（ok=成功）
-Result<void> ZipExtract(const std::string& zipPath,
-                        const std::string& destDir);
+Result<void> ZipExtract(const std::string &zipPath, const std::string &destDir);
 
 } // namespace utils::docx

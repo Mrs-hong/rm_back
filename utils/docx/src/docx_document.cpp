@@ -1060,6 +1060,49 @@ Result<void> ZipCompress(const std::string& srcPath,
     return Result<void>::Ok();  // 成功
 }
 
+Result<void> ZipStore(const std::string& srcPath,
+                       const std::string& outputPath,
+                       const std::string& zipName) {
+    namespace fs = std::filesystem;
+
+    // 检查源路径是否存在
+    if (!fs::exists(srcPath)) {
+        return Result<void>::Fail(ErrorCode::FileNotFound,
+                                   "源路径不存在 | path: " + srcPath);
+    }
+
+    // 确保输出目录存在
+    std::error_code ec;
+    fs::create_directories(outputPath, ec);
+    if (ec) {
+        return Result<void>::Fail(ErrorCode::TempDirCreateFailed,
+                                   "无法创建输出目录 | path: " + outputPath);
+    }
+
+    // 拼接完整输出路径
+    std::string fullZipPath = outputPath;
+    if (!fullZipPath.empty() && fullZipPath.back() != '/') {
+        fullZipPath += '/';
+    }
+    fullZipPath += zipName;
+
+    bool ok = false;
+    if (fs::is_directory(srcPath)) {
+        // 目录打包（仅存储不压缩）
+        ok = ZipDir(srcPath, fullZipPath, true);
+    } else {
+        // 单文件打包（仅存储不压缩）
+        ok = ZipSingleFile(srcPath, fullZipPath, true);
+    }
+
+    if (!ok) {
+        return Result<void>::Fail(ErrorCode::ZipFailed,
+                                   "打包失败 | src: " + srcPath + " -> zip: " + fullZipPath);
+    }
+
+    return Result<void>::Ok();  // 成功
+}
+
 Result<void> ZipExtract(const std::string& zipPath, const std::string& destDir) {
     namespace fs = std::filesystem;
 

@@ -990,15 +990,20 @@ utils::docx::AppendParagraphsBefore(parentNode, paragraphs, sectPrNode);
 
 #### ZIP 工具函数
 
-独立的 ZIP 压缩/解压函数，返回 `Result<void>` 复用错误码体系，不依赖 `DocxDocument`：
+独立的 ZIP 压缩/打包/解压函数，返回 `Result<void>` 复用错误码体系，不依赖 `DocxDocument`：
 
 ```cpp
 #include "utils/docx/Docx.hpp"
 
-// 压缩：目录或文件 → ZIP
+// 压缩：目录或文件 → ZIP（Deflate 压缩）
 utils::docx::Result<void> ZipCompress(const std::string& srcPath,
                         const std::string& outputPath,
                         const std::string& zipName);
+
+// 打包：目录或文件 → ZIP（仅存储不压缩，速度优先）
+utils::docx::Result<void> ZipStore(const std::string& srcPath,
+                       const std::string& outputPath,
+                       const std::string& zipName);
 
 // 解压：ZIP → 目录
 utils::docx::Result<void> ZipExtract(const std::string& zipPath,
@@ -1010,6 +1015,9 @@ utils::docx::Result<void> ZipExtract(const std::string& zipPath,
 | `ZipCompress` | `srcPath` | 源路径（目录或文件均可） |
 | | `outputPath` | 输出目录路径（不存在则自动创建） |
 | | `zipName` | ZIP 包名（如 `"archive.zip"`） |
+| `ZipStore` | `srcPath` | 源路径（目录或文件均可） |
+| | `outputPath` | 输出目录路径（不存在则自动创建） |
+| | `zipName` | ZIP 包名（如 `"archive.zip"`） |
 | `ZipExtract` | `zipPath` | ZIP 文件路径 |
 | | `destDir` | 解压目标目录（不存在则自动创建） |
 
@@ -1017,7 +1025,8 @@ utils::docx::Result<void> ZipExtract(const std::string& zipPath,
 - `srcPath` 为目录时，递归打包其下所有文件，保持目录结构
 - `srcPath` 为文件时，打包单个文件（ZIP 内仅含文件名）
 - 输出的 ZIP 使用正斜杠 `/` 路径分隔符，Windows/Mac/Linux 均可原生解压
-- 使用 `Z_DEFLATED` 标准压缩算法，与系统自带工具完全兼容
+- `ZipCompress` 使用 `Z_DEFLATED` 标准压缩算法，与系统自带工具完全兼容
+- `ZipStore` 使用 Store 方法（method=0，不压缩），仅打包数据，速度更快；适用于数据本身已压缩（如 docx 内部 XML 已 deflate）或对速度要求高的场景
 
 ### 4.9 使用示例
 
@@ -1171,12 +1180,12 @@ doc.Save("output.docx");
 doc.Close();
 ```
 
-#### 例 7：ZIP 工具：压缩/解压
+#### 例 7：ZIP 工具：压缩/打包/解压
 
 ```cpp
 #include "utils/docx/Docx.hpp"
 
-// 压缩目录
+// 压缩目录（Deflate 压缩）
 auto err = utils::docx::ZipCompress(
     "/home/user/documents",    // 源目录
     "/home/user/output",       // 输出目录（自动创建）
@@ -1184,6 +1193,12 @@ auto err = utils::docx::ZipCompress(
 if (!err.IsOk()) {
     std::cerr << err.Message() << std::endl;
 }
+
+// 打包目录（仅存储不压缩，速度优先）
+auto errStore = utils::docx::ZipStore(
+    "/home/user/documents",    // 源目录
+    "/home/user/output",       // 输出目录（自动创建）
+    "backup_store.zip");        // 包名
 
 // 压缩单个文件
 auto err2 = utils::docx::ZipCompress(

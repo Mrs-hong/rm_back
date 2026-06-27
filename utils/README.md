@@ -378,16 +378,20 @@ doc.Save("output.docx");
 ### ZIP 工具函数
 
 ```cpp
-// 压缩：目录或文件 → ZIP
+// 压缩：目录或文件 → ZIP（Deflate 压缩）
 Result<void> ZipCompress(const std::string& srcPath,
                          const std::string& outputPath,
                          const std::string& zipName);
+// 打包：目录或文件 → ZIP（仅存储不压缩，速度优先）
+Result<void> ZipStore(const std::string& srcPath,
+                      const std::string& outputPath,
+                      const std::string& zipName);
 // 解压：ZIP → 目录
 Result<void> ZipExtract(const std::string& zipPath,
                         const std::string& destDir);
 ```
 
-`srcPath` 为目录时递归打包保持结构；为文件时打包单文件。生成的 ZIP 使用正斜杠路径分隔符 + `Z_DEFLATED` 标准压缩，Windows/Mac/Linux 系统自带工具均可直接解压。
+`srcPath` 为目录时递归打包保持结构；为文件时打包单文件。生成的 ZIP 使用正斜杠路径分隔符，Windows/Mac/Linux 系统自带工具均可直接解压。`ZipCompress` 使用 `Z_DEFLATED` 标准压缩；`ZipStore` 使用 Store 方法（不压缩），速度更快，适用于数据本身已压缩或对速度要求高的场景。
 
 ### 错误码表（docx 域）
 
