@@ -1,0 +1,41 @@
+{
+  "per_item_timeout_sec": 5,
+  "parallel": true,
+  "report_path": "/var/log/bm1684-selftest/report.json",
+  "log_dir": "/var/log/bm1684-selftest",
+  "disk": {
+    "mounts": ["/", "/data", "/opt/sophon"],
+    "min_free_pct": 5
+  },
+  "memory": {
+    "min_available_mb": 128
+  },
+  "fingerprint": {
+    "device": "/dev/ttyS3",
+    "baud": 57600,
+    "timeout_ms": 1500
+  },
+  "microphone": {
+    "device": "default",
+    "duration_ms": 400,
+    "min_rms": 50
+  },
+  "light": {
+    "gpio": "488"
+  },
+  "network": {
+    "gateway": "192.168.1.1",
+    "ping_count": 3
+  },
+  "model": {
+    "path": "/opt/sophon/selftest/probe.bmodel"
+  },
+  "scripts": [
+    {
+      "name": "fingerprint_sh",
+      "path": "/etc/bm1684-selftest/scripts/check_fingerprint.sh",
+      "severity": "warning",
+      "timeout_sec": 5
+    }
+  ]
+}

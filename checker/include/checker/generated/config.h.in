@@ -1,0 +1,16 @@
+// =============================================================================
+// 由 CMake 生成的编译期配置。请勿手动编辑。
+// 反映当前构建环境对可选系统库的探测结果。
+// =============================================================================
+#pragma once
+
+#cmakedefine01 CHECKER_HAS_BM_SDK
+#cmakedefine01 CHECKER_HAS_ALSA
+#cmakedefine01 CHECKER_HAS_DRM
+
+// 版本号
+#define BM1684_SELFTEST_VERSION "1.0.0"
+
+// 默认配置/报告路径（可被运行期配置覆盖）
+#define BM1684_DEFAULT_CONFIG_PATH "/etc/bm1684-selftest/selftest.json"
+#define BM1684_DEFAULT_LOG_DIR "/var/log/bm1684-selftest"

@@ -1,0 +1,5 @@
+# BM1684-selftest 代码格式：沿用 Google 风格，与上层仓库保持一致。
+BasedOnStyle: Google
+DerivePointerAlignment: false
+ColumnLimit: 100
+IndentWidth: 2

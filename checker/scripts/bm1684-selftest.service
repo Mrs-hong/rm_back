@@ -1,0 +1,23 @@
+# BM1684 开机自检 systemd 单元
+# 安装到 /etc/systemd/system/ 后 systemctl enable 即可开机执行。
+[Unit]
+Description=BM1684 Edge Device Self Test
+Documentation=https://example.local/bm1684-selftest
+DefaultDependencies=no
+After=local-fs.target systemd-udevd.service
+Before=basic.target shutdown.target
+# 确保模型分区在自检前已挂载
+RequiresMountsFor=/opt/sophon
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/bm1684-selftest /etc/bm1684-selftest/selftest.json
+StandardOutput=journal
+StandardError=journal
+# 整体最长 2 分钟，避免卡死启动流程
+TimeoutStartSec=120
+Restart=no
+
+[Install]
+WantedBy=basic.target
