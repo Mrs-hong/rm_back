@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="icon" href="/assets/favicon-Rqw3umwi.ico" />
+    <title>智会宝</title>
+    <script type="module" crossorigin src="/assets/index-CS11Emy-.js"></script>
+    <link rel="modulepreload" crossorigin href="/assets/vendor-CSnvoutF.js">
+    <link rel="stylesheet" crossorigin href="/assets/index-CO34OpOK.css">
+    <script type="module">import.meta.url;import("_").catch(()=>1);(async function*(){})().next();window.__vite_is_modern_browser=true</script>
+    <script type="module">!function(){if(window.__vite_is_modern_browser)return;console.warn("vite: loading legacy chunks, syntax error above and the same error below should be ignored");var e=document.getElementById("vite-legacy-polyfill"),n=document.createElement("script");n.src=e.src,n.onload=function(){System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))},document.body.appendChild(n)}();</script>
+  </head>
+  <body>
+    <noscript>
+      <strong>We're sorry but this application doesn't work properly without JavaScript enabled.Please enable it to continue.</strong>
+    </noscript>
+    <div id="app">
+      <!-- 初始化Loading -->
+      <div class="appLoading">
+        <span></span>
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
+      <div class="appLoadingTextBox">
+        <div class="appLoadingText">
+          <p>L</p>
+          <p>O</p>
+          <p>A</p>
+          <p>D</p>
+          <p>I</p>
+          <p>N</p>
+          <p>G</p>
+          <div class="arrows">
+            <div class="arrowsup">
+              <div class="arrow1"></div>
+              <div class="arrow2"></div>
+            </div>
+            <div class="arrowsbottom">
+              <div class="arrow3"></div>
+              <div class="arrow4"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <style>
+      body {
+        background-color: #ecf0fe;
+        overflow: hidden;
+      }
+      .appLoading {
+        position: absolute;
+        top: 45%;
+        left: calc(50% - 0.3em);
+        border-radius: 50%;
+        height: 96px;
+        width: 96px;
+        animation: rotate_3922 1.2s linear infinite;
+        background-color: #9b59b6;
+        background-image: linear-gradient(#9b59b6, #84cdfa, #5ad1cd);
+      }
+
+      .appLoading span {
+        position: absolute;
+        border-radius: 50%;
+        height: 100%;
+        width: 100%;
+        background-color: #9b59b6;
+        background-image: linear-gradient(#9b59b6, #84cdfa, #5ad1cd);
+      }
+
+      .appLoading span:nth-of-type(1) {
+        filter: blur(5px);
+      }
+
+      .appLoading span:nth-of-type(2) {
+        filter: blur(10px);
+      }
+
+      .appLoading span:nth-of-type(3) {
+        filter: blur(25px);
+      }
+
+      .appLoading span:nth-of-type(4) {
+        filter: blur(50px);
+      }
+
+      .appLoading::after {
+        content: '';
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+        bottom: 10px;
+        background-color: #fff;
+        border: solid 5px #ffffff;
+        border-radius: 50%;
+      }
+
+      @keyframes rotate_3922 {
+        from {
+          transform: translate(-50%, -50%) rotate(0deg);
+        }
+
+        to {
+          transform: translate(-50%, -50%) rotate(360deg);
+        }
+      }
+
+      .appLoadingTextBox {
+        position: absolute;
+        top: calc(45% + 100px);
+        width: 100%;
+        display: flex;
+        justify-content: center;
+      }
+      .appLoadingText {
+        width: 12em;
+        height: 3em;
+        color: #84cdfa;
+        font-weight: 300;
+        font-style: oblique;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .appLoadingText p {
+        font-size: 1.5em;
+        margin-bottom: 0;
+      }
+
+      .arrows {
+        width: 1.75em;
+        height: 2em;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.5em;
+      }
+
+      .arrow1,
+      .arrow2,
+      .arrow3,
+      .arrow4 {
+        width: 0.75em;
+        height: 0.75em;
+        border: solid 0.05em transparent;
+      }
+      .arrowsup {
+        width: 100%;
+        height: 25%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .arrowsbottom {
+        width: 100%;
+        height: 25%;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .arrow1 {
+        clip-path: polygon(100% 0%, 100% 0%, 100% 100%, 0% 100%);
+        animation: whitechange 2s linear infinite;
+      }
+      .arrow2 {
+        clip-path: polygon(0% 0%, 0% 0%, 100% 100%, 0% 100%);
+        animation: whitechange 2s linear infinite 0.5s;
+      }
+      .arrow3 {
+        clip-path: polygon(0% 0%, 100% 0%, 100% 100%, 0% 0%);
+        animation: whitechange 2s linear infinite 1.5s;
+      }
+      .arrow4 {
+        clip-path: polygon(0% 0%, 100% 0%, 0% 100%, 0% 100%);
+        animation: whitechange 2s linear infinite 1s;
+      }
+
+      .appLoadingText p:nth-child(1) {
+        animation: changefont 2s linear infinite;
+      }
+      .appLoadingText p:nth-child(2) {
+        animation: changefont 2s linear infinite 0.1s;
+      }
+      .appLoadingText p:nth-child(3) {
+        animation: changefont 2s linear infinite 0.2s;
+      }
+      .appLoadingText p:nth-child(4) {
+        animation: changefont 2s linear infinite 0.3s;
+      }
+      .appLoadingText p:nth-child(5) {
+        animation: changefont 2s linear infinite 0.4s;
+      }
+      .appLoadingText p:nth-child(6) {
+        animation: changefont 2s linear infinite 0.5s;
+      }
+      .appLoadingText p:nth-child(7) {
+        animation: changefont 2s linear infinite 0.6s;
+      }
+
+      @keyframes whitechange {
+        0% {
+          background-color: transparent;
+          box-shadow: none;
+        }
+        25% {
+          background-color: #84cdfa;
+        }
+        50% {
+          background-color: transparent;
+          box-shadow: none;
+        }
+        100% {
+          background-color: transparent;
+          box-shadow: none;
+        }
+      }
+
+      @keyframes changefont {
+        0% {
+          padding-bottom: 0em;
+        }
+        50% {
+          padding-bottom: 0em;
+        }
+        75% {
+          padding-bottom: 1em;
+        }
+        100% {
+          color: #9b59b6;
+          padding-bottom: 0em;
+        }
+      }
+    </style>
+    <script nomodule>!function(){var e=document,t=e.createElement("script");if(!("noModule"in t)&&"onbeforeload"in t){var n=!1;e.addEventListener("beforeload",(function(e){if(e.target===t)n=!0;else if(!e.target.hasAttribute("nomodule")||!n)return;e.preventDefault()}),!0),t.type="module",t.src=".",e.head.appendChild(t),t.remove()}}();</script>
+    <script nomodule crossorigin id="vite-legacy-polyfill" src="/assets/polyfills-legacy-C0_65T91.js"></script>
+    <script nomodule crossorigin id="vite-legacy-entry" data-src="/assets/index-legacy-C_wJTFa5.js">System.import(document.getElementById('vite-legacy-entry').getAttribute('data-src'))</script>
+  </body>
+</html>

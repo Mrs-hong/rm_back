@@ -1,0 +1,31 @@
+/*
+ * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
+ */
+
+#include "scmd/handlers/version_handler.h"
+
+#include "common/version.hpp"
+#include "ipc/data_def.h"
+#include "scmd/service_ctl.h"
+#include "service_manger/key_recoder.h"
+
+namespace qifeng::scm {
+
+    ScmCommand VersionHandler::GetCommand() const {
+        return ScmCommand::VERSION;
+    }
+
+    ScmResponse VersionHandler::Handle(const ScmRequest& /*request*/,
+                                       ServiceControl& /*serviceControl*/,
+                                       KeyOperationRecorder& /*recorder*/) {
+        ScmResponse response;
+        const auto& versionInfo = GetVersionInfo();
+        response.code = 0;
+        response.message = "qifeng_scm version " + versionInfo.version;
+        response.data["version"] = versionInfo.version;
+        response.data["buildTime"] = versionInfo.buildTime;
+        response.data["gitCommit"] = versionInfo.gitCommit;
+        return response;
+    }
+
+}  // namespace qifeng::scm

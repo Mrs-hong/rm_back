@@ -1,0 +1,753 @@
+[INFO] 2026-06-12 16:59:08 ========== qf 服务一键部署开始 ==========
+[INFO] 2026-06-12 16:59:08 [1/6] 正在执行: 安装系统库
+[INFO] 2026-06-12 16:59:08 ===== qifeng-scm 系统依赖安装开始 =====
+[INFO] 2026-06-12 16:59:08 权限检查通过
+[INFO] 2026-06-12 16:59:08 检测到操作系统: ubuntu
+[INFO] 2026-06-12 16:59:08 检测到 Debian 系列发行版，开始安装依赖...
+[INFO] 2026-06-12 16:59:08 [1/3] 更新包索引 (apt update)...
+[INFO] 2026-06-12 16:59:10 [2/3] 准备安装 10 个依赖包
+[INFO] 2026-06-12 16:59:10 已有 10/10 个包安装，跳过
+[INFO] 2026-06-12 16:59:10 [3/3] Debian 系列依赖安装完成（共 10 个包）
+[INFO] 2026-06-12 16:59:10 ===== qifeng-scm 系统依赖安装完成 =====
+[INFO] 2026-06-12 16:59:10 [1/6] 完成: 安装系统库
+[INFO] 2026-06-12 16:59:10 [2/6] 正在执行: 安装并初始化数据库
+[INFO] 2026-06-12 16:59:10 读取配置文件: /home/lyh/code/cppProgram/qifeng-scm/script/database/mariadb/config.txt
+[INFO] 2026-06-12 16:59:10 配置项加载完成，admin_password 已读取
+[INFO] 2026-06-12 16:59:10 ===== [1/3] 卸载旧 MariaDB 环境 =====
+[INFO] 2026-06-12 16:59:10 停止 MariaDB 服务...
+[INFO] 2026-06-12 16:59:11 卸载 MariaDB 软件包...
+[INFO] 2026-06-12 16:59:11 检测到已安装的包: mariadb-client
+mariadb-client-core
+mariadb-server
+mariadb-server-core
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following packages were automatically installed and are no longer required:
+  galera-4 libcgi-fast-perl libcgi-pm-perl libclone-perl
+  libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl
+  libfcgi-bin libfcgi-perl libfcgi0t64 libhtml-parser-perl libhtml-tagset-perl
+  libhtml-template-perl libhttp-date-perl libhttp-message-perl libio-html-perl
+  liblwp-mediatypes-perl libmariadb3 libterm-readkey-perl libtimedate-perl
+  liburi-perl liburing2 mariadb-common pv socat
+Use 'sudo apt autoremove' to remove them.
+The following packages will be REMOVED:
+  mariadb-client* mariadb-client-core* mariadb-plugin-provider-bzip2*
+  mariadb-plugin-provider-lz4* mariadb-plugin-provider-lzma*
+  mariadb-plugin-provider-lzo* mariadb-plugin-provider-snappy* mariadb-server*
+  mariadb-server-core*
+0 upgraded, 0 newly installed, 9 to remove and 10 not upgraded.
+After this operation, 185 MB disk space will be freed.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 73105 files and directories currently installed.)
+Removing mariadb-plugin-provider-snappy (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-plugin-provider-lzo (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-plugin-provider-bzip2 (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-plugin-provider-lz4 (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-plugin-provider-lzma (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-server (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-client (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-client-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing mariadb-server-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 72750 files and directories currently installed.)
+Purging configuration files for mariadb-client (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-plugin-provider-lz4 (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-plugin-provider-snappy (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-server (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-plugin-provider-bzip2 (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-plugin-provider-lzma (1:10.11.14-0ubuntu0.24.04.1) ...
+Purging configuration files for mariadb-plugin-provider-lzo (1:10.11.14-0ubuntu0.24.04.1) ...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following packages will be REMOVED:
+  galera-4* libcgi-fast-perl* libcgi-pm-perl* libclone-perl*
+  libconfig-inifiles-perl* libdbd-mysql-perl* libdbi-perl*
+  libencode-locale-perl* libfcgi-bin* libfcgi-perl* libfcgi0t64*
+  libhtml-parser-perl* libhtml-tagset-perl* libhtml-template-perl*
+  libhttp-date-perl* libhttp-message-perl* libio-html-perl*
+  liblwp-mediatypes-perl* libmariadb3* libterm-readkey-perl* libtimedate-perl*
+  liburi-perl* liburing2* mariadb-common* pv* socat*
+0 upgraded, 0 newly installed, 26 to remove and 10 not upgraded.
+After this operation, 8971 kB disk space will be freed.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 72730 files and directories currently installed.)
+Removing galera-4 (26.4.16-2build4) ...
+Removing libcgi-fast-perl (1:2.17-1) ...
+Removing libhtml-template-perl (2.97-2) ...
+Removing libcgi-pm-perl (4.63-1) ...
+Removing libhttp-message-perl (6.45-1ubuntu1) ...
+Removing libclone-perl:amd64 (0.46-1build3) ...
+Removing libconfig-inifiles-perl (3.000003-2) ...
+Removing libdbd-mysql-perl:amd64 (4.052-1ubuntu3) ...
+Removing libdbi-perl:amd64 (1.643-4build3) ...
+Removing libencode-locale-perl (1.05-3) ...
+Removing libfcgi-bin (2.4.2-2.1ubuntu0.24.04.1) ...
+Removing libfcgi-perl (0.82+ds-3build2) ...
+Removing libfcgi0t64:amd64 (2.4.2-2.1ubuntu0.24.04.1) ...
+Removing libhtml-parser-perl:amd64 (3.81-1build3) ...
+Removing libhtml-tagset-perl (3.20-6) ...
+Removing libhttp-date-perl (6.06-1) ...
+Removing libio-html-perl (1.004-3) ...
+Removing liblwp-mediatypes-perl (6.04-2) ...
+Removing libmariadb3:amd64 (1:10.11.14-0ubuntu0.24.04.1) ...
+Removing libterm-readkey-perl (2.38-2build4) ...
+Removing libtimedate-perl (2.3300-2) ...
+Removing liburi-perl (5.27-1) ...
+Removing liburing2:amd64 (2.5-1build1) ...
+Removing mariadb-common (1:10.11.14-0ubuntu0.24.04.1) ...
+update-alternatives: using /etc/mysql/my.cnf.fallback to provide /etc/mysql/my.cnf (my.cnf) in auto mode
+Removing pv (1.8.5-2build1) ...
+Removing socat (1.8.0.0-4build3) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+/sbin/ldconfig.real: File /usr/lib/qifeng-scm/libnumcpp.so is empty, not checked.
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_empty.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libutf8_range_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libdrogon.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_table_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_base_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_reflection_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libyaml-cpp.so.0.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libworkflow.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libaddress_sorting.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_wire_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_sqlite3.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libz.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_json_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_reflection.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_authorization_provider.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgpr.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libspdlog.so.1.16 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libre2.so.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_alts.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpcpp_channelz.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libtrantor.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_descriptor_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_hash_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_mysql.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_lex_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mem_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_unsecure.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_error_details.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_core.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_unsecure.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_message_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_textformat_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_plugin_support.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_postgresql.so.4 is not a symbolic link
+
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 72166 files and directories currently installed.)
+Purging configuration files for mariadb-common (1:10.11.14-0ubuntu0.24.04.1) ...
+dpkg: warning: while removing mariadb-common, directory '/etc/mysql/mariadb.conf.d' not empty so not removed
+[INFO] 2026-06-12 16:59:16 清理数据目录和日志...
+[INFO] 2026-06-12 16:59:16 删除默认数据目录: /var/lib/mysql
+[INFO] 2026-06-12 16:59:16 删除自定义数据目录: /data/test/mysql
+[INFO] 2026-06-12 16:59:16 /etc/mysql 由 dpkg 管理，跳过删除
+[INFO] 2026-06-12 16:59:16 MariaDB 卸载完成
+[INFO] 2026-06-12 16:59:16 [1/3] 卸载完成
+[INFO] 2026-06-12 16:59:16 ===== [2/3] 安装 MariaDB =====
+[INFO] 2026-06-12 16:59:16 当前系统架构: x86_64
+[INFO] 2026-06-12 16:59:16 当前操作系统: ubuntu
+[INFO] 2026-06-12 16:59:16 检查 MariaDB 是否已安装...
+[INFO] 2026-06-12 16:59:16 修复可能的包管理器状态...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 10 not upgraded.
+[INFO] 2026-06-12 16:59:17 开始安装 MariaDB...
+Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:2 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Hit:5 https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu noble InRelease
+Reading package lists...
+[INFO] 2026-06-12 16:59:19 使用系统源安装最新版 MariaDB
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  galera-4 libcgi-fast-perl libcgi-pm-perl libclone-perl
+  libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl
+  libfcgi-bin libfcgi-perl libfcgi0t64 libhtml-parser-perl libhtml-tagset-perl
+  libhtml-template-perl libhttp-date-perl libhttp-message-perl libio-html-perl
+  liblwp-mediatypes-perl libmariadb3 libterm-readkey-perl libtimedate-perl
+  liburi-perl liburing2 mariadb-client-core mariadb-common
+  mariadb-plugin-provider-bzip2 mariadb-plugin-provider-lz4
+  mariadb-plugin-provider-lzma mariadb-plugin-provider-lzo
+  mariadb-plugin-provider-snappy mariadb-server-core pv socat
+Suggested packages:
+  libmldbm-perl libnet-daemon-perl libsql-statement-perl libdata-dump-perl
+  libipc-sharedcache-perl libio-compress-brotli-perl libbusiness-isbn-perl
+  libregexp-ipv6-perl libwww-perl mailx mariadb-test doc-base
+The following NEW packages will be installed:
+  galera-4 libcgi-fast-perl libcgi-pm-perl libclone-perl
+  libconfig-inifiles-perl libdbd-mysql-perl libdbi-perl libencode-locale-perl
+  libfcgi-bin libfcgi-perl libfcgi0t64 libhtml-parser-perl libhtml-tagset-perl
+  libhtml-template-perl libhttp-date-perl libhttp-message-perl libio-html-perl
+  liblwp-mediatypes-perl libmariadb3 libterm-readkey-perl libtimedate-perl
+  liburi-perl liburing2 mariadb-client mariadb-client-core mariadb-common
+  mariadb-plugin-provider-bzip2 mariadb-plugin-provider-lz4
+  mariadb-plugin-provider-lzma mariadb-plugin-provider-lzo
+  mariadb-plugin-provider-snappy mariadb-server mariadb-server-core pv socat
+Preconfiguring packages ...
+0 upgraded, 35 newly installed, 0 to remove and 10 not upgraded.
+Need to get 0 B/18.5 MB of archives.
+After this operation, 194 MB of additional disk space will be used.
+Selecting previously unselected package galera-4.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 72164 files and directories currently installed.)
+Preparing to unpack .../0-galera-4_26.4.16-2build4_amd64.deb ...
+Unpacking galera-4 (26.4.16-2build4) ...
+Selecting previously unselected package mariadb-common.
+Preparing to unpack .../1-mariadb-common_1%3a10.11.14-0ubuntu0.24.04.1_all.deb ...
+Unpacking mariadb-common (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package libdbi-perl:amd64.
+Preparing to unpack .../2-libdbi-perl_1.643-4build3_amd64.deb ...
+Unpacking libdbi-perl:amd64 (1.643-4build3) ...
+Selecting previously unselected package libconfig-inifiles-perl.
+Preparing to unpack .../3-libconfig-inifiles-perl_3.000003-2_all.deb ...
+Unpacking libconfig-inifiles-perl (3.000003-2) ...
+Selecting previously unselected package libmariadb3:amd64.
+Preparing to unpack .../4-libmariadb3_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking libmariadb3:amd64 (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-client-core.
+Preparing to unpack .../5-mariadb-client-core_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-client-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-client.
+Preparing to unpack .../6-mariadb-client_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-client (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package liburing2:amd64.
+Preparing to unpack .../7-liburing2_2.5-1build1_amd64.deb ...
+Unpacking liburing2:amd64 (2.5-1build1) ...
+Selecting previously unselected package mariadb-server-core.
+Preparing to unpack .../8-mariadb-server-core_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-server-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package socat.
+Preparing to unpack .../9-socat_1.8.0.0-4build3_amd64.deb ...
+Unpacking socat (1.8.0.0-4build3) ...
+Setting up mariadb-common (1:10.11.14-0ubuntu0.24.04.1) ...
+update-alternatives: using /etc/mysql/mariadb.cnf to provide /etc/mysql/my.cnf (my.cnf) in auto mode
+Selecting previously unselected package mariadb-server.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 72624 files and directories currently installed.)
+Preparing to unpack .../00-mariadb-server_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-server (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package libhtml-tagset-perl.
+Preparing to unpack .../01-libhtml-tagset-perl_3.20-6_all.deb ...
+Unpacking libhtml-tagset-perl (3.20-6) ...
+Selecting previously unselected package liburi-perl.
+Preparing to unpack .../02-liburi-perl_5.27-1_all.deb ...
+Unpacking liburi-perl (5.27-1) ...
+Selecting previously unselected package libhtml-parser-perl:amd64.
+Preparing to unpack .../03-libhtml-parser-perl_3.81-1build3_amd64.deb ...
+Unpacking libhtml-parser-perl:amd64 (3.81-1build3) ...
+Selecting previously unselected package libcgi-pm-perl.
+Preparing to unpack .../04-libcgi-pm-perl_4.63-1_all.deb ...
+Unpacking libcgi-pm-perl (4.63-1) ...
+Selecting previously unselected package libfcgi0t64:amd64.
+Preparing to unpack .../05-libfcgi0t64_2.4.2-2.1ubuntu0.24.04.1_amd64.deb ...
+Unpacking libfcgi0t64:amd64 (2.4.2-2.1ubuntu0.24.04.1) ...
+Selecting previously unselected package libfcgi-perl.
+Preparing to unpack .../06-libfcgi-perl_0.82+ds-3build2_amd64.deb ...
+Unpacking libfcgi-perl (0.82+ds-3build2) ...
+Selecting previously unselected package libcgi-fast-perl.
+Preparing to unpack .../07-libcgi-fast-perl_1%3a2.17-1_all.deb ...
+Unpacking libcgi-fast-perl (1:2.17-1) ...
+Selecting previously unselected package libclone-perl:amd64.
+Preparing to unpack .../08-libclone-perl_0.46-1build3_amd64.deb ...
+Unpacking libclone-perl:amd64 (0.46-1build3) ...
+Selecting previously unselected package libdbd-mysql-perl:amd64.
+Preparing to unpack .../09-libdbd-mysql-perl_4.052-1ubuntu3_amd64.deb ...
+Unpacking libdbd-mysql-perl:amd64 (4.052-1ubuntu3) ...
+Selecting previously unselected package libencode-locale-perl.
+Preparing to unpack .../10-libencode-locale-perl_1.05-3_all.deb ...
+Unpacking libencode-locale-perl (1.05-3) ...
+Selecting previously unselected package libfcgi-bin.
+Preparing to unpack .../11-libfcgi-bin_2.4.2-2.1ubuntu0.24.04.1_amd64.deb ...
+Unpacking libfcgi-bin (2.4.2-2.1ubuntu0.24.04.1) ...
+Selecting previously unselected package libhtml-template-perl.
+Preparing to unpack .../12-libhtml-template-perl_2.97-2_all.deb ...
+Unpacking libhtml-template-perl (2.97-2) ...
+Selecting previously unselected package libtimedate-perl.
+Preparing to unpack .../13-libtimedate-perl_2.3300-2_all.deb ...
+Unpacking libtimedate-perl (2.3300-2) ...
+Selecting previously unselected package libhttp-date-perl.
+Preparing to unpack .../14-libhttp-date-perl_6.06-1_all.deb ...
+Unpacking libhttp-date-perl (6.06-1) ...
+Selecting previously unselected package libio-html-perl.
+Preparing to unpack .../15-libio-html-perl_1.004-3_all.deb ...
+Unpacking libio-html-perl (1.004-3) ...
+Selecting previously unselected package liblwp-mediatypes-perl.
+Preparing to unpack .../16-liblwp-mediatypes-perl_6.04-2_all.deb ...
+Unpacking liblwp-mediatypes-perl (6.04-2) ...
+Selecting previously unselected package libhttp-message-perl.
+Preparing to unpack .../17-libhttp-message-perl_6.45-1ubuntu1_all.deb ...
+Unpacking libhttp-message-perl (6.45-1ubuntu1) ...
+Selecting previously unselected package libterm-readkey-perl.
+Preparing to unpack .../18-libterm-readkey-perl_2.38-2build4_amd64.deb ...
+Unpacking libterm-readkey-perl (2.38-2build4) ...
+Selecting previously unselected package mariadb-plugin-provider-bzip2.
+Preparing to unpack .../19-mariadb-plugin-provider-bzip2_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-plugin-provider-bzip2 (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-plugin-provider-lz4.
+Preparing to unpack .../20-mariadb-plugin-provider-lz4_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-plugin-provider-lz4 (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-plugin-provider-lzma.
+Preparing to unpack .../21-mariadb-plugin-provider-lzma_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-plugin-provider-lzma (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-plugin-provider-lzo.
+Preparing to unpack .../22-mariadb-plugin-provider-lzo_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-plugin-provider-lzo (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package mariadb-plugin-provider-snappy.
+Preparing to unpack .../23-mariadb-plugin-provider-snappy_1%3a10.11.14-0ubuntu0.24.04.1_amd64.deb ...
+Unpacking mariadb-plugin-provider-snappy (1:10.11.14-0ubuntu0.24.04.1) ...
+Selecting previously unselected package pv.
+Preparing to unpack .../24-pv_1.8.5-2build1_amd64.deb ...
+Unpacking pv (1.8.5-2build1) ...
+Setting up libconfig-inifiles-perl (3.000003-2) ...
+Setting up galera-4 (26.4.16-2build4) ...
+Setting up libclone-perl:amd64 (0.46-1build3) ...
+Setting up libfcgi0t64:amd64 (2.4.2-2.1ubuntu0.24.04.1) ...
+Setting up libhtml-tagset-perl (3.20-6) ...
+Setting up liblwp-mediatypes-perl (6.04-2) ...
+Setting up libfcgi-bin (2.4.2-2.1ubuntu0.24.04.1) ...
+Setting up libencode-locale-perl (1.05-3) ...
+Setting up socat (1.8.0.0-4build3) ...
+Setting up libio-html-perl (1.004-3) ...
+Setting up libmariadb3:amd64 (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up libtimedate-perl (2.3300-2) ...
+Setting up pv (1.8.5-2build1) ...
+Setting up libfcgi-perl (0.82+ds-3build2) ...
+Setting up libterm-readkey-perl (2.38-2build4) ...
+Setting up liburing2:amd64 (2.5-1build1) ...
+Setting up liburi-perl (5.27-1) ...
+Setting up libdbi-perl:amd64 (1.643-4build3) ...
+Setting up libhttp-date-perl (6.06-1) ...
+Setting up mariadb-client-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up libdbd-mysql-perl:amd64 (4.052-1ubuntu3) ...
+Setting up libhtml-parser-perl:amd64 (3.81-1build3) ...
+Setting up mariadb-server-core (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up libhttp-message-perl (6.45-1ubuntu1) ...
+Setting up mariadb-client (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up libcgi-pm-perl (4.63-1) ...
+Setting up libhtml-template-perl (2.97-2) ...
+Setting up mariadb-server (1:10.11.14-0ubuntu0.24.04.1) ...
+Created symlink /etc/systemd/system/multi-user.target.wants/mariadb.service → /usr/lib/systemd/system/mariadb.service.
+Setting up mariadb-plugin-provider-bzip2 (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up mariadb-plugin-provider-lzma (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up mariadb-plugin-provider-lzo (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up mariadb-plugin-provider-lz4 (1:10.11.14-0ubuntu0.24.04.1) ...
+Setting up libcgi-fast-perl (1:2.17-1) ...
+Setting up mariadb-plugin-provider-snappy (1:10.11.14-0ubuntu0.24.04.1) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+/sbin/ldconfig.real: File /usr/lib/qifeng-scm/libnumcpp.so is empty, not checked.
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_empty.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libutf8_range_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libdrogon.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_table_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_base_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_reflection_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libyaml-cpp.so.0.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libworkflow.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libaddress_sorting.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_wire_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_sqlite3.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libz.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_json_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_reflection.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_authorization_provider.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgpr.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libspdlog.so.1.16 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libre2.so.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_alts.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpcpp_channelz.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libtrantor.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_descriptor_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_hash_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_mysql.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_lex_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mem_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_unsecure.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_error_details.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_core.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_unsecure.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_message_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_textformat_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_plugin_support.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_postgresql.so.4 is not a symbolic link
+
+Processing triggers for mariadb-server (1:10.11.14-0ubuntu0.24.04.1) ...
+[INFO] 2026-06-12 16:59:28 MariaDB 安装成功
+[INFO] 2026-06-12 16:59:28 [2/3] 安装完成
+[INFO] 2026-06-12 16:59:28 ===== [3/3] 初始化 MariaDB =====
+[INFO] 2026-06-12 16:59:28 初始化参数: --admin_password=Test@123 --data=/data/test/mysql --force
+[INFO] 2026-06-12 16:59:28 端口 3306 已被 MariaDB 服务占用，停止服务后继续初始化...
+[INFO] 2026-06-12 16:59:28 开始初始化 MariaDB...
+[INFO] 2026-06-12 16:59:28 数据目录: /data/test/mysql
+[INFO] 2026-06-12 16:59:28 端口: 3306
+[INFO] 2026-06-12 16:59:28 绑定 IP: 127.0.0.1
+[INFO] 2026-06-12 16:59:28 写入配置文件到 /etc/mysql/mariadb.conf.d/99-custom.cnf
+[INFO] 2026-06-12 16:59:28 检查自定义数据目录的父路径权限...
+[INFO] 2026-06-12 16:59:28 创建 systemd override 配置以支持自定义数据目录...
+[INFO] 2026-06-12 16:59:28 检测到默认路径 /var/lib/mysql 有有效数据，迁移到 /data/test/mysql ...
+[INFO] 2026-06-12 16:59:28 停止 MariaDB 服务...
+[INFO] 2026-06-12 16:59:28 检测到 --force，准备强制重新初始化...
+[INFO] 2026-06-12 16:59:28 停止 MariaDB 服务...
+[INFO] 2026-06-12 16:59:28 删除旧数据目录: /data/test/mysql
+[INFO] 2026-06-12 16:59:28 删除旧数据目录: /data/test/mysql
+[INFO] 2026-06-12 16:59:28 数据目录为空，执行数据库初始化...
+[INFO] 2026-06-12 16:59:28 自定义数据目录，以 root 执行初始化后调整权限...
+Installing MariaDB/MySQL system tables in '/data/test/mysql' ...
+2026-06-12 16:59:28 0 [Warning] You need to use --log-bin to make --expire-logs-days or --binlog-expire-logs-seconds work.
+OK
+
+To start mariadbd at boot time you have to copy
+support-files/mariadb.service to the right place for your system
+
+
+Two all-privilege accounts were created.
+One is root@localhost, it has no password, but you need to
+be system 'root' user to connect. Use, for example, sudo mariadb
+The second is root@localhost, it has no password either, but
+you need to be the system 'root' user to connect.
+After connecting you can set the password, if you would need to be
+able to connect as any of these users with a password and without sudo
+
+See the MariaDB Knowledgebase at https://mariadb.com/kb
+
+You can start the MariaDB daemon with:
+cd '/usr' ; /usr/bin/mariadbd-safe --datadir='/data/test/mysql'
+
+You can test the MariaDB daemon with mysql-test-run.pl
+cd '/usr/share/mysql/mysql-test' ; perl mariadb-test-run.pl
+
+Please report any problems at https://mariadb.org/jira
+
+The latest information about MariaDB is available at https://mariadb.org/.
+
+Consider joining MariaDB's strong and vibrant community:
+https://mariadb.org/get-involved/
+
+[INFO] 2026-06-12 16:59:29 启动 MariaDB 服务...
+[INFO] 2026-06-12 16:59:33 MariaDB 服务已启动
+[INFO] 2026-06-12 16:59:33 等待 MariaDB 服务就绪...
+[INFO] 2026-06-12 16:59:33 设置 root 密码...
+[INFO] 2026-06-12 16:59:33 验证 root 连接...
+[INFO] 2026-06-12 16:59:33 MariaDB 初始化完成
+[INFO] 2026-06-12 16:59:33 [3/3] 初始化完成
+[INFO] 2026-06-12 16:59:33 ===== MariaDB 一键部署完成 =====
+[INFO] 2026-06-12 16:59:33 [2/6] 完成: 安装并初始化数据库
+[INFO] 2026-06-12 16:59:33 [3/6] 正在执行: 卸载旧 nginx
+
+[33m警告: 本脚本将完全卸载 nginx 并清理相关配置与数据！[0m
+
+[32m[INFO] 停止 nginx 服务 ...[0m
+[32m[INFO] nginx 已停止[0m
+[32m[INFO] 卸载 nginx ...[0m
+Reading package lists...
+Building dependency tree...
+Reading state information...
+Package 'nginx-core' is not installed, so not removed
+The following packages will be REMOVED:
+  nginx* nginx-common*
+0 upgraded, 0 newly installed, 2 to remove and 10 not upgraded.
+After this operation, 1598 kB disk space will be freed.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 73105 files and directories currently installed.)
+Removing nginx (1.24.0-2ubuntu7.11) ...
+Removing nginx-common (1.24.0-2ubuntu7.11) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 73083 files and directories currently installed.)
+Purging configuration files for nginx-common (1.24.0-2ubuntu7.11) ...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 10 not upgraded.
+[32m[INFO] nginx 软件包已卸载[0m
+[32m[INFO] 清理残留文件 ...[0m
+
+==========================================
+[32mnginx 已完全卸载[0m
+==========================================
+
+  注意：
+    1. deploy_config.sh 执行时曾修改目录权限（chmod o+x / chmod o+rX）
+       这些权限变更无法自动精确回滚，如有需要请手动恢复。
+    2. 前端目录 frontend/ 属于项目源码，不会被删除。
+    3. 若后续需重新安装，可再次执行 install_nginx.sh。
+
+==========================================
+[INFO] 2026-06-12 16:59:35 [3/6] 完成: 卸载旧 nginx
+[INFO] 2026-06-12 16:59:35 [4/6] 正在执行: 安装 nginx
+[32m[INFO] 正在安装 nginx ...[0m
+Hit:1 http://archive.ubuntu.com/ubuntu noble InRelease
+Hit:2 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:3 http://archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://archive.ubuntu.com/ubuntu noble-backports InRelease
+Hit:5 https://ppa.launchpadcontent.net/ubuntu-toolchain-r/test/ubuntu noble InRelease
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+The following additional packages will be installed:
+  nginx-common
+Suggested packages:
+  fcgiwrap nginx-doc ssl-cert
+The following NEW packages will be installed:
+  nginx nginx-common
+Preconfiguring packages ...
+0 upgraded, 2 newly installed, 0 to remove and 10 not upgraded.
+Need to get 0 B/568 kB of archives.
+After this operation, 1598 kB of additional disk space will be used.
+Selecting previously unselected package nginx-common.
+(Reading database ... (Reading database ... 5%(Reading database ... 10%(Reading database ... 15%(Reading database ... 20%(Reading database ... 25%(Reading database ... 30%(Reading database ... 35%(Reading database ... 40%(Reading database ... 45%(Reading database ... 50%(Reading database ... 55%(Reading database ... 60%(Reading database ... 65%(Reading database ... 70%(Reading database ... 75%(Reading database ... 80%(Reading database ... 85%(Reading database ... 90%(Reading database ... 95%(Reading database ... 100%(Reading database ... 73060 files and directories currently installed.)
+Preparing to unpack .../nginx-common_1.24.0-2ubuntu7.11_all.deb ...
+Unpacking nginx-common (1.24.0-2ubuntu7.11) ...
+Selecting previously unselected package nginx.
+Preparing to unpack .../nginx_1.24.0-2ubuntu7.11_amd64.deb ...
+Unpacking nginx (1.24.0-2ubuntu7.11) ...
+Setting up nginx-common (1.24.0-2ubuntu7.11) ...
+Created symlink /etc/systemd/system/multi-user.target.wants/nginx.service → /usr/lib/systemd/system/nginx.service.
+Setting up nginx (1.24.0-2ubuntu7.11) ...
+ * Upgrading binary nginx       [80G [74G[ OK ]
+Processing triggers for man-db (2.12.0-4build2) ...
+[32m[INFO] nginx 安装成功[0m
+
+==========================================
+[32mnginx 安装完成！[0m
+==========================================
+
+  版本信息:
+    nginx version: nginx/1.24.0 (Ubuntu)
+
+  下一步:
+    执行 deploy_config.sh 部署配置文件并启动服务
+
+  常用命令:
+    nginx -t                 # 测试配置
+    nginx -s reload          # 重新加载配置
+    systemctl status nginx   # 查看状态
+    systemctl restart nginx  # 重启服务
+
+==========================================
+[INFO] 2026-06-12 16:59:40 [4/6] 完成: 安装 nginx
+[INFO] 2026-06-12 16:59:40 [5/6] 正在执行: 部署 nginx 配置
+[32m[INFO] test_nginx root: /home/lyh/code/cppProgram/qifeng-scm/script/nginx[0m
+[32m[INFO] nginx 已安装: nginx version: nginx/1.24.0 (Ubuntu)[0m
+[32m[INFO] 前端资源检查通过[0m
+[32m[INFO] 部署 nginx 配置文件 ...[0m
+[32m[INFO] 后端代理配置已部署到: /etc/nginx/snippets/http_ca.conf[0m
+[32m[INFO] 主配置文件已部署到: /etc/nginx/conf.d/test_nginx.conf[0m
+[32m[INFO] 修复目录权限 ...[0m
+[32m[INFO] nginx worker 用户: www-data[0m
+[32m[INFO] 权限修复完成[0m
+[33m[WARN] 移除默认站点 /etc/nginx/sites-enabled/default，避免 80 端口冲突[0m
+[32m[INFO] 测试 nginx 配置 ...[0m
+nginx: the configuration file /etc/nginx/nginx.conf syntax is ok
+nginx: configuration file /etc/nginx/nginx.conf test is successful
+[32m[INFO] nginx 配置测试通过[0m
+[32m[INFO] 启动 nginx 服务 ...[0m
+Synchronizing state of nginx.service with SysV service script with /usr/lib/systemd/systemd-sysv-install.
+Executing: /usr/lib/systemd/systemd-sysv-install enable nginx
+[32m[INFO] nginx 服务已启动[0m
+
+==========================================
+[32mnginx 配置部署成功！[0m
+==========================================
+
+  访问地址:
+    http://172.26.133.192/
+    http://localhost/
+
+  前端目录: /home/lyh/code/cppProgram/qifeng-scm/script/nginx/frontend
+  主配置文件: /etc/nginx/conf.d/test_nginx.conf
+  后端代理配置: /etc/nginx/snippets/http_ca.conf
+
+  常用命令:
+    nginx -t                 # 测试配置
+    nginx -s reload          # 重新加载配置
+    systemctl status nginx   # 查看状态
+    systemctl restart nginx  # 重启服务
+
+==========================================
+[INFO] 2026-06-12 16:59:41 [5/6] 完成: 部署 nginx 配置
+[INFO] 2026-06-12 16:59:41 [6/6] 正在执行: 安装 SCM 及服务
+[INFO] 2026-06-12 16:59:41 ===== [1/4] 安装 SCM =====
+[INFO] 2026-06-12 16:59:41 找到安装包: /home/lyh/code/cppProgram/qifeng-scm/script/scm_and_soft/qifeng_scm-0.0.1-Linux.deb
+[INFO] 2026-06-12 16:59:41 正在卸载旧版 SCM (保留数据)...
+(Reading database ... 73105 files and directories currently installed.)
+Removing qifeng_scm (0.0.1) ...
+[INFO] 2026-06-12 16:59:41 正在安装 SCM (dpkg)...
+Selecting previously unselected package qifeng_scm.
+(Reading database ... 72627 files and directories currently installed.)
+Preparing to unpack .../qifeng_scm-0.0.1-Linux.deb ...
+Unpacking qifeng_scm (0.0.1) ...
+Setting up qifeng_scm (0.0.1) ...
+Processing triggers for libc-bin (2.39-0ubuntu8.7) ...
+/sbin/ldconfig.real: File /usr/lib/qifeng-scm/libnumcpp.so is empty, not checked.
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_empty.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libutf8_range_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libdrogon.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_table_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_base_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_reflection_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libyaml-cpp.so.0.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libworkflow.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libaddress_sorting.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_wire_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_sqlite3.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libz.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_json_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_reflection.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_authorization_provider.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgpr.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libspdlog.so.1.16 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libre2.so.9 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_alts.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpcpp_channelz.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libtrantor.so.1 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mini_descriptor_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_hash_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_mysql.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_lex_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_mem_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_unsecure.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc++_error_details.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_core.so.4 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_unsecure.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_message_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libupb_textformat_lib.so.53 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libgrpc_plugin_support.so.1.80 is not a symbolic link
+
+/sbin/ldconfig.real: /usr/lib/qifeng-scm/libsoci_postgresql.so.4 is not a symbolic link
+
+[INFO] 2026-06-12 16:59:43 正在修复依赖...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+0 upgraded, 0 newly installed, 0 to remove and 10 not upgraded.
+[INFO] 2026-06-12 16:59:44 ===== [2/4] 验证 SCM 命令 =====
+[INFO] 2026-06-12 16:59:44 SCM 安装成功，qf_scmc 已可用
+[INFO] 2026-06-12 16:59:44 ===== [3/4] 安装服务 =====
+[INFO] 2026-06-12 16:59:44 [1/1] 正在安装服务: get_table_row (包: get_table_row.tar.gz) ...
+[OK] success
+[INFO] 2026-06-12 16:59:44 [1/1] 服务 get_table_row 安装成功
+[INFO] 2026-06-12 16:59:44 [1/1] 正在启动服务: get_table_row ...
+[OK] success
+[INFO] 2026-06-12 16:59:45 [1/1] 服务 get_table_row 已启动
+[INFO] 2026-06-12 16:59:45 ===== [4/4] 验证服务状态 =====
+[OK] success
+NAME            VERSION    AUTO_START  ACTIVE
+------------------------------------------------------
+get_table_row   1.0.0      true        true
+[INFO] 2026-06-12 16:59:45 所有服务安装完成
+[INFO] 2026-06-12 16:59:45 [6/6] 完成: 安装 SCM 及服务
+[INFO] 2026-06-12 16:59:45 ========== qf 服务一键部署完成（全部 6 步骤成功）==========

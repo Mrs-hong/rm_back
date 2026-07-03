@@ -1,0 +1,16 @@
+/*
+ * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
+ */
+#pragma once
+
+// Sophon SDK (bmlib/bmrt/bmcv) — TPU 与模型推理
+#define CHECKER_HAS_BM_SDK @CHECKER_HAS_BM_SDK@
+
+// ALSA — 麦克风采集
+#define CHECKER_HAS_ALSA @CHECKER_HAS_ALSA@
+
+// libdrm — 显示器探测
+#define CHECKER_HAS_DRM @CHECKER_HAS_DRM@
+
+// libgpiod — GPIO 指示灯
+#define CHECKER_HAS_GPIOD @CHECKER_HAS_GPIOD@

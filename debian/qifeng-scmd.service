@@ -1,0 +1,16 @@
+[Unit]
+Description=Qifeng SCM Daemon
+After=systemd-journald.socket network.target
+
+[Service]
+Type=simple
+User=root
+Group=root
+ExecStart=/usr/bin/qf_scmd
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=qifeng-scm
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=multi-user.target

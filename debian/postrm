@@ -1,0 +1,22 @@
+#!/bin/bash
+set -e
+
+case "$1" in
+    purge)
+        # 彻底清理数据（仅 purge 时）
+        rm -rf /var/lib/qifeng-scm
+        rm -rf /var/log/qifeng-scm
+        # 触发 ldconfig 更新动态链接器缓存
+        ldconfig
+        ;;
+
+    remove|upgrade|failed-upgrade|abort-install|abort-upgrade|disappear)
+        ;;
+
+    *)
+        echo "postrm called with unknown argument: $1" >&2
+        exit 1
+        ;;
+esac
+
+exit 0
