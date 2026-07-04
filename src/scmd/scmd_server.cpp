@@ -139,7 +139,15 @@ namespace qifeng::scm {
 
         SLOG_INFO << "Running startup self-check with config: " << mSelfTestConfigPath;
 
-        auto report = CheckerRunner::Run(mSelfTestConfigPath);
+        // 加载 selftest.json 到 mJsonLoader（由 ScmServer 管理，供 CheckerRunner 使用）
+        // 文件加载失败时 JsonLoad 内部保留空根对象，CheckerRunner 会使用各 checker 的默认配置
+        if (mJsonLoader.LoadFromFile(mSelfTestConfigPath)) {
+            SLOG_INFO << "selftest json loaded into mJsonLoader";
+        } else {
+            SLOG_WARN << "selftest json load failed, fallback to built-in defaults";
+        }
+
+        auto report = CheckerRunner::Run(mJsonLoader);
 
         // 输出自检结果摘要到控制台
         std::cout << "[scmd] 开机自检完成: " << report.overallStatus << " (" << report.summary << ")" << std::endl;

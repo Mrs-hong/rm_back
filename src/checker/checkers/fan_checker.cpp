@@ -8,9 +8,9 @@
 #include <fstream>
 #include <string>
 
-#include "checker/core/context.h"
+#include <chrono>
+
 #include "qifeng_framework/common/logger.h"
-#include "qifeng_framework/common/utils/time.h"
 
 #if defined(CHECKER_HAS_BM_SDK) && CHECKER_HAS_BM_SDK
     #include "bmlib_runtime.h"
@@ -18,59 +18,72 @@
 
 namespace qifeng::scm {
 
-namespace {
+    namespace {
 
-// Read fan speed (RPM) from sysfs hwmon
-int ReadFanSpeedFromSysfs(const FanConfig &cfg) {
-    for (int hwmonIdx = 0; hwmonIdx < cfg.hwmon_max_index; ++hwmonIdx) {
-        for (int fanIdx = 1; fanIdx <= cfg.fan_max_index; ++fanIdx) {
-            std::string path = "/sys/class/hwmon/hwmon" + std::to_string(hwmonIdx) +
-                               "/fan" + std::to_string(fanIdx) + "_input";
-            std::ifstream ifs(path);
-            if (ifs.good()) {
-                int rpm = 0;
-                ifs >> rpm;
-                if (rpm > 0) {
-                    return rpm;
+        // Read fan speed (RPM) from sysfs hwmon
+        int ReadFanSpeedFromSysfs(const FanConfig &cfg) {
+            for (int hwmonIdx = 0; hwmonIdx < cfg.hwmon_max_index; ++hwmonIdx) {
+                for (int fanIdx = 1; fanIdx <= cfg.fan_max_index; ++fanIdx) {
+                    std::string path = "/sys/class/hwmon/hwmon" + std::to_string(hwmonIdx) +
+                                       "/fan" + std::to_string(fanIdx) + "_input";
+                    std::ifstream ifs(path);
+                    if (ifs.good()) {
+                        int rpm = 0;
+                        ifs >> rpm;
+                        if (rpm > 0) {
+                            return rpm;
+                        }
+                    }
                 }
             }
+            return -1;
         }
-    }
-    return -1;
-}
 
-// Read temperature (C) from sysfs thermal_zone
-// sysfs temp unit is milli-C, divide by 1000
-int ReadTempFromSysfs(const FanConfig &cfg) {
-    for (int tzIdx = 0; tzIdx < cfg.thermal_zone_max_index; ++tzIdx) {
-        std::string path = "/sys/class/thermal/thermal_zone" + std::to_string(tzIdx) + "/temp";
-        std::ifstream ifs(path);
-        if (ifs.good()) {
-            int milliC = 0;
-            ifs >> milliC;
-            if (milliC > 0) {
-                return milliC / 1000;
+        // Read temperature (C) from sysfs thermal_zone
+        // sysfs temp unit is milli-C, divide by 1000
+        int ReadTempFromSysfs(const FanConfig &cfg) {
+            for (int tzIdx = 0; tzIdx < cfg.thermal_zone_max_index; ++tzIdx) {
+                std::string path = "/sys/class/thermal/thermal_zone" + std::to_string(tzIdx) + "/temp";
+                std::ifstream ifs(path);
+                if (ifs.good()) {
+                    int milliC = 0;
+                    ifs >> milliC;
+                    if (milliC > 0) {
+                        return milliC / 1000;
+                    }
+                }
             }
+            return -1;
         }
+
+    }  // namespace
+
+    void FanChecker::ParseConfig(const Json::Value &j, FanConfig &cfg) {
+        cfg.max_temp_threshold = j.isMember("max_temp_threshold") && j["max_temp_threshold"].isInt()
+                                     ? j["max_temp_threshold"].asInt()
+                                     : cfg.max_temp_threshold;
+        cfg.hwmon_max_index = j.isMember("hwmon_max_index") && j["hwmon_max_index"].isInt()
+                                  ? j["hwmon_max_index"].asInt()
+                                  : cfg.hwmon_max_index;
+        cfg.fan_max_index =
+            j.isMember("fan_max_index") && j["fan_max_index"].isInt() ? j["fan_max_index"].asInt() : cfg.fan_max_index;
+        cfg.thermal_zone_max_index = j.isMember("thermal_zone_max_index") && j["thermal_zone_max_index"].isInt()
+                                         ? j["thermal_zone_max_index"].asInt()
+                                         : cfg.thermal_zone_max_index;
     }
-    return -1;
-}
 
-}  // namespace
+    // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
+    CheckResult FanChecker::Run() {
+        CheckResult r(Name());
+        auto t0 = std::chrono::steady_clock::now();
 
-// NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
-CheckResult FanChecker::Run(const Context &ctx) {
-    CheckResult r(Name());
-    auto t0 = GetTimeMs();
+        int chipTemp = -1;
+        int boardTemp = -1;
+        int fanSpeed = -1;
+        bool usedSdk = false;
 
-    int chipTemp = -1;
-    int boardTemp = -1;
-    int fanSpeed = -1;
-    bool usedSdk = false;
-
-    // 1) Prefer Sophon SDK (BM devices)
+        // 1) Prefer Sophon SDK (BM devices)
 #if defined(CHECKER_HAS_BM_SDK) && CHECKER_HAS_BM_SDK
-    if (ctx.has_bm_sdk) {
         bm_handle_t handle = nullptr;
         if (bm_dev_request(&handle, 0) == BM_SUCCESS && handle) {
             auto guard = std::unique_ptr<void, void (*)(void*)>(
@@ -89,78 +102,82 @@ CheckResult FanChecker::Run(const Context &ctx) {
             }
             usedSdk = true;
         }
-    }
 #else
-    // BM SDK unavailable, will use sysfs fallback below
+        // BM SDK unavailable, will use sysfs fallback below
 #endif
 
-    // 2) Fallback to sysfs when SDK unavailable or read failed
-    const auto &fanCfg = ctx.config.fan;
-    if (chipTemp < 0) {
-        chipTemp = ReadTempFromSysfs(fanCfg);
-    }
-    if (fanSpeed < 0) {
-        fanSpeed = ReadFanSpeedFromSysfs(fanCfg);
-    }
-
-    // 3) Log results
-    r.details.emplace_back("chip_temp", chipTemp >= 0 ? std::to_string(chipTemp) : "n/a");
-    r.details.emplace_back("board_temp", boardTemp >= 0 ? std::to_string(boardTemp) : "n/a");
-    r.details.emplace_back("fan_speed_rpm", fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a");
-    r.details.emplace_back("source", usedSdk ? "sdk" : "sysfs");
-    SLOG_INFO << "[fan] chip_temp=" << (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a")
-              << " board_temp=" << (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a")
-              << " fan=" << (fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a") << " RPM"
-              << " (" << (usedSdk ? "sdk" : "sysfs") << ")";
-
-    // 4) Both unavailable -> SKIPPED
-    if (chipTemp < 0 && fanSpeed < 0) {
-        r.status = Status::SKIPPED;
-        r.message = "no fan or temperature sensor found";
-        r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
-        SLOG_INFO << "[fan] " << r.message;
-        return r;
-    }
-
-    // 5) Temperature threshold check
-    int maxTemp = ctx.config.fan.max_temp_threshold;
-    if (maxTemp > 0) {
-        unsigned int threshold = static_cast<unsigned int>(maxTemp);
-        bool overTemp = false;
-        if (chipTemp >= 0 && static_cast<unsigned int>(chipTemp) > threshold) {
-            overTemp = true;
+        // 2) Fallback to sysfs when SDK unavailable or read failed
+        if (chipTemp < 0) {
+            chipTemp = ReadTempFromSysfs(mConfig);
         }
-        if (boardTemp >= 0 && static_cast<unsigned int>(boardTemp) > threshold) {
-            overTemp = true;
+        if (fanSpeed < 0) {
+            fanSpeed = ReadFanSpeedFromSysfs(mConfig);
         }
-        if (overTemp) {
-            r.status = Status::FAIL;
-            r.message = "temperature over threshold (max " + std::to_string(maxTemp) +
-                        "): chip=" + (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a") +
-                        " board=" + (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a");
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
-            SLOG_ERROR << "[fan] " << r.message;
+
+        // 3) Log results
+        r.details.emplace_back("chip_temp", chipTemp >= 0 ? std::to_string(chipTemp) : "n/a");
+        r.details.emplace_back("board_temp", boardTemp >= 0 ? std::to_string(boardTemp) : "n/a");
+        r.details.emplace_back("fan_speed_rpm", fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a");
+        r.details.emplace_back("source", usedSdk ? "sdk" : "sysfs");
+        SLOG_INFO << "[fan] chip_temp=" << (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a")
+                  << " board_temp=" << (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a")
+                  << " fan=" << (fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a") << " RPM"
+                  << " (" << (usedSdk ? "sdk" : "sysfs") << ")";
+
+        auto elapsed = [&]() {
+            return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - t0)
+                                        .count());
+        };
+
+        // 4) Both unavailable -> SKIPPED
+        if (chipTemp < 0 && fanSpeed < 0) {
+            r.status = Status::SKIPPED;
+            r.message = "no fan or temperature sensor found";
+            r.elapsed_ms = elapsed();
+            SLOG_INFO << "[fan] " << r.message;
             return r;
         }
-    }
 
-    // 6) Fan stall check: RPM=0 with temp>0 means fan may be stalled
-    if (fanSpeed == 0 && chipTemp > 0) {
-        r.status = Status::WARNING;
-        r.message = "fan speed is 0 RPM while temperature > 0, fan may be stalled";
-        r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
-        SLOG_WARN << "[fan] " << r.message;
+        // 5) Temperature threshold check
+        int maxTemp = mConfig.max_temp_threshold;
+        if (maxTemp > 0) {
+            unsigned int threshold = static_cast<unsigned int>(maxTemp);
+            bool overTemp = false;
+            if (chipTemp >= 0 && static_cast<unsigned int>(chipTemp) > threshold) {
+                overTemp = true;
+            }
+            if (boardTemp >= 0 && static_cast<unsigned int>(boardTemp) > threshold) {
+                overTemp = true;
+            }
+            if (overTemp) {
+                r.status = Status::FAIL;
+                r.message = "temperature over threshold (max " + std::to_string(maxTemp) +
+                            "): chip=" + (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a") +
+                            " board=" + (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a");
+                r.elapsed_ms = elapsed();
+                SLOG_ERROR << "[fan] " << r.message;
+                return r;
+            }
+        }
+
+        // 6) Fan stall check: RPM=0 with temp>0 means fan may be stalled
+        if (fanSpeed == 0 && chipTemp > 0) {
+            r.status = Status::WARNING;
+            r.message = "fan speed is 0 RPM while temperature > 0, fan may be stalled";
+            r.elapsed_ms = elapsed();
+            SLOG_WARN << "[fan] " << r.message;
+            return r;
+        }
+
+        // 7) All good
+        r.status = Status::PASS;
+        r.message = "fan ok: chip=" + (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a") +
+                    " board=" + (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a") +
+                    " fan=" + (fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a") + " RPM";
+        r.elapsed_ms = elapsed();
+        SLOG_INFO << "[fan] " << r.message << " (" << r.elapsed_ms << "ms)";
         return r;
     }
-
-    // 7) All good
-    r.status = Status::PASS;
-    r.message = "fan ok: chip=" + (chipTemp >= 0 ? std::to_string(chipTemp) : "n/a") +
-                " board=" + (boardTemp >= 0 ? std::to_string(boardTemp) : "n/a") +
-                " fan=" + (fanSpeed >= 0 ? std::to_string(fanSpeed) : "n/a") + " RPM";
-    r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
-    SLOG_INFO << "[fan] " << r.message << " (" << r.elapsed_ms << "ms)";
-    return r;
-}
 
 }  // namespace qifeng::scm

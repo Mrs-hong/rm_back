@@ -266,3 +266,61 @@ target_compile_options(test_tool_mariadb PRIVATE
 )
 
 gtest_discover_tests(test_tool_mariadb)
+
+# ==============================================================================
+# Checker 框架单元测试
+# ==============================================================================
+
+set(CHECKER_TEST_SOURCES test_check.cpp)
+
+set(CHECKER_SOURCES_UNDER_TEST
+    ${CMAKE_SOURCE_DIR}/src/common/json_load.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/cmd_execute.cpp
+    ${CMAKE_SOURCE_DIR}/src/common/types.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/core/registry.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/core/runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checker_runner.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/register_all.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/disk_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/memory_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/network_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/tpu_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/model_inference_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/fan_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/display_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/microphone_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/light_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/fingerprint_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/checkers/pcba_checker.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/hw/serial_port.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/hw/gpio.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/hw/drm_device.cpp
+    ${CMAKE_SOURCE_DIR}/src/checker/hw/alsa_capture.cpp
+)
+
+add_executable(test_check ${CHECKER_TEST_SOURCES} ${CHECKER_SOURCES_UNDER_TEST})
+
+target_include_directories(test_check PRIVATE
+    ${CMAKE_SOURCE_DIR}/include
+    ${GTEST_INCLUDE_DIR}
+    ${CMAKE_BINARY_DIR}/generated
+)
+
+target_link_libraries(test_check PRIVATE
+    gtest
+    gtest_main
+    qifeng_framework::qifeng_framework
+    pthread
+)
+
+target_compile_options(test_check PRIVATE
+    -Wno-switch-default
+    -Wno-switch-enum
+    -Wno-unused-parameter
+    -Wno-unused-variable
+    -Wno-old-style-cast
+)
+
+# 使用 PRE_TEST 发现模式：在 ctest 运行时（而非构建后）发现测试用例，
+# 便于继承运行时环境（如 LD_LIBRARY_PATH 指向第三方库）
+gtest_discover_tests(test_check DISCOVERY_MODE PRE_TEST)

@@ -4,14 +4,14 @@
 
 #include "checker/checkers/model_inference_checker.h"
 
-#include <cstring>
+#include <cstdint>
 #include <fstream>
 #include <string>
 #include <vector>
 
-#include "checker/core/context.h"
+#include <chrono>
+
 #include "qifeng_framework/common/logger.h"
-#include "qifeng_framework/common/utils/time.h"
 
 #if defined(CHECKER_HAS_BM_SDK) && CHECKER_HAS_BM_SDK
     #include "bmlib_runtime.h"
@@ -19,6 +19,10 @@
 #endif
 
 namespace qifeng::scm {
+
+    void ModelInferenceChecker::ParseConfig(const Json::Value &j, ModelInferenceConfig &cfg) {
+        cfg.path = j.isMember("path") && j["path"].isString() ? j["path"].asString() : cfg.path;
+    }
 
 #if defined(CHECKER_HAS_BM_SDK) && CHECKER_HAS_BM_SDK
     namespace {
@@ -56,26 +60,31 @@ namespace qifeng::scm {
     }  // namespace
 #endif
 
-                // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
-    CheckResult ModelInferenceChecker::Run(const Context &ctx) {
+    // NOLINTNEXTLINE(readability-function-size,readability-function-cognitive-complexity)
+    CheckResult ModelInferenceChecker::Run() {
         CheckResult r(Name());
-        auto t0 = GetTimeMs();
+        auto t0 = std::chrono::steady_clock::now();
+
+        auto elapsed = [&]() {
+            return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - t0)
+                                        .count());
+        };
 
 #if !defined(CHECKER_HAS_BM_SDK) || !CHECKER_HAS_BM_SDK
-        (void)ctx;
         r.status = Status::SKIPPED;
         r.message = "Sophon SDK not built-in";
-        r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+        r.elapsed_ms = elapsed();
         SLOG_INFO << "[model_inference] " << r.message;
         return r;
 #else
-        const std::string &modelPath = ctx.config.model.path;
+        const std::string &modelPath = mConfig.path;
 
         // 1) 模型文件是否部署
         if (!FileExists(modelPath)) {
             r.status = Status::SKIPPED;
             r.message = "probe model not deployed: " + modelPath;
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             SLOG_INFO << "[model_inference] " << r.message;
             return r;
         }
@@ -85,7 +94,7 @@ namespace qifeng::scm {
         if (bm_dev_request(&handle, 0) != BM_SUCCESS || !handle) {
             r.status = Status::SKIPPED;
             r.message = "no TPU device";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             SLOG_INFO << "[model_inference] " << r.message;
             return r;
         }
@@ -98,7 +107,7 @@ namespace qifeng::scm {
         if (!rt) {
             r.status = Status::FAIL;
             r.message = "bmrt_create failed";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             return r;
         }
         auto rtguard = std::unique_ptr<void, void (*)(void*)>(rt, [](void* p) { bmrt_destroy(p); });
@@ -106,7 +115,7 @@ namespace qifeng::scm {
         if (!bmrt_load_bmodel(rt, modelPath.c_str())) {
             r.status = Status::FAIL;
             r.message = "load bmodel failed";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             SLOG_ERROR << "[model_inference] load bmodel failed: " << modelPath;
             return r;
         }
@@ -121,7 +130,7 @@ namespace qifeng::scm {
         if (num <= 0 || !networkNames) {
             r.status = Status::FAIL;
             r.message = "no network in bmodel";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             free(networkNames);
             return r;
         }
@@ -134,7 +143,7 @@ namespace qifeng::scm {
         if (!netInfo) {
             r.status = Status::PASS;
             r.message = "model loaded: " + firstName + " (no net info, skip inference)";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             SLOG_WARN << "[model_inference] bmrt_get_network_info returned null for: " << firstName;
             free(networkNames);
             return r;
@@ -191,7 +200,7 @@ namespace qifeng::scm {
         bool ok = launched && (syncRet == 0);
         r.status = ok ? Status::PASS : Status::FAIL;
         r.message = ok ? ("inference ok: " + firstName) : "inference check failed";
-        r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+        r.elapsed_ms = elapsed();
         SLOG_INFO << "[model_inference] " << r.message << " (" << r.elapsed_ms << "ms)";
 
         free(networkNames);

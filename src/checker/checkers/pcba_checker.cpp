@@ -2,15 +2,16 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 
-#include "checker/checkers/by_script/pcba_cheker.h"
+#include "checker/checkers/pcba_checker.h"
 
 #include <cstddef>
 #include <sstream>
 #include <string>
 
+#include <chrono>
+
 #include "common/cmd_execute.h"
 #include "qifeng_framework/common/logger.h"
-#include "qifeng_framework/common/utils/time.h"
 
 namespace qifeng::scm {
 
@@ -43,40 +44,66 @@ namespace qifeng::scm {
 
     }  // namespace
 
-    enum Severity PcbaChecker::Severity() const {
-        // Run() 执行时会根据配置更新 mSeverity；若未执行则返回默认值 WARNING
-        return mSeverity;
+    void PcbaChecker::ParseConfig(const Json::Value &j, PcbaConfig &cfg) {
+        cfg.exe_command = j.isMember("exe_command") && j["exe_command"].isString()
+                              ? j["exe_command"].asString()
+                              : cfg.exe_command;
+        if (j.isMember("args") && j["args"].isArray()) {
+            cfg.args.clear();
+            for (Json::ArrayIndex i = 0; i < j["args"].size(); ++i) {
+                const Json::Value &v = j["args"][i];
+                if (v.isString()) {
+                    cfg.args.push_back(v.asString());
+                }
+            }
+        }
+        cfg.severity =
+            j.isMember("severity") && j["severity"].isString() ? j["severity"].asString() : cfg.severity;
+        cfg.timeout_sec = j.isMember("timeout_sec") && j["timeout_sec"].isInt() ? j["timeout_sec"].asInt()
+                                                                                 : cfg.timeout_sec;
+        cfg.parse_output = j.isMember("parse_output") && j["parse_output"].isBool()
+                               ? j["parse_output"].asBool()
+                               : cfg.parse_output;
+        cfg.pass_keyword = j.isMember("pass_keyword") && j["pass_keyword"].isString()
+                               ? j["pass_keyword"].asString()
+                               : cfg.pass_keyword;
+        cfg.fail_keyword = j.isMember("fail_keyword") && j["fail_keyword"].isString()
+                               ? j["fail_keyword"].asString()
+                               : cfg.fail_keyword;
+
+        // 根据配置更新严重级别，供报告与整体判定使用
+        mSeverity = ParseSeverity(cfg.severity);
     }
 
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
-    CheckResult PcbaChecker::Run(const Context &ctx) {
-        const auto &cfg = ctx.config.pcba;
-
-        // 根据配置更新严重级别，供后续报告与整体判定使用
-        mSeverity = ParseSeverity(cfg.severity);
-
+    CheckResult PcbaChecker::Run() {
         CheckResult r(Name());
-        r.severity = mSeverity;
-        auto t0 = GetTimeMs();
+        auto t0 = std::chrono::steady_clock::now();
+
+        auto elapsed = [&]() {
+            return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
+                                        std::chrono::steady_clock::now() - t0)
+                                        .count());
+        };
 
         // 未配置脚本路径时跳过，避免误报
-        if (cfg.exe_command.empty()) {
+        if (mConfig.exe_command.empty()) {
             r.status = Status::SKIPPED;
             r.message = "pcba script not configured";
-            r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+            r.elapsed_ms = elapsed();
             SLOG_INFO << "[pcba] " << r.message << " (" << r.elapsed_ms << "ms)";
             return r;
         }
 
         // 执行外部自检脚本
         CmdOptions options;
-        options.timeout_ms = cfg.timeout_sec * 1000;
-        auto pr = RunCmd(cfg.exe_command, cfg.args, options);
+        options.timeout_ms = mConfig.timeout_sec * 1000;
+        auto pr = RunCmd(mConfig.exe_command, mConfig.args, options);
 
         // 保存原始信息到 details
         r.details.emplace_back("exit_code", std::to_string(pr.exit_code));
         r.details.emplace_back("timed_out", pr.timed_out ? "yes" : "no");
-        r.details.emplace_back("timeout_sec", std::to_string(cfg.timeout_sec));
+        r.details.emplace_back("timeout_sec", std::to_string(mConfig.timeout_sec));
         r.details.emplace_back("output", TruncateOutput(pr.output, 4096));
 
         // 根据执行结果判定状态
@@ -88,12 +115,12 @@ namespace qifeng::scm {
             std::ostringstream oss;
             oss << "pcba script failed with exit code " << pr.exit_code;
             r.message = oss.str();
-        } else if (cfg.parse_output) {
+        } else if (mConfig.parse_output) {
             // 退出码为 0 但需进一步解析输出关键字
-            if (pr.output.find(cfg.fail_keyword) != std::string::npos) {
+            if (pr.output.find(mConfig.fail_keyword) != std::string::npos) {
                 r.status = Status::FAIL;
                 r.message = "pcba output contains fail keyword";
-            } else if (pr.output.find(cfg.pass_keyword) != std::string::npos) {
+            } else if (pr.output.find(mConfig.pass_keyword) != std::string::npos) {
                 r.status = Status::PASS;
                 r.message = "pcba check passed";
             } else {
@@ -106,7 +133,7 @@ namespace qifeng::scm {
             r.message = "pcba check passed";
         }
 
-        r.elapsed_ms = static_cast<int>(GetTimeMs() - t0);
+        r.elapsed_ms = elapsed();
         SLOG_INFO << "[pcba] " << r.message << " (" << r.elapsed_ms << "ms)";
         return r;
     }

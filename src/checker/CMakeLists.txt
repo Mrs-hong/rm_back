@@ -7,26 +7,27 @@
 
 # --- 源文件 -------------------------------------------------------------------
 set(CHECKER_SOURCES
-  core/context.cpp
   core/registry.cpp
   core/runner.cpp
   checkers/disk_checker.cpp
   checkers/memory_checker.cpp
-  checkers/display_checker.cpp
-  checkers/fingerprint_checker.cpp
-  checkers/microphone_checker.cpp
-  checkers/light_checker.cpp
   checkers/network_checker.cpp
   checkers/tpu_checker.cpp
   checkers/model_inference_checker.cpp
   checkers/fan_checker.cpp
+  checkers/display_checker.cpp
+  checkers/microphone_checker.cpp
+  checkers/light_checker.cpp
+  checkers/fingerprint_checker.cpp
+  checkers/pcba_checker.cpp
   checkers/register_all.cpp
-  checkers/by_script/pcba_cheker.cpp
+  checker_runner.cpp
   hw/serial_port.cpp
   hw/gpio.cpp
   hw/drm_device.cpp
   hw/alsa_capture.cpp
   ${CMAKE_SOURCE_DIR}/src/common/cmd_execute.cpp
+  ${CMAKE_SOURCE_DIR}/src/common/json_load.cpp
 )
 
 # --- 静态库 -------------------------------------------------------------------

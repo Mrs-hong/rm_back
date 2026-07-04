@@ -11,7 +11,7 @@
 #include <cstring>
 #include <string>
 
-#include "checker/core/context.h"
+#include "checker/checkers/display_checker.h"  // DisplayConfig 定义
 
 #if defined(CHECKER_HAS_DRM) && CHECKER_HAS_DRM
     #include <xf86drm.h>

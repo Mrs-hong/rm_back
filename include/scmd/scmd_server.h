@@ -3,6 +3,7 @@
  */
 #pragma once
 
+#include "common/json_load.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "scmd/command_dispatcher.h"
@@ -88,6 +89,7 @@ namespace qifeng::scm {
         KeyOperationRecorder mKeyRecorder;
         CommandDispatcher mDispatcher;
         std::string mSelfTestConfigPath;  // 自检配置文件路径
+        JsonLoad mJsonLoader;             // 由 ScmServer 管理的 JSON 加载器，供 CheckerRunner 使用
         std::atomic<bool> mRunning {false};
     };
 }  // namespace qifeng::scm

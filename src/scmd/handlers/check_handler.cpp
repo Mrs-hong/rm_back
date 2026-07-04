@@ -5,6 +5,7 @@
 #include "scmd/handlers/check_handler.h"
 
 #include "checker/checker_runner.h"
+#include "common/json_load.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/service_ctl.h"
@@ -31,8 +32,11 @@ namespace qifeng::scm {
 
         SLOG_INFO << "Running self-check with config: " << configPath;
 
-        // 执行自检
-        auto report = CheckerRunner::Run(configPath);
+        // 加载配置文件并执行自检；加载失败时 JsonLoad 内部保留空根对象，
+        // CheckerRunner 会使用各 checker 的默认配置继续执行
+        JsonLoad loader;
+        loader.LoadFromFile(configPath);
+        auto report = CheckerRunner::Run(loader);
 
         // 组装响应
         ScmResponse response;
