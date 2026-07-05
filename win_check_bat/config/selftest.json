@@ -1,0 +1,20 @@
+{
+  "per_item_timeout_sec": 120,
+  "parallel": false,
+  "report_path": "/var/log/qifeng-scm/selftest-report.json",
+  "pcba": {
+    "exe_command": "/opt/qifeng-scm/scripts/pcba_check.sh",
+    "args": [],
+    "severity": "warning",
+    "timeout_sec": 300,
+    "parse_output": true,
+    "pass_keyword": "PASS",
+    "fail_keyword": "FAIL"
+  },
+  "tpu": {
+    "min_mem_mb": 0
+  },
+  "model_inference": {
+    "path": "/opt/sophon/selftest/fsmn_fp32_.bmodel"
+  }
+}
