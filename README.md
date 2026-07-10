@@ -152,15 +152,24 @@ scmd:
     level: info              # 日志级别：debug / info / warn / error
     max_file_size: 52428800  # 单个日志文件最大字节数（50MB）
     max_files: 7             # 日志文件滚动保留数量
-    path: /var/log/qifeng-scm # 日志目录
   uds:
     socket_path: /run/qifeng-scm/scmd.sock  # UDS socket 路径
     socket_mode: "0666"                       # socket 权限（任意用户可连接）
   opt_timeout_sec: 10         # 操作超时时间（秒） (未完全实现、下一步实现)
-  service_dir: /var/lib/qifeng-scm/services  # 服务安装目录
-  back_dir: /var/lib/qifeng-scm/backup       # 备份目录
-  data_dir: /var/lib/qifeng-scm/data         # 数据目录
+  root_dir: /var/lib/qifeng-scm  # 根目录，子目录自动派生
 ```
+
+**子目录自动派生规则：** 由 `root_dir` 自动派生，无需单独配置：
+
+| 子目录       | 派生规则                  | 说明           |
+|------------|------------------------|--------------|
+| `services` | `root_dir + "/services"` | 服务安装目录       |
+| `data`     | `root_dir + "/data"`     | 数据目录         |
+| `backup`   | `root_dir + "/backup"`   | 备份目录         |
+| `log`      | `root_dir + "/log"`      | 日志目录         |
+| `tmp`      | `root_dir + "/tmp"`      | 临时目录         |
+
+> 如需单独覆盖某个子目录路径，可在配置文件中添加对应的 `service_dir`、`back_dir`、`data_dir`、`temp_dir` 字段，优先级高于 `root_dir` 派生值。日志路径也可通过 `log.path` 单独指定。
 
 #### 4.1.3 配置优先级
 
@@ -284,8 +293,12 @@ sudo apt-get install -f
 安装完成后，`postinst` 脚本会自动执行以下操作：
 
 1. **创建系统目录**
-   - `/var/lib/qifeng-scm/*` — 服务和数据目录
-   - `/var/log/qifeng-scm` — 日志目录
+   - `/var/lib/qifeng-scm/` — 根目录，子目录自动派生：
+     - `services/` — 服务安装目录
+     - `data/` — 数据目录
+     - `backup/` — 备份目录
+     - `log/` — 日志目录
+     - `tmp/` — 临时目录
    - `/run/qifeng-scm` — 运行时目录（由 systemd RuntimeDirectory 管理）
 
 2. **配置动态链接库**
@@ -338,13 +351,13 @@ qf_scmc uninstall -n mariadb
 
 ```bash
 # 普通卸载（保留数据目录和日志）
-sudo dpkg -r qifeng_scm
+sudo dpkg -r qifeng-scm
 
 # 完全卸载（清理所有数据和日志）
-sudo dpkg --purge qifeng_scm
+sudo dpkg --purge qifeng-scm
 
 # 强制卸载（当包损坏或无法正常卸载时使用）
-sudo dpkg --purge --force-all qifeng_scm
+sudo dpkg --purge --force-all qifeng-scm
 ```
 
 **卸载后清理残留文件（如有需要）：**
@@ -371,11 +384,8 @@ sudo systemctl daemon-reload
 **说明：**
 - 包名为 `qifeng_scm`（下划线），不是 `qifeng-scm`（连字符）
 - `dpkg -r` 仅卸载程序文件，保留以下数据目录：
-  - `/var/lib/qifeng-scm/services/` — 服务配置
-  - `/var/lib/qifeng-scm/data/` — 服务端数据
-  - `/var/lib/qifeng-scm/backup/` — 备份数据
-  - `/var/log/qifeng-scm/` — 日志
-- `dpkg --purge` 完全卸载，会删除 `/var/lib/qifeng-scm` 和 `/var/log/qifeng-scm`
+  - `/var/lib/qifeng-scm/` — 根目录（含 services/、data/、backup/、log/、tmp/ 等子目录）
+- `dpkg --purge` 完全卸载，会删除 `/var/lib/qifeng-scm` 整个根目录
 - 如遇到卸载后文件残留（容器环境或权限问题），可执行上述手动清理步骤
 
 ## 7. 开发与调试

@@ -125,6 +125,7 @@ namespace qifeng::scm {
         if (outFile) {
             Json::StreamWriterBuilder builder;
             builder["indentation"] = "  ";
+            builder["emitUTF8"] = true;  // 中文直接输出 UTF-8，而非 \uXXXX 转义
             outFile << Json::writeString(builder, reportJson) << std::endl;
             SLOG_INFO << "[runner] Self-check report written to " << reportPath;
         } else {

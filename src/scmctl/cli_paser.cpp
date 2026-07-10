@@ -23,6 +23,7 @@ namespace qifeng::scm {
         commands.emplace_back(std::make_unique<RestartCommand>());
         commands.emplace_back(std::make_unique<ReloadCommand>());
         commands.emplace_back(std::make_unique<UpgradeCommand>());
+        commands.emplace_back(std::make_unique<UpgradesCommand>());
         commands.emplace_back(std::make_unique<ListCommand>());
         commands.emplace_back(std::make_unique<InfoCommand>());
         commands.emplace_back(std::make_unique<LogCommand>());
@@ -30,6 +31,10 @@ namespace qifeng::scm {
         commands.emplace_back(std::make_unique<KillCommand>());
         commands.emplace_back(std::make_unique<SlogCommand>());
         commands.emplace_back(std::make_unique<CheckCommand>());
+        commands.emplace_back(std::make_unique<InitNginxCommand>());
+        commands.emplace_back(std::make_unique<ResetNginxCommand>());
+        commands.emplace_back(std::make_unique<AddModelCommand>());
+        commands.emplace_back(std::make_unique<ClearModelCommand>());
 
         for (auto &cmd : commands) {
             cmd->Setup(app);

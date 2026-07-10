@@ -5,16 +5,19 @@
 #include "service_tool/tool_mariadb.h"
 
 #include "common/types.h"
+#include "qifeng_framework/common/logger.h"
 
 #include <array>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <set>
 #include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -76,6 +79,17 @@ namespace {
             return "/usr/bin/mysql";
         }
         return "mysql";
+    }
+
+    // 检测系统 mysqldump/mariadb-dump 命令路径
+    std::string DetectMysqldump() {
+        if (fs::exists("/usr/bin/mysqldump")) {
+            return "/usr/bin/mysqldump";
+        }
+        if (fs::exists("/usr/bin/mariadb-dump")) {
+            return "/usr/bin/mariadb-dump";
+        }
+        return "mysqldump";
     }
 
     // 构建管理员连接命令
@@ -148,21 +162,23 @@ namespace qifeng::scm::tool {
         return ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), sql);
     }
 
-    // NOLINTNEXTLINE: 17 function exceeds recommended size/complexity thresholds
-    ResultMsg Mariadb::DeleteUserAndDatabase(const std::string &user) {
+    // NOLINTNEXTLINE: function exceeds recommended size/complexity thresholds
+    ResultMsg Mariadb::DeleteUserAndDatabase(const std::string &user, const std::string &password) {
         if (user.empty()) {
             return MakeError("Username is empty");
         }
 
-        // 查询用户拥有的数据库（通过 mysql.db 中 Drop_priv 近似筛选）
+        // 收集需要删除的数据库名（使用 set 去重）
+        std::set<std::string> databasesToDrop;
+
+        // ---- 途径1：通过 mysql.db 权限表查找有显式 GRANT 的数据库 ----
         std::string escapedUser = EscapeSqlString(user);
         std::string querySql =
             "SELECT DISTINCT Db FROM mysql.db WHERE User='" + escapedUser +
-            "' AND Drop_priv='Y' AND Db NOT IN ('mysql','information_schema','performance_schema','sys');";
+            "' AND Db NOT IN ('mysql','information_schema','performance_schema','sys');";
 
         std::string clientCmd = BuildAdminClientCmd(mDef) + " -B -N mysql";
 
-        // 通过临时文件执行查询 SQL
         std::string tmpFile = "/tmp/.scm_mariadb_" + std::to_string(getpid()) + "_query.sql";
         std::ofstream ofs(tmpFile);
         if (!ofs) {
@@ -181,7 +197,7 @@ namespace qifeng::scm::tool {
             return MakeError("Failed to query user databases: " + output);
         }
 
-        // 删除查询到的数据库
+        // 解析 mysql.db 查询结果
         if (!output.empty()) {
             std::istringstream iss(output);
             std::string dbName;
@@ -189,19 +205,57 @@ namespace qifeng::scm::tool {
                 if (!dbName.empty() && dbName.back() == '\r') {
                     dbName.pop_back();
                 }
-                // 跳过空值、通配符库名、警告信息行
                 if (dbName.empty() || dbName.find('%') != std::string::npos || dbName.find(':') != std::string::npos) {
                     continue;
                 }
-                std::string dropSql = "DROP DATABASE IF EXISTS `" + dbName + "`;\n";
-                auto dropResult = ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), dropSql);
-                if (!dropResult.IsDefalutSuccess()) {
-                    return MakeError("Failed to delete database '" + dbName + "': " + dropResult.msg);
-                }
+                databasesToDrop.insert(dbName);
             }
         }
 
-        // 删除用户（涵盖 localhost、127.0.0.1、% 三种 host）
+        // ---- 途径2：以用户身份连接执行 SHOW DATABASES，发现所有可访问数据库 ----
+        // 包括无显式 GRANT 记录但由用户创建的数据库（如 SQL 脚本创建的 test_db）
+        if (!password.empty()) {
+            std::ostringstream oss;
+            oss << DetectMysqlClient();
+            oss << " -h " << mDef.host;
+            oss << " -P " << mDef.port;
+            oss << " -u " << user;
+            oss << " -p" << EscapeShellSingleQuote(password);
+            oss << " -B -N -e 'SHOW DATABASES;'";
+
+            std::string userOutput;
+            int userRet = ExecCommand(oss.str(), userOutput);
+            if (userRet == 0 && !userOutput.empty()) {
+                std::istringstream iss(userOutput);
+                std::string dbName;
+                while (std::getline(iss, dbName)) {
+                    if (!dbName.empty() && dbName.back() == '\r') {
+                        dbName.pop_back();
+                    }
+                    // 跳过空值和系统数据库
+                    if (dbName.empty() || dbName == "mysql" || dbName == "information_schema" ||
+                        dbName == "performance_schema" || dbName == "sys") {
+                        continue;
+                    }
+                    databasesToDrop.insert(dbName);
+                }
+            } else {
+                // 用户身份连接失败，仅记录警告，继续使用途径1的结果
+                SLOG_WARN << "Failed to query databases as user '" << user
+                          << "', falling back to mysql.db only: " << userOutput;
+            }
+        }
+
+        // ---- 删除所有发现的数据库 ----
+        for (const auto &dbName : databasesToDrop) {
+            std::string dropSql = "DROP DATABASE IF EXISTS `" + dbName + "`;\n";
+            auto dropResult = ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), dropSql);
+            if (!dropResult.IsDefalutSuccess()) {
+                return MakeError("Failed to delete database '" + dbName + "': " + dropResult.msg);
+            }
+        }
+
+        // ---- 删除用户（涵盖 localhost、127.0.0.1、% 三种 host）----
         std::string sql = "DROP USER IF EXISTS '" + escapedUser +
                           "'@'localhost';\n"
                           "DROP USER IF EXISTS '" +
@@ -280,6 +334,198 @@ namespace qifeng::scm::tool {
         }
 
         return {0, output};
+    }
+
+    ResultMsg Mariadb::BackupDatabase(const std::string &dbName, const std::string &backupFile) {
+        // 参数校验
+        if (dbName.empty()) {
+            return MakeError("Database name is empty");
+        }
+        if (backupFile.empty()) {
+            return MakeError("Backup file path is empty");
+        }
+
+        // 创建备份文件所在目录
+        fs::path backupPath(backupFile);
+        fs::path parent = backupPath.parent_path();
+        if (!parent.empty()) {
+            std::error_code ec;
+            fs::create_directories(parent, ec);
+            if (ec) {
+                return MakeError("Failed to create backup directory: " + ec.message());
+            }
+        }
+
+        // 构造 mysqldump 命令：使用单引号转义密码防止 shell 注入
+        std::ostringstream oss;
+        oss << DetectMysqldump();
+        oss << " -h " << mDef.host;
+        oss << " -P " << mDef.port;
+        oss << " -u " << mDef.adminUser;
+        if (!mDef.adminPassword.empty()) {
+            oss << " -p" << EscapeShellSingleQuote(mDef.adminPassword);
+        }
+        oss << " " << dbName << " > " << EscapeShellSingleQuote(backupFile);
+
+        std::string output;
+        int ret = ExecCommand(oss.str(), output);
+        if (ret != 0) {
+            return MakeError("Database backup failed: " + output);
+        }
+        return MakeSuccess();
+    }
+
+    ResultMsg Mariadb::RestoreDatabase(const std::string &dbName, const std::string &backupFile) {
+        // 参数校验
+        if (dbName.empty()) {
+            return MakeError("Database name is empty");
+        }
+        if (backupFile.empty()) {
+            return MakeError("Backup file path is empty");
+        }
+        if (!fs::exists(backupFile)) {
+            return MakeError("Backup file does not exist: " + backupFile);
+        }
+
+        // 自动创建目标数据库（若不存在）
+        std::string createSql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "`;\n";
+        auto createResult = ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), createSql);
+        if (!createResult.IsDefalutSuccess()) {
+            return MakeError("Failed to create database '" + dbName + "': " + createResult.msg);
+        }
+
+        // 构造恢复命令：通过重定向将备份文件输入到 mysql 客户端
+        std::ostringstream oss;
+        oss << DetectMysqlClient();
+        oss << " -h " << mDef.host;
+        oss << " -P " << mDef.port;
+        oss << " -u " << mDef.adminUser;
+        if (!mDef.adminPassword.empty()) {
+            oss << " -p" << EscapeShellSingleQuote(mDef.adminPassword);
+        }
+        oss << " " << dbName << " < " << EscapeShellSingleQuote(backupFile);
+
+        std::string output;
+        int ret = ExecCommand(oss.str(), output);
+        if (ret != 0) {
+            return MakeError("Database restore failed: " + output);
+        }
+        return MakeSuccess();
+    }
+
+    // NOLINTNEXTLINE: BackupUserDatabases function exceeds recommended size/complexity thresholds
+    ResultMsg Mariadb::BackupUserDatabases(const std::string &userName, const std::string &backupDir) {
+        // 参数校验
+        if (userName.empty()) {
+            return MakeError("Username is empty");
+        }
+
+        // 创建备份目录
+        std::error_code ec;
+        fs::create_directories(backupDir, ec);
+        if (ec) {
+            return MakeError("Failed to create backup directory: " + ec.message());
+        }
+
+        // 查询用户拥有的数据库（通过 mysql.db 中 Drop_priv 近似筛选）
+        std::string escapedUser = EscapeSqlString(userName);
+        std::string querySql =
+            "SELECT DISTINCT Db FROM mysql.db WHERE User='" + escapedUser +
+            "' AND Drop_priv='Y' AND Db NOT IN ('mysql','information_schema','performance_schema','sys');";
+
+        std::string clientCmd = BuildAdminClientCmd(mDef) + " -B -N mysql";
+
+        // 通过临时文件执行查询 SQL，防止 shell 注入
+        std::string tmpFile = "/tmp/.scm_mariadb_" + std::to_string(getpid()) + "_query.sql";
+        std::ofstream ofs(tmpFile);
+        if (!ofs) {
+            return MakeError("Failed to write temp SQL file: " + tmpFile);
+        }
+        ofs << querySql;
+        ofs.close();
+        chmod(tmpFile.c_str(), S_IRUSR | S_IWUSR);
+
+        std::string fullCmd = clientCmd + " < " + tmpFile;
+        std::string output;
+        int ret = ExecCommand(fullCmd, output);
+        fs::remove(tmpFile);
+
+        if (ret != 0) {
+            return MakeError("Failed to query user databases: " + output);
+        }
+
+        // 逐个备份查询到的数据库
+        std::vector<std::string> backedUpDbs;
+        if (!output.empty()) {
+            std::istringstream iss(output);
+            std::string dbName;
+            while (std::getline(iss, dbName)) {
+                // 去除行尾回车
+                if (!dbName.empty() && dbName.back() == '\r') {
+                    dbName.pop_back();
+                }
+                // 跳过空值、通配符库名、警告信息行
+                if (dbName.empty() || dbName.find('%') != std::string::npos ||
+                    dbName.find(':') != std::string::npos) {
+                    continue;
+                }
+
+                std::string backupFile = backupDir + "/" + dbName + ".sql";
+                auto backupResult = BackupDatabase(dbName, backupFile);
+                if (!backupResult.IsDefalutSuccess()) {
+                    return MakeError("Failed to backup database '" + dbName + "': " + backupResult.msg);
+                }
+                backedUpDbs.push_back(dbName);
+            }
+        }
+
+        // 返回已备份的数据库名列表（换行分隔）
+        std::string joinedNames;
+        for (size_t i = 0; i < backedUpDbs.size(); ++i) {
+            if (i != 0) {
+                joinedNames += "\n";
+            }
+            joinedNames += backedUpDbs[i];
+        }
+        return {0, joinedNames};
+    }
+
+    ResultMsg Mariadb::RestoreUserDatabases(const std::string &backupDir) {
+        // 校验备份目录存在
+        if (backupDir.empty()) {
+            return MakeError("Backup directory path is empty");
+        }
+        if (!fs::exists(backupDir) || !fs::is_directory(backupDir)) {
+            return MakeError("Backup directory does not exist: " + backupDir);
+        }
+
+        // 遍历备份目录下的所有 .sql 文件并依次恢复
+        std::error_code ec;
+        for (const auto &entry : fs::directory_iterator(backupDir, ec)) {
+            if (ec) {
+                return MakeError("Failed to iterate backup directory: " + ec.message());
+            }
+            if (!entry.is_regular_file()) {
+                continue;
+            }
+            if (entry.path().extension() != ".sql") {
+                continue;
+            }
+
+            // 从文件名提取数据库名（去除 .sql 后缀）
+            std::string dbName = entry.path().stem().string();
+            std::string filePath = entry.path().string();
+
+            auto restoreResult = RestoreDatabase(dbName, filePath);
+            if (!restoreResult.IsDefalutSuccess()) {
+                return MakeError("Failed to restore database '" + dbName + "': " + restoreResult.msg);
+            }
+        }
+        if (ec) {
+            return MakeError("Failed to iterate backup directory: " + ec.message());
+        }
+
+        return MakeSuccess();
     }
 
 }  // namespace qifeng::scm::tool

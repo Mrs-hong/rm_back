@@ -8,6 +8,7 @@
 #include <filesystem>
 #include <sstream>
 namespace {  // 工具函数拆分、降低单函数复杂度
+    using qifeng::scm::ConfigInfo;
     using qifeng::scm::ServiceDefinition;
 
     // 将依赖列表格式化为空格分隔的 service 单元名列表
@@ -82,10 +83,15 @@ namespace {  // 工具函数拆分、降低单函数复杂度
     }
 
     // 写入 [Service] 段：环境变量（env, DATA_DIR, SERVICE_DIR）
-    void WriteServiceEnvironment(std::ostringstream &oss, const ServiceDefinition &def) {
-        // Environment: 环境变量
+    void WriteServiceEnvironment(std::ostringstream &oss, const ServiceDefinition &def,
+                                 const ConfigInfo &configInfo) {
+        // Environment: 用户自定义环境变量
         for (const auto &env : def.execInfo.env) {
             oss << "Environment=" << env << "\n";
+        }
+        // 依赖模型文件的服务注入模型目录环境变量（变量名来自 scmd.yaml，值为模型目录绝对路径）
+        if (def.needModel && !configInfo.modelEnvVar.empty() && !configInfo.modelDir.empty()) {
+            oss << "Environment=" << configInfo.modelEnvVar << "=" << configInfo.modelDir << "\n";
         }
     }
 
@@ -146,7 +152,8 @@ namespace {  // 工具函数拆分、降低单函数复杂度
 }  // namespace
 
 namespace qifeng::scm {
-    ResultMsg ServiceGenerator::GenerateContent(const ServiceDefinition &serviceDef, const std::string &unitPrefix) {
+    ResultMsg ServiceGenerator::GenerateContent(const ServiceDefinition &serviceDef, const std::string &unitPrefix,
+                                                 const ConfigInfo &configInfo) {
         try {
             // 参数校验
             auto validateRet = ValidateParams(serviceDef);
@@ -158,7 +165,7 @@ namespace qifeng::scm {
             std::ostringstream oss;
             WriteUnitSection(oss, serviceDef, unitPrefix);
             WriteServiceExecConfig(oss, serviceDef);
-            WriteServiceEnvironment(oss, serviceDef);
+            WriteServiceEnvironment(oss, serviceDef, configInfo);
             WriteServiceResourceConfig(oss, serviceDef);
             WriteInstallSection(oss);
             return ResultMsg {0, oss.str()};

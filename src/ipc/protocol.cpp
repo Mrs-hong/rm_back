@@ -13,7 +13,7 @@ namespace qifeng::scm {
     namespace {
 
         // 命令枚举与字符串名称的映射表
-        constexpr std::size_t kCommandCount = 16;
+        constexpr std::size_t kCommandCount = 21;
         using CommandNamePair = std::pair<ScmCommand, const char*>;
         constexpr std::array<CommandNamePair, kCommandCount> kCommandNameMap = {{
             {ScmCommand::VERSION, "VERSION"},
@@ -31,7 +31,12 @@ namespace qifeng::scm {
             {ScmCommand::RELOAD_ALL, "RELOAD_ALL"},
             {ScmCommand::KILL, "KILL"},
             {ScmCommand::SLOG, "SLOG"},
-            {ScmCommand::CHECK, "CHECK"}
+            {ScmCommand::CHECK, "CHECK"},
+            {ScmCommand::INIT_NGINX, "INIT_NGINX"},
+            {ScmCommand::RESET_NGINX, "RESET_NGINX"},
+            {ScmCommand::ADD_MODEL, "ADD_MODEL"},
+            {ScmCommand::CLEAR_MODEL, "CLEAR_MODEL"},
+            {ScmCommand::UPGRADES, "UPGRADES"}
         }};
 
         // 各命令参数结构体的 JSON 序列化辅助函数
@@ -123,6 +128,37 @@ namespace qifeng::scm {
         Json::Value ParamsToJson(const CheckRequest& request) {
             Json::Value params(Json::objectValue);
             params["configPath"] = request.configPath;
+            return params;
+        }
+
+        Json::Value ParamsToJson(const InitNginxRequest& request) {
+            Json::Value params(Json::objectValue);
+            params["dirPath"] = request.dirPath;
+            return params;
+        }
+
+        Json::Value ParamsToJson(const ResetNginxRequest& request) {
+            Json::Value params(Json::objectValue);
+            params["mode"] = static_cast<int>(request.mode);
+            return params;
+        }
+
+        Json::Value ParamsToJson(const AddModelRequest& request) {
+            Json::Value params(Json::objectValue);
+            params["srcPath"] = request.srcPath;
+            return params;
+        }
+
+        Json::Value ParamsToJson(const ClearModelRequest& request) {
+            Json::Value params(Json::objectValue);
+            params["modelName"] = request.modelName;
+            return params;
+        }
+
+        Json::Value ParamsToJson(const UpgradesRequest& request) {
+            Json::Value params(Json::objectValue);
+            params["serviceName"] = request.serviceName;
+            params["tarDir"] = request.tarDir;
             return params;
         }
 
@@ -244,6 +280,48 @@ namespace qifeng::scm {
         bool ParamsFromJson(CheckRequest& request, const Json::Value& params) {
             if (params.isMember("configPath") && params["configPath"].isString()) {
                 request.configPath = params["configPath"].asString();
+            }
+            return true;
+        }
+
+        bool ParamsFromJson(InitNginxRequest& request, const Json::Value& params) {
+            if (params.isMember("dirPath") && params["dirPath"].isString()) {
+                request.dirPath = params["dirPath"].asString();
+            }
+            return true;
+        }
+
+        bool ParamsFromJson(ResetNginxRequest& request, const Json::Value& params) {
+            if (params.isMember("mode") && params["mode"].isInt()) {
+                request.mode = static_cast<NginxResetMode>(params["mode"].asInt());
+            }
+            return true;
+        }
+
+        bool ParamsFromJson(AddModelRequest& request, const Json::Value& params) {
+            if (!params.isMember("srcPath") || !params["srcPath"].isString()) {
+                return false;
+            }
+            request.srcPath = params["srcPath"].asString();
+            return true;
+        }
+
+        bool ParamsFromJson(ClearModelRequest& request, const Json::Value& params) {
+            if (!params.isMember("modelName") || !params["modelName"].isString()) {
+                return false;
+            }
+            request.modelName = params["modelName"].asString();
+            return true;
+        }
+
+        bool ParamsFromJson(UpgradesRequest& request, const Json::Value& params) {
+            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
+                return false;
+            }
+            request.serviceName = params["serviceName"].asString();
+            // tarDir 可选字段，缺失或非字符串时默认为空字符串
+            if (params.isMember("tarDir") && params["tarDir"].isString()) {
+                request.tarDir = params["tarDir"].asString();
             }
             return true;
         }
@@ -384,6 +462,36 @@ namespace qifeng::scm {
             }
             case ScmCommand::CHECK: {
                 CheckRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::INIT_NGINX: {
+                InitNginxRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::RESET_NGINX: {
+                ResetNginxRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::ADD_MODEL: {
+                AddModelRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::CLEAR_MODEL: {
+                ClearModelRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::UPGRADES: {
+                UpgradesRequest param;
                 if (!ParamsFromJson(param, params)) return std::nullopt;
                 request.data = param;
                 break;

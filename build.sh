@@ -144,11 +144,6 @@ run_pack() {
     # --- lib/ ---
     echo "  收集 lib/"
     mkdir -p "${dist_dir}/lib"
-    # checker 库
-    if [ -d "${BUILD_DIR}/src/checker" ]; then
-        cp -p "${BUILD_DIR}/src/checker"/libqifeng_checker.so* "${dist_dir}/lib/" 2>/dev/null || true
-        cp -p "${BUILD_DIR}/src/checker"/libqifeng_checker.a   "${dist_dir}/lib/" 2>/dev/null || true
-    fi
     # 第三方库（qifeng_framework 等，平铺安装到 lib/）
     # libsophon 系列库：ARM 架构使用 qifeng_framework 自带的版本；x86 使用运行系统安装的版本
     local arch
@@ -173,7 +168,7 @@ run_pack() {
         libbmvppapi.so
     )
     if [ -d "${tp_dir}" ]; then
-        for lib in $(find "${tp_dir}" \( -path "*/install/lib/*.so*" -o -path "*/install/lib/*.a" \) 2>/dev/null); do
+        for lib in $(find "${tp_dir}" -path "*/install/lib/*.so*" 2>/dev/null); do
             local basename_lib
             basename_lib=$(basename "${lib}")
             # 如果 basename 以任意 libsophon 库名开头，则默认跳过
@@ -191,7 +186,7 @@ run_pack() {
             if [ "${skip}" = true ]; then
                 echo "  包含 qifeng_framework 携带的 libsophon 库: ${basename_lib}"
             fi
-            cp -p "${lib}" "${dist_dir}/lib/"
+            cp -a "${lib}" "${dist_dir}/lib/"
         done
     fi
 
@@ -200,16 +195,6 @@ run_pack() {
     mkdir -p "${dist_dir}/.config"
     cp -p "${SCRIPT_DIR}/.config/scmd.yaml"     "${dist_dir}/.config/"
     cp -p "${SCRIPT_DIR}/.config/selftest.json"  "${dist_dir}/.config/"
-
-    # --- scripts/ (自检脚本) ---
-    echo "  收集 scripts/"
-    mkdir -p "${dist_dir}/scripts"
-    if [ -f "${SCRIPT_DIR}/checker_script/dist/self-check" ]; then
-        cp -p "${SCRIPT_DIR}/checker_script/dist/self-check"  "${dist_dir}/scripts/"
-    fi
-    if [ -f "${SCRIPT_DIR}/checker_script/dist/config.ini" ]; then
-        cp -p "${SCRIPT_DIR}/checker_script/dist/config.ini"  "${dist_dir}/scripts/"
-    fi
 
     # --- model/ (推理模型) ---
     echo "  收集 model/"

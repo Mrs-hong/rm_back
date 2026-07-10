@@ -11,21 +11,26 @@
 #include "ipc/protocol.h"
 #include "ipc/uds.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handlers/add_model_handler.h"
 #include "scmd/handlers/check_handler.h"
+#include "scmd/handlers/clear_model_handler.h"
 #include "scmd/handlers/info_handler.h"
+#include "scmd/handlers/init_nginx_handler.h"
 #include "scmd/handlers/install_handler.h"
 #include "scmd/handlers/kill_handler.h"
 #include "scmd/handlers/list_handler.h"
 #include "scmd/handlers/log_handler.h"
 #include "scmd/handlers/reload_all_handler.h"
 #include "scmd/handlers/reload_handler.h"
-#include "scmd/handlers/restart_all_handler.h"
 #include "scmd/handlers/restart_handler.h"
+#include "scmd/handlers/restart_all_handler.h"
+#include "scmd/handlers/reset_nginx_handler.h"
 #include "scmd/handlers/slog_handler.h"
 #include "scmd/handlers/start_handler.h"
 #include "scmd/handlers/stop_handler.h"
 #include "scmd/handlers/uninstall_handler.h"
 #include "scmd/handlers/upgrade_handler.h"
+#include "scmd/handlers/upgrades_handler.h"
 #include "scmd/handlers/version_handler.h"
 #include "scmd/service_ctl.h"
 
@@ -183,6 +188,7 @@ namespace qifeng::scm {
         mDispatcher.Register(std::make_unique<RestartHandler>());
         mDispatcher.Register(std::make_unique<RestartAllHandler>());
         mDispatcher.Register(std::make_unique<UpgradeHandler>());
+        mDispatcher.Register(std::make_unique<UpgradesHandler>());
         mDispatcher.Register(std::make_unique<ListHandler>());
         mDispatcher.Register(std::make_unique<InfoHandler>());
         mDispatcher.Register(std::make_unique<LogHandler>());
@@ -192,6 +198,10 @@ namespace qifeng::scm {
         mDispatcher.Register(std::make_unique<ReloadAllHandler>());
         mDispatcher.Register(std::make_unique<CheckHandler>(mSelfTestConfigPath));
         mDispatcher.Register(std::make_unique<KillHandler>(std::move(shutdownCallback)));
+        mDispatcher.Register(std::make_unique<InitNginxHandler>());
+        mDispatcher.Register(std::make_unique<ResetNginxHandler>());
+        mDispatcher.Register(std::make_unique<AddModelHandler>());
+        mDispatcher.Register(std::make_unique<ClearModelHandler>());
 
         SLOG_INFO << "All command handlers registered";
     }
@@ -332,6 +342,22 @@ namespace qifeng::scm {
                 break;
             }
 
+            case ScmCommand::UPGRADES: {
+                // 一体化升级未完成，检查服务状态后重试（tarDir 来自 record，可能为空表示内部 soft_dir）
+                const auto &configLoader = mServiceControl->GetConfigLoader();
+                auto* svc = configLoader.GetServiceByName(record.serviceName);
+                if (svc) {
+                    SLOG_INFO << "Retrying integrated upgrade for: " << record.serviceName
+                              << ", tarDir: " << (record.tarDir.empty() ? "<internal>" : record.tarDir);
+                    recoverResult = mServiceControl->PerformIntegratedUpgrade(record.serviceName, record.tarDir);
+                } else {
+                    SLOG_INFO << "Integrated upgrade was interrupted, service not found: " << record.serviceName;
+                    recoverResult =
+                        MakeWarning("Integrated upgrade interrupted, service not found: " + record.serviceName);
+                }
+                break;
+            }
+
             case ScmCommand::UNINSTALL: {
                 // 卸载未完成，尝试继续卸载
                 const auto &configLoader = mServiceControl->GetConfigLoader();
@@ -367,7 +393,11 @@ namespace qifeng::scm {
             case ScmCommand::RELOAD_ALL:
             case ScmCommand::KILL:
             case ScmCommand::SLOG:
-            case ScmCommand::CHECK: {
+            case ScmCommand::CHECK:
+            case ScmCommand::INIT_NGINX:
+            case ScmCommand::RESET_NGINX:
+            case ScmCommand::ADD_MODEL:
+            case ScmCommand::CLEAR_MODEL: {
                 // 这些命令不支持自动恢复，记录警告并保留原始记录
                 SLOG_WARN << "Operation does not support auto-recovery: " << record.optName;
                 recoverResult = MakeWarning("Operation does not support auto-recovery: " + record.optName);

@@ -15,11 +15,11 @@
 namespace {
     // 全局原子标志，用于信号处理器通知主循环退出
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-    std::atomic<bool> gShouldExit{false};
+    std::atomic<bool> gShouldExit {false};
 
     // 全局ScmServer指针，用于信号处理器中调用Stop
     // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-    qifeng::scm::ScmServer* gServer{nullptr};
+    qifeng::scm::ScmServer* gServer {nullptr};
 
     /**
      * @brief 信号处理函数
@@ -48,9 +48,8 @@ namespace {
 }  // namespace
 
 int main() {
-    const auto& versionInfo = qifeng::scm::GetVersionInfo();
-    std::cout << "qf_scmd version " << versionInfo.version
-              << " (build: " << versionInfo.buildTime
+    const auto &versionInfo = qifeng::scm::GetVersionInfo();
+    std::cout << "qf_scmd version " << versionInfo.version << " (build: " << versionInfo.buildTime
               << ", commit: " << versionInfo.gitCommit << ")" << std::endl;
 
     // 1. 创建ServiceControl并初始化
@@ -62,8 +61,8 @@ int main() {
     }
 
     // 2. 获取配置信息
-    const auto& configLoader = serviceControl->GetConfigLoader();
-    const auto& configInfo = configLoader.GetConfigInfo();
+    const auto &configLoader = serviceControl->GetConfigLoader();
+    const auto &configInfo = configLoader.GetConfigInfo();
     std::string socketPath = configInfo.udsSocketPath;
 
     // 3. 注册信号处理器
@@ -73,12 +72,12 @@ int main() {
     qifeng::scm::ScmServer server(serviceControl);
     gServer = &server;
 
-    // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
-    if (!server.RunSelfCheck()) {
-        std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
-        gServer = nullptr;
-        return 1;
-    }
+    // // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
+    // if (!server.RunSelfCheck()) {
+    //     std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
+    //     gServer = nullptr;
+    //     return 1;
+    // }
 
     // 6. 启动服务（进入UDS事件循环）
     result = server.Start(socketPath);

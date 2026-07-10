@@ -1,0 +1,2 @@
+# 软件服务名      软件包名                 是否启动
+get_table_row    get_table_row.tar.gz    true

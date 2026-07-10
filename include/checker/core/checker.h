@@ -26,6 +26,8 @@ namespace qifeng::scm {
         virtual ~ICheckerBase() = default;
         ICheckerBase(const ICheckerBase &) = delete;
         ICheckerBase &operator=(const ICheckerBase &) = delete;
+        ICheckerBase(ICheckerBase &&) = default;
+        ICheckerBase &operator=(ICheckerBase &&) = default;
 
         /**
          * @brief 检查项名称（用于报告标识）
@@ -63,13 +65,15 @@ namespace qifeng::scm {
     public:
         IChecker() = default;
         ~IChecker() override = default;
+        IChecker(const IChecker &) = delete;
+        IChecker &operator=(const IChecker &) = delete;
+        IChecker(IChecker &&) = default;
+        IChecker &operator=(IChecker &&) = default;
 
         /**
          * @brief 默认实现：调用子类 ParseConfig 把 json 子段写入 mConfig
          */
-        void SetConfig(const Json::Value &configSrc) override {
-            ParseConfig(configSrc, mConfig);
-        }
+        void SetConfig(const Json::Value &configSrc) override { ParseConfig(configSrc, mConfig); }
 
     protected:
         ConfigT mConfig;  // 由 SetConfig 更新；Run() 使用

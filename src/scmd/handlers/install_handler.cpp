@@ -33,8 +33,11 @@ namespace qifeng::scm {
         auto result = serviceControl.Installed(params->serviceName, params->tarDir);
         response.code = result.code;
         response.message = result.msg;
-        recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
-        if (result.IsDefalutSuccess()) {
+        // code=0 表示安装成功；code=1 表示安装成功但启动验证失败（警告）
+        // 两种情况安装流程均已完成，应清除操作记录避免下次启动时误恢复
+        bool installDone = (result.code == 0 || result.code == 1);
+        recorder.UpdateResult(installDone ? 0 : 1);
+        if (installDone) {
             recorder.Clear();
         }
         return response;

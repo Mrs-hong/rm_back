@@ -57,6 +57,14 @@ namespace qifeng {
         };
 
         /**
+         * @brief 服务升级配置（来自 service.yaml 的 upgrade 段）
+         */
+        struct UpgradeConfig {
+            std::string softDir;     // 升级软件包存放目录（相对路径，基于 currentServiceDir 解析）
+            std::string resultPath;  // 升级结果文件路径（相对路径，基于 currentServiceDir 解析）
+        };
+
+        /**
          * @brief 服务定义
          */
         struct ServiceDefinition {
@@ -70,6 +78,10 @@ namespace qifeng {
             std::map<std::string, std::string> dependencies;  // 服务依赖的其他服务ID，格式为<服务名称,版本号>
             std::string currentServiceDir;                    // 当前服务的服务目录
             bool isUseful {false};                            // 是否有用
+            bool needModel {false};                           // 是否依赖模型文件（来自 service.yaml 的 need_model）
+            std::string modelLinkDir;                         // 模型文件软链接路径（相对路径，基于 currentServiceDir，来自 service.yaml 的 model_link_dir）
+            uint32_t keepAliveTimeSec {3};                    // 安装/模型变更后服务需保持运行的验证时长（秒），0 表示不验证，范围 [0, 30]
+            UpgradeConfig upgradeConfig;                      // 升级配置（soft_dir、result_path）
         };
 
         /**
@@ -109,7 +121,9 @@ namespace qifeng {
             // 操作超时配置
             uint32_t optTimeoutSec;  // 启动、停止、安装、卸载、升级超时时间（秒）
 
-            // 关键文件目录
+            // 根目录，所有子目录基于此派生
+            std::string rootDir;
+            // 关键文件目录（由 rootDir 派生）
             // .cofig 是固定和.exe在同一目录下的配置文件
             std::string configDir;
             // .service 服务文件目录
@@ -127,6 +141,10 @@ namespace qifeng {
             bool selftestEnabled {true};              // 是否启用开机自检
             std::string selftestConfigPath;           // 自检配置文件路径（为空则使用 configDir/selftest.json）
             std::string selftestFailAction {"warn"};  // 自检失败动作：warn（仅告警）或 halt（阻止启动）
+
+            // 模型文件配置
+            std::string modelDir;     // 模型文件存储目录（绝对路径）
+            std::string modelEnvVar;  // 注入到依赖模型服务的环境变量名（值=模型目录绝对路径）
         };
 
         /**

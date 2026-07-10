@@ -21,10 +21,12 @@ namespace qifeng::scm {
                                        KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<RestartRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
-            SLOG_WARN << "Restart command missing service name";
+            // 未指定服务名时，操作 scmd 自身
+            SLOG_INFO << "Restart command without service name, operating on scmd self";
             ScmResponse response;
-            response.code = -1;
-            response.message = "Restart command requires service name";
+            auto result = serviceControl.RestartScmdSelf();
+            response.code = result.code;
+            response.message = result.msg;
             return response;
         }
 

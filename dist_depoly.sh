@@ -89,13 +89,13 @@ do_deploy() {
     fi
     sudo ldconfig
 
-    # # --- systemd 服务 ---
-    # info "部署 systemd 服务"
-    # if [ -f "${DIST_DIR}/systemd/qifeng-scmd.service" ]; then
-    #     sudo cp "${DIST_DIR}/systemd/qifeng-scmd.service" /lib/systemd/system/qifeng-scmd.service
-    #     sudo systemctl daemon-reload
-    #     sudo systemctl enable qifeng-scmd.service
-    # fi
+    # --- systemd 服务 ---
+    info "部署 systemd 服务"
+    if [ -f "${DIST_DIR}/systemd/qifeng-scmd.service" ]; then
+        sudo cp "${DIST_DIR}/systemd/qifeng-scmd.service" /lib/systemd/system/qifeng-scmd.service
+        sudo systemctl daemon-reload
+        sudo systemctl enable qifeng-scmd.service
+    fi
 
     # --- 创建运行时目录 ---
     sudo mkdir -p /var/lib/qifeng-scm/services
@@ -106,8 +106,8 @@ do_deploy() {
 
     echo ""
     info "部署完成，可通过以下命令启动服务:"
-    # info "  sudo systemctl start qifeng-scmd"
-    # info "  sudo qf_scmc selftest"
+    info "  sudo systemctl start qifeng-scmd"
+    info "  sudo qf_scmc selftest"
 }
 
 # 卸载

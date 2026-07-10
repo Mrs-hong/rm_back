@@ -34,7 +34,12 @@ namespace qifeng::scm {
         RELOAD_ALL,   // reload -a 重载全部服务配置
         KILL,         // kill 使scmd优雅退出
         SLOG,         // slog --name [--count] 查看服务 journal 日志
-        CHECK         // check 设备自检
+        CHECK,        // check 设备自检
+        INIT_NGINX,   // init_nginx -n <name> -d <path> 独立配置服务的 nginx
+        RESET_NGINX,  // reset_nginx -n <name> 重置服务的 nginx 配置
+        ADD_MODEL,    // add_model <path> 安装/升级模型文件
+        CLEAR_MODEL,  // clear_model -n <name> 停用并备份模型
+        UPGRADES      // upgrades -n <name> 使用服务内部预置升级包升级并写入结果文件
     };
 
     /**
@@ -112,6 +117,54 @@ namespace qifeng::scm {
         std::string configPath;  // 自检配置文件路径（可选，为空则使用默认路径）
     };
 
+    struct InitNginxRequest {
+        std::string dirPath;      // nginx 配置源路径（目录或 tar.gz）
+    };
+
+    /**
+     * @brief nginx 重置模式
+     * @details WAIT: 等待状态（所有路由返回 404，用于服务升级期间）
+     *          NORMAL: 恢复正常（使 scm_*.conf 生效，移除 waiting 配置）
+     *          BACK: 全部无效（只能访问 nginx 欢迎页，移除所有 scm 配置和系统默认站点）
+     */
+    enum class NginxResetMode {
+        WAIT,    // 等待状态：安装 waiting.conf，所有路由返回 404
+        NORMAL,  // 恢复正常：移除 waiting.conf，恢复 scm_*.conf
+        BACK     // 全部无效：移除所有 scm 配置，恢复系统默认欢迎页
+    };
+
+    struct ResetNginxRequest {
+        NginxResetMode mode {NginxResetMode::BACK};
+    };
+
+    /**
+     * @brief 模型安装请求
+     * @details 输入可以是目录或 tar/tar.gz 包路径；
+     *          tar 包以解压后顶层目录名为模型名，目录则以 basename 为模型名。
+     */
+    struct AddModelRequest {
+        std::string srcPath;  // 模型源路径（目录或 tar/tar.gz 包）
+    };
+
+    /**
+     * @brief 模型停用请求
+     * @details 将指定模型文件/目录重命名为 <name>.back，并验证依赖服务无影响。
+     */
+    struct ClearModelRequest {
+        std::string modelName;  // 模型名（model_dir 下的文件或目录名）
+    };
+
+    /**
+     * @brief 一体化升级请求（服务+模型+Nginx）
+     * @details 由 upgrades 命令使用。tarDir 为空时从服务配置的 upgrade.soft_dir 查找素材，
+     *          非空时从指定目录/tar包查找素材。支持三类素材：
+     *          服务包(<serviceName>*.tar.gz)、模型(model*前缀)、nginx配置(nginx*前缀目录)。
+     */
+    struct UpgradesRequest {
+        std::string serviceName;  // 服务名称
+        std::string tarDir;       // 外部升级素材目录/tar包路径（空表示使用服务内部soft_dir）
+    };
+
     /**
      * @brief 命令请求参数联合体
      * 每个命令对应一种参数类型，避免所有命令字段混用
@@ -132,7 +185,12 @@ namespace qifeng::scm {
         ReloadAllRequest,
         KillRequest,
         SlogRequest,
-        CheckRequest
+        CheckRequest,
+        InitNginxRequest,
+        ResetNginxRequest,
+        AddModelRequest,
+        ClearModelRequest,
+        UpgradesRequest
     >;
 
     /**
@@ -165,6 +223,11 @@ namespace qifeng::scm {
                 if constexpr (std::is_same_v<T, KillRequest>) return ScmCommand::KILL;
                 if constexpr (std::is_same_v<T, SlogRequest>) return ScmCommand::SLOG;
                 if constexpr (std::is_same_v<T, CheckRequest>) return ScmCommand::CHECK;
+                if constexpr (std::is_same_v<T, InitNginxRequest>) return ScmCommand::INIT_NGINX;
+                if constexpr (std::is_same_v<T, ResetNginxRequest>) return ScmCommand::RESET_NGINX;
+                if constexpr (std::is_same_v<T, AddModelRequest>) return ScmCommand::ADD_MODEL;
+                if constexpr (std::is_same_v<T, ClearModelRequest>) return ScmCommand::CLEAR_MODEL;
+                if constexpr (std::is_same_v<T, UpgradesRequest>) return ScmCommand::UPGRADES;
                 return ScmCommand::VERSION;  // 不会到达
             }, data);
         }

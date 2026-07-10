@@ -151,6 +151,28 @@ namespace qifeng::scm::utils {
                                const std::string &suffix = "");
 
     /**
+     * @brief 获取当前本地时间的格式化字符串
+     * @return std::string 格式 "YYYY-MM-DD HH:MM:SS"
+     */
+    std::string GetCurrentTimeString();
+
+    /**
+     * @brief 写入升级结果 JSON 文件
+     * @details 写入格式对齐 upgrade_result.json 模板：
+     *          { "upgrade_success": <bool>, "upgrade_time": "<time>",
+     *            "upgrade_version": "<version>", "defeat_reason": "<reason>" }
+     *          会自动创建父目录，覆盖写。
+     * @param resultPath 结果文件绝对路径
+     * @param success 升级是否成功
+     * @param upgradeTime 升级时间字符串（格式 YYYY-MM-DD HH:MM:SS）
+     * @param upgradeVersion 升级到的目标版本号（失败场景若无法解析则为空）
+     * @param defeatReason 失败原因（成功时可为空）
+     * @return ResultMsg 写入结果
+     */
+    ResultMsg WriteUpgradeResult(const std::string &resultPath, bool success, const std::string &upgradeTime,
+                                const std::string &upgradeVersion, const std::string &defeatReason);
+
+    /**
      * @brief 检查服务依赖关系是否版本冲突、缺失的服务、循环依赖影响的所有服务
      * @param services 所有服务的 map
      * @return std::vector<CheckDependencyError> 检查结果列表
@@ -165,12 +187,29 @@ namespace qifeng::scm::utils {
     ServiceSequence ComputeServiceSequence(const std::map<std::string, ServiceDefinition> &services);
 
     /**
+     * @brief 比较两个版本号
+     * @param lhs 左操作数版本号，格式 x.x.x
+     * @param rhs 右操作数版本号，格式 x.x.x
+     * @return int lhs < rhs 返回 -1，lhs == rhs 返回 0，lhs > rhs 返回 1
+     */
+    int CompareVersion(const std::string &lhs, const std::string &rhs);
+
+    /**
      * @brief 检查实际版本是否满足约束条件
      * @param actualVersion 实际版本号，格式 x.x.x
      * @param constraint 版本约束，支持 >=x.x.x、>x.x.x、<=x.x.x、<x.x.x、=x.x.x、x.x.x
      * @return bool 是否满足约束
      */
     bool SatisfiesVersionConstraint(const std::string &actualVersion, const std::string &constraint);
+
+    /**
+     * @brief 获取目录下唯一的顶层条目名
+     * @details 用于 tar 解压后确定模型名：要求目录下有且仅有一个顶层条目，
+     *          返回该条目的 filename；若目录为空、有多个条目或唯一条目不是目录则返回空字符串。
+     * @param dir 目录路径
+     * @return std::string 唯一顶层条目名，或空字符串
+     */
+    std::string GetSingleTopLevelEntryName(const std::string &dir);
 
 }  // namespace qifeng::scm::utils
 

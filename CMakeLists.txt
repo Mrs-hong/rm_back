@@ -342,15 +342,6 @@ install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/.config/selftest.json
     DESTINATION /etc/qifeng-scm
 )
 
-# 安装自检脚本和配置
-install(PROGRAMS ${CMAKE_CURRENT_SOURCE_DIR}/checker_script/dist/self-check
-    DESTINATION /usr/lib/qifeng-scm
-)
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/checker_script/dist/config.ini
-    DESTINATION /etc/qifeng-scm
-    RENAME self-check.ini
-)
-
 # 安装自检模型文件
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/model/fsmn_fp32_.bmodel
     DESTINATION /opt/sophon/selftest
@@ -372,9 +363,9 @@ file(GLOB THIRD_PARTY_SUBDIRS LIST_DIRECTORIES true RELATIVE ${THIRD_PARTY_DIR} 
 # 平铺安装所有 .so 文件到私有库目录
 # libsophon 系列库：ARM 架构使用 qifeng_framework 自带的版本并随包发布；
 # x86 环境使用运行系统安装的版本，不打包安装。
+# 仅安装 .so 动态库，.a 静态库已在编译时链接进可执行文件，运行时不需要
 file(GLOB_RECURSE THIRD_PARTY_LIBS
     ${THIRD_PARTY_DIR}/*/install/lib/*.so*
-    ${THIRD_PARTY_DIR}/*/install/lib/*.a
 )
 set(SOPHON_LIB_PREFIXES
     libbmlib.so
@@ -419,16 +410,16 @@ execute_process(
 string(TOLOWER "${OS_NAME}" OS_NAME)
 
 # 包信息
-set(CPACK_PACKAGE_NAME "qifeng_scm")
+set(CPACK_PACKAGE_NAME "qifeng-scm")
 set(CPACK_PACKAGE_VENDOR "Qifeng Shunshi Co., Ltd.")
 set(CPACK_PACKAGE_CONTACT "support@qifengscm.com")
 set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
-set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "qifeng_scm")
+set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "qifeng-scm")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.28), libstdc++6 (>= 9), libgcc-s1 (>= 9), libsystemd0 (>= 244)")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
-set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}_${CPACK_PACKAGE_VERSION}_${OS_NAME}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${OS_NAME}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
     "${CMAKE_SOURCE_DIR}/debian/postinst"
     "${CMAKE_SOURCE_DIR}/debian/prerm"

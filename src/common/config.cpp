@@ -7,6 +7,7 @@
 #include "common/scmd_types.h"
 #include "common/types.h"
 #include "common/utils.h"
+#include "common/utils/yaml_resolve.h"
 
 #include <filesystem>
 #include <fstream>
@@ -61,20 +62,26 @@ namespace {  // 辅助函数
     // 函数大小和复杂度超过阈值，但符合业务逻辑
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     qifeng::scm::ServiceDefinition InitServiceDefinitionFromYAML(const std::string &yamlPath) {
-        YAML::Node config = YAML::LoadFile(yamlPath);
+        qifeng::scm::utils::YamlResolve resolver;
+        auto initRet = resolver.Init(yamlPath);
+        if (!initRet.IsDefalutSuccess()) {
+            throw std::runtime_error("Failed to load service.yaml: " + initRet.msg);
+        }
 
         // 验证关键字段
-        if (!config["serviceName"] || !config["version"] || !config["execution"]) {
+        auto serviceNameOpt = resolver.GetOptionalNodeValue<std::string>("serviceName");
+        auto versionOpt = resolver.GetOptionalNodeValue<std::string>("version");
+        if (!serviceNameOpt || !versionOpt) {
             throw std::runtime_error("Invalid service definition: missing required fields");
         }
 
         qifeng::scm::ServiceDefinition def;
-        def.serviceName = config["serviceName"].as<std::string>("");
+        def.serviceName = *serviceNameOpt;
         if (def.serviceName.empty()) {
             throw std::runtime_error("Service name is empty");
         }
 
-        def.version = config["version"].as<std::string>();
+        def.version = *versionOpt;
 
         // 版本号规定x.x.x格式
         // 验证版本号格式是否合规
@@ -83,75 +90,92 @@ namespace {  // 辅助函数
         }
 
         // 解析 execution 对象
-        YAML::Node execution = config["execution"];
-        if (!execution["command"]) {
+        auto commandOpt = resolver.GetOptionalNodeValue<std::string>("execution.command");
+        if (!commandOpt) {
             throw std::runtime_error("Missing required field: execution.command");
         }
-        def.execInfo.command = execution["command"].as<std::string>();
+        def.execInfo.command = *commandOpt;
         if (def.execInfo.command.empty() || !IsValidRelativePath(def.execInfo.command)) {
             throw std::runtime_error("Invalid execution.command: must be non-empty and cannot contain '..'");
         }
 
         // 解析可选字段
-        if (execution["workDir"]) {
-            std::string workDir = execution["workDir"].as<std::string>();
-            if (!IsValidRelativePath(workDir)) {
+        if (auto workDirOpt = resolver.GetOptionalNodeValue<std::string>("execution.workDir")) {
+            if (!IsValidRelativePath(*workDirOpt)) {
                 throw std::runtime_error("Invalid execution.workDir: cannot contain '..'");
             }
-            def.execInfo.workDir = workDir;
+            def.execInfo.workDir = *workDirOpt;
         }
 
-        if (execution["dataDir"]) {
-            std::string dataDir = execution["dataDir"].as<std::string>();
-            if (!IsValidRelativePath(dataDir)) {
+        if (auto dataDirOpt = resolver.GetOptionalNodeValue<std::string>("execution.dataDir")) {
+            if (!IsValidRelativePath(*dataDirOpt)) {
                 throw std::runtime_error("Invalid execution.dataDir: cannot contain '..'");
             }
-            def.execInfo.dataDir = dataDir;
+            def.execInfo.dataDir = *dataDirOpt;
         }
 
-        if (execution["args"]) {
-            for (const auto &arg : execution["args"]) {
-                def.execInfo.args.push_back(arg.as<std::string>());
+        def.execInfo.gracefulStopSignal = resolver.GetNodeValue<int>("execution.exitSignal", 15);
+        def.execInfo.timeoutStopSec = resolver.GetNodeValue<uint32_t>("execution.timeoutStopSec", 5);
+
+        def.isAutoStart = resolver.GetNodeValue<bool>("autoStart", false);
+        def.needModel = resolver.GetNodeValue<bool>("need_model", false);
+
+        // 解析 model_link_dir：模型文件软链接路径（相对路径，基于 currentServiceDir）
+        if (auto modelLinkDirOpt = resolver.GetOptionalNodeValue<std::string>("model_link_dir")) {
+            if (!IsValidRelativePath(*modelLinkDirOpt)) {
+                throw std::runtime_error("Invalid model_link_dir: cannot contain '..'");
+            }
+            def.modelLinkDir = *modelLinkDirOpt;
+        }
+
+        // 解析 keep_alive_time_sec：安装/模型变更后服务需保持运行的验证时长（秒）
+        // 默认 3 秒，0 表示不验证，范围 [0, 30]，超出范围按边界值修正
+        int keepAlive = resolver.GetNodeValue<int>("keep_alive_time_sec", 3);
+        if (keepAlive < 0) {
+            keepAlive = 0;
+        } else if (keepAlive > 30) {
+            keepAlive = 30;
+        }
+        def.keepAliveTimeSec = static_cast<uint32_t>(keepAlive);
+
+        // 解析 upgrade 段（可选）：升级软件包存放目录和升级结果文件路径
+        if (resolver.HasNode("upgrade")) {
+            if (auto softDirOpt = resolver.GetOptionalNodeValue<std::string>("upgrade.soft_dir")) {
+                if (!IsValidRelativePath(*softDirOpt)) {
+                    throw std::runtime_error("Invalid upgrade.soft_dir: cannot contain '..'");
+                }
+                def.upgradeConfig.softDir = *softDirOpt;
+            }
+            if (auto resultPathOpt = resolver.GetOptionalNodeValue<std::string>("upgrade.result_path")) {
+                if (!IsValidRelativePath(*resultPathOpt)) {
+                    throw std::runtime_error("Invalid upgrade.result_path: cannot contain '..'");
+                }
+                def.upgradeConfig.resultPath = *resultPathOpt;
             }
         }
-        if (execution["exitSignal"]) {
-            def.execInfo.gracefulStopSignal = execution["exitSignal"].as<int>(15);
-        }
-
-        if (execution["timeoutStopSec"]) {
-            def.execInfo.timeoutStopSec = execution["timeoutStopSec"].as<uint32_t>(5);
-        }
-
-        def.isAutoStart = config["autoStart"].as<bool>(false);
 
         // 解析数据库配置
-
-        if (config["initDB_sql_dir"]) {
-            std::string sqlDir = config["initDB_sql_dir"].as<std::string>();
-            if (!IsValidRelativePath(sqlDir)) {
+        if (auto sqlDirOpt = resolver.GetOptionalNodeValue<std::string>("initDB_sql_dir")) {
+            if (!IsValidRelativePath(*sqlDirOpt)) {
                 throw std::runtime_error("Invalid sqlDir: cannot contain '..'");
             }
-            def.dbInfo.sqlDir = sqlDir;
-            if (config["db_output_dir"]) {
-                def.dbInfo.outputDir = config["db_output_dir"].as<std::string>();
-            }
+            def.dbInfo.sqlDir = *sqlDirOpt;
+            def.dbInfo.outputDir = resolver.GetNodeValue<std::string>("db_output_dir", "");
         }
 
         // 解析资源信息 (resources)
-        if (config["resources"]) {
-            YAML::Node res = config["resources"];
-            // 解析端口列表 (端口范围 1-65535)
-            if (res["ports"]) {
-                for (const auto &port : res["ports"]) {
-                    int portVal = port.as<int>();
+        try {
+            if (resolver.HasNode("resources")) {
+                // 解析端口列表 (端口范围 1-65535)
+                auto ports = resolver.GetListValues<int>("resources.ports");
+                for (int portVal : ports) {
                     if (portVal >= 1 && portVal <= 65535) {
                         def.resourcesInfo.ports.push_back(portVal);
                     }
                 }
-            }
-            // 解析内存限制 "500M" 格式 (systemd: K/M/G/T后缀，无上限)
-            if (res["Mem"]) {
-                std::string memStr = res["Mem"].as<std::string>();
+
+                // 解析内存限制 "500M" 格式 (systemd: K/M/G/T后缀，无上限)
+                std::string memStr = resolver.GetNodeValue<std::string>("resources.Mem", "");
                 if (!memStr.empty() && memStr.back() == 'M') {
                     memStr.pop_back();
                     try {
@@ -162,25 +186,29 @@ namespace {  // 辅助函数
                     } catch (...) {
                     }
                 }
-            }
-            // 解析CPU限制 (systemd: 百分比，可>100%表示多核)
-            if (res["CPU"]) {
-                int cpu = res["CPU"].as<int>(0);
+
+                // 解析CPU限制 (systemd: 百分比，可>100%表示多核)
+                int cpu = resolver.GetNodeValue<int>("resources.CPU", 0);
                 if (cpu >= 0 && cpu <= 100000) {
                     def.resourcesInfo.cpuPercent = cpu;
                 }
-            }
-            if (res["requires"]) {
-                for (const auto &req : res["requires"]) {
-                    if (req["serviceName"]) {
-                        std::string serviceName = req["serviceName"].as<std::string>();
-                        std::string version = req["version"].as<std::string>("");
-                        if (def.serviceName != serviceName && !def.dependencies.insert({serviceName, version}).second) {
-                            throw std::runtime_error("Duplicate dependency: " + serviceName);
+
+                // 解析依赖列表 (requires 为对象数组，需通过 GetNode 遍历)
+                auto requiresOpt = resolver.GetNode("resources.requires");
+                if (requiresOpt) {
+                    for (const auto &req : *requiresOpt) {
+                        if (req["serviceName"]) {
+                            std::string depName = req["serviceName"].as<std::string>();
+                            std::string depVersion = req["version"].as<std::string>("");
+                            if (def.serviceName != depName && !def.dependencies.insert({depName, depVersion}).second) {
+                                throw std::runtime_error("Duplicate dependency: " + depName);
+                            }
                         }
                     }
                 }
             }
+        } catch (const YAML::Exception &e) {
+            throw std::runtime_error(std::string("Failed to parse resources: ") + e.what());
         }
 
         {
@@ -209,11 +237,13 @@ namespace qifeng {
             mConfigInfo.udsSocketPath = "/run/qifeng-scm/scmd.sock";
             mConfigInfo.optTimeoutSec = 10;
             mConfigInfo.configDir = "/etc/qifeng-scm";
-            mConfigInfo.serviceDir = "/var/lib/qifeng-scm/services";
-            mConfigInfo.dataDir = "/var/lib/qifeng-scm/data";
-            mConfigInfo.backupDir = "/var/lib/qifeng-scm/backup";
-            mConfigInfo.logsDir = "/var/log/qifeng-scm";
-            mConfigInfo.tempDir = "/tmp";
+            // 基于 rootDir 派生所有子目录
+            mConfigInfo.rootDir = "/var/lib/qifeng-scm";
+            mConfigInfo.serviceDir = mConfigInfo.rootDir + "/services";
+            mConfigInfo.dataDir = mConfigInfo.rootDir + "/data";
+            mConfigInfo.backupDir = mConfigInfo.rootDir + "/backup";
+            mConfigInfo.logsDir = mConfigInfo.rootDir + "/log";
+            mConfigInfo.tempDir = mConfigInfo.rootDir + "/tmp";
             mInitialized = false;
         }
 
@@ -306,24 +336,26 @@ namespace qifeng {
                     mConfigInfo.optTimeoutSec = scmd["opt_timeout_sec"].as<uint32_t>();
                 }
 
-                // 解析服务配置目录
-                if (scmd["service_dir"]) {
-                    mConfigInfo.serviceDir = scmd["service_dir"].as<std::string>();
+                // 解析根目录，并基于它派生所有子目录
+                if (scmd["root_dir"]) {
+                    mConfigInfo.rootDir = scmd["root_dir"].as<std::string>();
+                    // 基于 rootDir 派生子目录
+                    mConfigInfo.serviceDir = mConfigInfo.rootDir + "/services";
+                    mConfigInfo.dataDir = mConfigInfo.rootDir + "/data";
+                    mConfigInfo.backupDir = mConfigInfo.rootDir + "/backup";
+                    mConfigInfo.tempDir = mConfigInfo.rootDir + "/tmp";
+                    // 如果日志路径未在配置中单独指定，则默认也使用 rootDir 下的 log
+                    if (!scmd["log"] || !scmd["log"]["path"]) {
+                        mConfigInfo.logsDir = mConfigInfo.rootDir + "/log";
+                    }
                 }
 
-                // 解析备份目录
-                if (scmd["back_dir"]) {
-                    mConfigInfo.backupDir = scmd["back_dir"].as<std::string>();
+                // 解析模型文件配置
+                if (scmd["model_dir"]) {
+                    mConfigInfo.modelDir = scmd["model_dir"].as<std::string>();
                 }
-
-                // 解析数据目录
-                if (scmd["data_dir"]) {
-                    mConfigInfo.dataDir = scmd["data_dir"].as<std::string>();
-                }
-
-                // 解析临时目录
-                if (scmd["temp_dir"]) {
-                    mConfigInfo.tempDir = scmd["temp_dir"].as<std::string>();
+                if (scmd["model_env_var"]) {
+                    mConfigInfo.modelEnvVar = scmd["model_env_var"].as<std::string>();
                 }
 
                 // 解析自检配置
@@ -397,9 +429,15 @@ namespace qifeng {
                 root["scmd"]["log"] = log;
                 root["scmd"]["uds"] = uds;
                 root["scmd"]["opt_timeout_sec"] = mConfigInfo.optTimeoutSec;
-                root["scmd"]["service_dir"] = mConfigInfo.serviceDir;
-                root["scmd"]["back_dir"] = mConfigInfo.backupDir;
-                root["scmd"]["data_dir"] = mConfigInfo.dataDir;
+                // 只写入根目录，子目录由程序运行时自动派生
+                root["scmd"]["root_dir"] = mConfigInfo.rootDir;
+                // 写入模型文件配置（约定不可修改，仅持久化保持配置完整）
+                if (!mConfigInfo.modelDir.empty()) {
+                    root["scmd"]["model_dir"] = mConfigInfo.modelDir;
+                }
+                if (!mConfigInfo.modelEnvVar.empty()) {
+                    root["scmd"]["model_env_var"] = mConfigInfo.modelEnvVar;
+                }
 
                 // 构建自检配置
                 YAML::Node selftest;
@@ -451,7 +489,8 @@ namespace qifeng {
                     try {
                         auto def = InitServiceDefinitionFromYAML(yamlPath);
                         if (def.isUseful && mServices.find(def.serviceName) == mServices.end()) {
-                            def.currentServiceDir = utils::JoinPath(mConfigInfo.serviceDir, entry.path().filename().string());
+                            def.currentServiceDir =
+                                utils::JoinPath(mConfigInfo.serviceDir, entry.path().filename().string());
                             def.execInfo.user = utils::GetCurrentUserName();
                             mServices[def.serviceName] = def;
                         }
@@ -522,7 +561,8 @@ namespace qifeng {
             try {
                 auto def = InitServiceDefinitionFromYAML(yamlPath);
                 if (def.isUseful && mServices.find(def.serviceName) == mServices.end()) {
-                    def.currentServiceDir = utils::JoinPath(mConfigInfo.serviceDir, fs::path(softwareDir).filename().string());
+                    def.currentServiceDir =
+                        utils::JoinPath(mConfigInfo.serviceDir, fs::path(softwareDir).filename().string());
                     mServices[def.serviceName] = def;
                     std::cout << "Added service: " << def.serviceName << " from " << yamlPath << std::endl;
                     return MakeSuccess();
@@ -558,18 +598,14 @@ namespace qifeng {
 
         ResultMsg ConfigLoader::UpgradeService(const std::string &softwareDir) {
             std::string yamlPath = utils::JoinPath(softwareDir, DefaultServiceName);
-            try {
-                YAML::Node config = YAML::LoadFile(yamlPath);
-                std::string serviceName = config["serviceName"].as<std::string>("");
-                if (serviceName.empty()) {
-                    return MakeError("Service name is empty in service.yaml");
-                }
-                // 先移除旧版本配置，再添加新版本，确保配置完全更新
-                RemoveService(serviceName);
-                return AddService(softwareDir);
-            } catch (const std::exception &e) {
-                return MakeError("Failed to upgrade service config: " + std::string(e.what()));
+            // 直接复用 YamlResolve 解析 serviceName，避免重复的 LoadFile 逻辑
+            std::string serviceName = utils::ReadServiceName(yamlPath);
+            if (serviceName.empty()) {
+                return MakeError("Service name is empty or failed to parse service.yaml: " + yamlPath);
             }
+            // 先移除旧版本配置，再添加新版本，确保配置完全更新
+            RemoveService(serviceName);
+            return AddService(softwareDir);
         }
 
         std::string ConfigLoader::GetServiceRootDir(const std::string &serviceName) const {

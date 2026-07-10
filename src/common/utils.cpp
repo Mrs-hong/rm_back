@@ -6,12 +6,15 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <filesystem>
 #include <fstream>
+#include <iomanip>
 #include <memory>
 #include <pwd.h>
 #include <queue>
 #include <random>
+#include <sstream>
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -502,13 +505,7 @@ namespace qifeng::scm::utils {
         return parts;
     }
 
-    /**
-     * @brief 比较两个版本号
-     * @param lhs 左操作数版本号
-     * @param rhs 右操作数版本号
-     * @return int lhs < rhs 返回 -1，lhs == rhs 返回 0，lhs > rhs 返回 1
-     */
-    static int CompareVersion(const std::string &lhs, const std::string &rhs) {
+    int CompareVersion(const std::string &lhs, const std::string &rhs) {
         auto leftParts = ParseVersionParts(lhs);
         auto rightParts = ParseVersionParts(rhs);
         size_t maxLen = std::max(leftParts.size(), rightParts.size());
@@ -569,6 +566,111 @@ namespace qifeng::scm::utils {
         }
         // 精确匹配
         return cmp == 0;
+    }
+
+    /**
+     * @brief 获取目录下唯一的顶层条目名
+     * @details 用于 tar 解压后确定模型名：要求目录下有且仅有一个顶层条目，
+     *          返回该条目的 filename；若目录为空、有多个条目或唯一条目不是目录则返回空字符串。
+     * @param dir 目录路径
+     * @return std::string 唯一顶层条目名，或空字符串
+     */
+    std::string GetSingleTopLevelEntryName(const std::string &dir) {
+        namespace fs = std::filesystem;
+        std::error_code ec;
+        if (!fs::exists(dir, ec)) {
+            return "";
+        }
+
+        // 遍历目录，统计顶层条目数量并记录第一个条目
+        std::string foundName;
+        int count = 0;
+        for (const auto &entry : fs::directory_iterator(dir, ec)) {
+            if (ec) {
+                return "";
+            }
+            ++count;
+            if (count == 1) {
+                foundName = entry.path().filename().string();
+                // 模型要求是目录，若唯一条目是文件则视为非法
+                if (!entry.is_directory()) {
+                    return "";
+                }
+            } else {
+                // 超过一个条目，无需继续
+                return "";
+            }
+        }
+
+        // 仅一个目录条目时返回其名字，否则（空目录）返回空
+        return (count == 1) ? foundName : "";
+    }
+
+    /**
+     * @brief 获取当前本地时间的格式化字符串
+     * @return std::string 格式 "YYYY-MM-DD HH:MM:SS"
+     */
+    std::string GetCurrentTimeString() {
+        auto now = std::chrono::system_clock::now();
+        std::time_t nowTime = std::chrono::system_clock::to_time_t(now);
+        struct tm tmStruct {};
+        localtime_r(&nowTime, &tmStruct);
+        std::ostringstream oss;
+        oss << std::put_time(&tmStruct, "%Y-%m-%d %H:%M:%S");
+        return oss.str();
+    }
+
+    /**
+     * @brief 写入升级结果 JSON 文件
+     * @details 手动拼接 JSON（避免引入 JsonCpp 依赖到 utils），
+     *          自动创建父目录，覆盖写。格式对齐 upgrade_result.json 模板。
+     */
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
+    ResultMsg WriteUpgradeResult(const std::string &resultPath, bool success, const std::string &upgradeTime,
+                                const std::string &upgradeVersion, const std::string &defeatReason) {
+        if (resultPath.empty()) {
+            return MakeError("Result path is empty");
+        }
+
+        // 确保父目录存在
+        namespace fs = std::filesystem;
+        fs::path parentPath = fs::path(resultPath).parent_path();
+        if (!parentPath.empty()) {
+            auto dirRet = CreateDirectory(parentPath.string());
+            if (!dirRet.IsDefalutSuccess()) {
+                return MakeError("Failed to create result directory: " + parentPath.string() + " : " + dirRet.msg);
+            }
+        }
+
+        // 拼接 JSON 内容（defeatReason 中可能含特殊字符，做基本转义）
+        std::string escapedReason;
+        escapedReason.reserve(defeatReason.size());
+        for (char ch : defeatReason) {
+            switch (ch) {
+                case '"':  escapedReason += "\\\""; break;
+                case '\\': escapedReason += "\\\\"; break;
+                case '\n': escapedReason += "\\n";  break;
+                case '\r': escapedReason += "\\r";  break;
+                case '\t': escapedReason += "\\t";  break;
+                default:   escapedReason += ch;     break;
+            }
+        }
+
+        std::ostringstream oss;
+        oss << "{\n";
+        oss << "    \"upgrade_success\": " << (success ? "true" : "false") << ",\n";
+        oss << "    \"upgrade_time\": \"" << upgradeTime << "\",\n";
+        oss << "    \"upgrade_version\": \"" << upgradeVersion << "\",\n";
+        oss << "    \"defeat_reason\": \"" << escapedReason << "\"\n";
+        oss << "}\n";
+
+        std::ofstream ofs(resultPath, std::ios::trunc);
+        if (!ofs.is_open()) {
+            return MakeError("Failed to open result file: " + resultPath);
+        }
+        ofs << oss.str();
+        ofs.close();
+        return MakeSuccess();
     }
 
 }  // namespace qifeng::scm::utils

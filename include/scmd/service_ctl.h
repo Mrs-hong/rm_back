@@ -5,6 +5,7 @@
 #pragma once
 #include "common/scmd_types.h"
 #include "common/types.h"
+#include "ipc/data_def.h"
 
 #include <memory>
 #include <string>
@@ -17,8 +18,6 @@ namespace qifeng::scm {
      * @brief 服务主类：scmd的核心功能入口
      * @details 作为门面类协调 ConfigLoader、ServiceManager、DatabaseInit 三个组件，
      * 提供完整的服务生命周期管理和数据库操作功能。
-     * 典型使用流程：Init() → Installed() → InitServiceDataBase() → StartService() → 数据库操作 → UpgradeService() →
-     * StopService()->UninstallService()
      */
     class ServiceControl {
     public:
@@ -55,7 +54,7 @@ namespace qifeng::scm {
          * @details 停止运行中的服务、备份旧版本、安装新版本、恢复运行状态。
          * 升级过程中数据目录会被保留。
          * @param serviceName 服务名称
-         * @param serviceTarPath 新版本服务tar包路径
+         * @param serviceTarPath 新版本服务tar包/目录路径
          * @return ResultMsg 操作结果
          */
         ResultMsg UpgradeService(const std::string &serviceName, const std::string &serviceTarPath);
@@ -83,6 +82,24 @@ namespace qifeng::scm {
          * @return ResultMsg 操作结果
          */
         ResultMsg RestartService(const std::string &serviceName);
+
+        /**
+         * @brief 启动 scmd 自身
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg StartScmdSelf();
+
+        /**
+         * @brief 停止 scmd 自身
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg StopScmdSelf();
+
+        /**
+         * @brief 重启 scmd 自身
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg RestartScmdSelf();
 
         /**
          * @brief 重新加载服务配置
@@ -144,12 +161,15 @@ namespace qifeng::scm {
 
         /**
          * @brief 删除数据库用户
-         * @details 在指定服务的数据库中删除指定用户，需在数据库启动后调用
-         * @param dbServiceName 数据库服务名称
+         * @details 在指定服务的数据库中删除指定用户及所有权限数据库，需在数据库启动后调用。
+         *          提供密码时可通过用户身份连接发现更多数据库（包括无显式 GRANT 的库）。
+         * @param dbType 数据库类型
          * @param username 用户名
+         * @param password 用户密码（可选，提供时可发现更多数据库）
          * @return ResultMsg 操作结果
          */
-        ResultMsg DeleteDatabaseUser(const DatabaseType &dbType, const std::string &username);
+        ResultMsg DeleteDatabaseUser(const DatabaseType &dbType, const std::string &username,
+                                     const std::string &password = "");
 
         // === 扩展接口（供ScmServer调用） ===
 
@@ -189,6 +209,83 @@ namespace qifeng::scm {
          * @return ResultMsg 成功时 msg 为 journal 日志原文
          */
         ResultMsg GetServiceJournal(const std::string &serviceName, int logCount);
+
+        // === Nginx 配置管理 ===
+
+        /**
+         * @brief 独立配置 nginx
+         * @details 将指定路径（目录或 tar.gz）中的 nginx 配置安装到系统 nginx 管理目录，
+         *          集成到系统 nginx 的 conf.d/snippets 目录
+         * @param dirPath nginx 配置源路径（目录或 tar.gz）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg InitNginx(const std::string &dirPath);
+
+        /**
+         * @brief 重置 nginx 配置
+         * @details 三种模式：
+         *          WAIT: 安装 waiting.conf，所有路由返回 404（服务升级期间）
+         *          NORMAL: 移除 waiting.conf，恢复 scm_*.conf 生效
+         *          BACK: 移除所有 scm 配置，恢复系统默认欢迎页
+         * @param mode 重置模式
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg ResetNginx(NginxResetMode mode);
+
+        // === 模型文件管理 ===
+
+        /**
+         * @brief 安装/升级模型文件
+         * @details 将 srcPath（目录或 tar 包）中的模型安装到 scmd.yaml 配置的 model_dir 下。
+         *          流程：
+         *          1. 解析模型名（tar 包以解压后顶层目录名为准，目录以 basename 为准）
+         *          2. 停止所有 need_model=true 的服务
+         *          3. 备份 model_dir 下同名模型为 <name>.back（若已存在则先删除）
+         *          4. 将 srcPath 移动/解压到 model_dir/<name>
+         *          5. 启动第 2 步停止的服务，保持运行 10s 验证无影响
+         *          6. 恢复各服务起初状态（停止或运行）
+         *          7. 任意步骤失败则回退模型并恢复服务状态
+         * @param srcPath 模型源路径（目录或 tar/tar.gz 包）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg AddModel(const std::string &srcPath);
+
+        /**
+         * @brief 停用并备份模型
+         * @details 将 model_dir 下指定模型重命名为 <name>.back，验证依赖服务无影响后完成。
+         *          流程：
+         *          1. 停止所有 need_model=true 的服务
+         *          2. 将 model_dir/<name> 重命名为 model_dir/<name>.back
+         *          3. 启动第 1 步停止的服务，保持运行 10s 验证无影响
+         *          4. 恢复各服务起初状态
+         *          5. 任意步骤失败则回退模型名并恢复服务状态
+         * @param modelName 模型名（model_dir 下的文件或目录名）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg ClearModel(const std::string &modelName);
+
+        /**
+         * @brief 使用服务内部预置升级包执行升级（向后兼容接口）
+         * @details 等价于 PerformIntegratedUpgrade(serviceName, "")，从服务内部 soft_dir 查找素材。
+         * @param serviceName 服务名称
+         * @return ResultMsg 升级结果
+         */
+        ResultMsg PerformInternalUpgrade(const std::string &serviceName);
+
+        /**
+         * @brief 一体化升级：服务+模型+Nginx
+         * @details 完整流程：
+         *          1. reset_nginx -w 进入等待页面（所有路由返回404）
+         *          2. 查找升级素材（服务包/model/nginx），tarDir为空则从服务内部soft_dir查找
+         *          3. 若有model素材：add_model（排除当前升级服务，保留.back备份）
+         *          4. 若有服务包：UpgradeService，失败则回退模型并恢复nginx
+         *          5. 成功收尾：清理模型备份，按nginx素材更新配置或reset_nginx -n恢复
+         *          6. 按 upgrade.result_path 写入升级结果文件
+         * @param serviceName 服务名称
+         * @param tarDir 外部素材目录/tar包路径（空则使用服务内部soft_dir）
+         * @return ResultMsg 升级结果
+         */
+        ResultMsg PerformIntegratedUpgrade(const std::string &serviceName, const std::string &tarDir);
 
     private:
         /**
@@ -242,12 +339,12 @@ namespace qifeng::scm {
 
         /**
          * @brief 清除数据库数据
-         * @details 尝试删除服务所有关联数据库用户、数据库等
-         * @param dbServiceName 数据库服务名称
-         * @param serviceName 服务名称
+         * @details 尝试删除服务所有关联数据库用户、数据库等。
+         *          从服务密码文件中读取用户密码，以用户身份发现所有可访问数据库。
+         * @param svc 服务定义（需包含 dbInfo 和 currentServiceDir）
          * @return ResultMsg 操作结果
          */
-        ResultMsg ClearDatabaseData(const DatabaseType &dbType, const std::string &serviceName);
+        ResultMsg ClearDatabaseData(const ServiceDefinition &svc);
 
     private:
         bool mIsInit {false};                             // 是否初始化

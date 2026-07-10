@@ -1,0 +1,3 @@
+admin_password = Test@123
+data = /data/test/mysql
+force = true

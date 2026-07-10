@@ -4,8 +4,8 @@
 #pragma once
 
 #include "common/scmd_def.h"
-#include "common/scmd_types.h"
-
+#include "common/types.h"
+#include <vector>
 namespace qifeng::scm {
 
     struct FileDirInfo {
@@ -16,6 +16,22 @@ namespace qifeng::scm {
         std::string logsDir;
         std::string tempDir;
         bool operator==(const FileDirInfo &other) const;
+    };
+
+    /**
+     * @brief 升级动作枚举（细粒度升级）
+     * @details 对应 up_detail.yaml 中的 replace/add/remove 三类操作
+     */
+    enum class UpgradeAction { REPLACE, ADD, REMOVE };
+
+    /**
+     * @brief 细粒度升级方案
+     * @details 来自 up_detail.yaml，仅记录目录名（相对软件包根目录的第一级目录）
+     */
+    struct UpgradeDetail {
+        std::vector<std::string> replaceDirs;  // 需替换的目录名列表
+        std::vector<std::string> addDirs;      // 需新增的目录名列表
+        std::vector<std::string> removeDirs;   // 需删除的目录名列表
     };
 
     /**
@@ -109,6 +125,145 @@ namespace qifeng::scm {
          * @return ResultMsg 操作结果
          */
         ResultMsg CleanBackup(const std::string &serviceName);
+
+        // --- 前端 nginx 安装 ---
+
+        /**
+         * @brief 判断软件包是否包含前端资源
+         * @details 检查 softwareDir 下是否存在 frontend 或 nginx 子目录
+         * @param softwareDir 服务软件目录（含 bin、nginx 等子目录）
+         * @return bool true 表示包含前端资源
+         */
+        bool HasFrontend(const std::string &softwareDir) const;
+
+        /**
+         * @brief 安装前端 nginx 资源并集成到系统 nginx
+         * @details 将 softwareDir/nginx 内容拷贝到 serviceDir/nginx，
+         *          替换 __TEST_NGINX_ROOT__ 占位符，
+         *          将 server 块 conf 安装到 /etc/nginx/conf.d/<serviceName>_<filename>，
+         *          将非 server 块 conf 安装到 /etc/nginx/snippets/<serviceName>_<filename>，
+         *          更新 include 路径以匹配新文件名
+         * @param serviceName 服务名称
+         * @param softwareDir 软件包根目录（含 nginx 子目录）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg InstallFrontend(const std::string &serviceName, const std::string &softwareDir);
+
+        /**
+         * @brief 卸载前端 nginx 配置
+         * @details 删除 /etc/nginx/conf.d/<serviceName>_* 和 /etc/nginx/snippets/<serviceName>_*
+         * @param serviceName 服务名称
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg UninstallFrontend(const std::string &serviceName);
+
+        /**
+         * @brief 获取服务前端 nginx 配置目录路径
+         * @details 返回 <serviceDir>/nginx
+         * @param serviceName 服务名称
+         * @return std::string 配置目录路径
+         */
+        std::string GetFrontendDir(const std::string &serviceName) const;
+
+        // --- 独立 nginx 配置管理 ---
+
+        /**
+         * @brief 获取 nginx 配置目录路径
+         * @details 返回 <serviceDir>/nginx（固定路径，不绑定具体服务）
+         * @return std::string nginx 配置目录路径
+         */
+        std::string GetNginxDir() const;
+
+        /**
+         * @brief 独立初始化 nginx 配置
+         * @details 将 srcPath 中的 nginx/frontend 内容拷贝到 <serviceDir>/nginx/，
+         *          替换 __TEST_NGINX_ROOT__ 占位符，安装 conf 到系统 nginx 目录（使用 scm_ 前缀）。
+         *          若已有 nginx 目录，先备份到 backupDir，安装失败时自动回退。
+         * @param srcPath nginx 配置源路径（目录，含 nginx/ 或 frontend/ 子目录）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg InitNginx(const std::string &srcPath);
+
+        /**
+         * @brief 重置 nginx 配置
+         * @details 删除 /etc/nginx/conf.d/scm_* 和 /etc/nginx/snippets/scm_*，
+         *          删除 <serviceDir>/nginx/ 目录
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg ResetNginx();
+
+        /**
+         * @brief 设置 nginx 为等待状态
+         * @details 安装 waiting.conf 到 /etc/nginx/conf.d/scm_waiting.conf，
+         *          同时移除其他 scm_*.conf 软链避免冲突，禁用系统默认站点。
+         *          需要服务 nginx 目录中存在 waiting.conf 模板。
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg SetNginxWaiting();
+
+        /**
+         * @brief 恢复 nginx 为正常状态
+         * @details 移除 /etc/nginx/conf.d/scm_waiting.conf，
+         *          重新创建 scm_*.conf 软链使原配置生效，
+         *          禁用系统默认站点（避免 default_server 冲突）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg SetNginxNormal();
+
+        // --- 细粒度升级 ---
+
+        /**
+         * @brief 解析 up_detail.yaml
+         * @param detailPath 配置文件路径
+         * @param outDetail 输出参数，解析结果
+         * @return ResultMsg 操作结果（文件不存在或解析失败时返回错误）
+         */
+        ResultMsg ParseUpgradeDetail(const std::string &detailPath, UpgradeDetail &outDetail);
+
+        /**
+         * @brief 细粒度备份（只备份将被影响的内容）
+         * @details 将服务目录下 replaceDirs/removeDirs 对应的目录拷贝到
+         *          backupDir/<serviceName>/files_backup；
+         *          若 frontend 在 replaceDirs 中且服务依赖 nginx，备份 nginx.conf 到 nginx_backup
+         * @param serviceName 服务名称
+         * @param detail 升级方案
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg BackupForFineGrainedUpgrade(const std::string &serviceName, const UpgradeDetail &detail);
+
+        /**
+         * @brief 执行细粒度文件升级
+         * @details 按 replace → remove → add 顺序应用变更：
+         *          - replace: 删除服务目录下同名目录后从源拷贝
+         *          - remove:  仅删除服务目录下对应目录
+         *          - add:     从源拷贝对应目录到服务目录
+         *          未列出的目录保留不动
+         * @param serviceName 服务名称
+         * @param sourceDir 新版本根目录
+         * @param detail 升级方案
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg ApplyFineGrainedUpgrade(const std::string &serviceName, const std::string &sourceDir,
+                                          const UpgradeDetail &detail);
+
+        /**
+         * @brief 从细粒度备份回退
+         * @details 将 files_backup 下内容恢复到服务目录、nginx_backup 恢复 nginx.conf
+         * @param serviceName 服务名称
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg RollbackFineGrainedUpgrade(const std::string &serviceName);
+
+        // --- 解压目录直接安装 ---
+
+        /**
+         * @brief 从已解压目录安装软件包
+         * @details 与 InstallSoftwarePackage 等价，softwareDir 应已含 serviceName 子目录
+         * @param serviceName 服务名称
+         * @param softwareDir 软件包目录（已解压）
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg InstallSoftwarePackageFromDir(const std::string &serviceName, const std::string &softwareDir);
 
         // --- service文件管理------
 
@@ -310,6 +465,22 @@ namespace qifeng::scm {
         static constexpr const char* ServiceFilePrefix = "scmd_";             // systemd 服务文件前缀
         static constexpr const char* ServiceFileSuffix = ".service";          // systemd 服务文件后缀
         static constexpr const char* SystemdUnitDir = "/etc/systemd/system";  // systemd 服务目录
+        static constexpr const char* NginxSystemDefaultSite = "/etc/nginx/sites-enabled/default";  // 系统默认站点
+        static constexpr const char* NginxSitesDefaultBackup = "nginx_sites_default";             // 系统默认站点备份名
+
+        /**
+         * @brief 禁用系统默认站点，避免与 scm 默认站点冲突
+         * @details 将 /etc/nginx/sites-enabled/default 移动到备份目录
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg DisableSystemDefaultSite();
+
+        /**
+         * @brief 恢复系统默认站点
+         * @details 将备份的 /etc/nginx/sites-enabled/default 恢复
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg RestoreSystemDefaultSite();
 
         FileDirInfo mCurDirConfig;
     };

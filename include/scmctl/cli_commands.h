@@ -63,7 +63,7 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
-        std::string mTarDir;
+        std::string mDir;  // tar包目录（支持相对路径，发送前转为绝对路径）
     };
 
     class StartCommand : public CliCommand {
@@ -109,7 +109,26 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
-        std::string mTarDir;
+        std::string mDir;  // tar包目录（支持相对路径，发送前转为绝对路径）
+    };
+
+    /**
+     * @brief upgrades 子命令：一体化升级（服务+模型+Nginx）
+     * @details -n 必填指定服务名。可选 -d 指定外部升级素材目录/tar包，
+     *          不提供 -d 时从服务配置的 upgrade.soft_dir 查找素材。
+     *          支持三类素材：服务包(<serviceName>*.tar.gz)、模型(model*前缀)、nginx配置(nginx*前缀目录)。
+     *          流程：reset_nginx -w → add_model(排除当前服务) → 升级服务 → 更新nginx/reset_nginx -n。
+     */
+    class UpgradesCommand : public CliCommand {
+    public:
+        const char* Name() const override;
+        const char* Description() const override;
+        void Setup(CLI::App &app) override;
+        ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
+
+    private:
+        std::string mServiceName;  // 服务名称（必需）
+        std::string mDir;          // 外部升级素材目录/tar包（可选，不提供则用服务内部 soft_dir）
     };
 
     class ListCommand : public CliCommand {
@@ -205,6 +224,74 @@ namespace qifeng::scm {
 
     private:
         std::string mConfigPath;
+    };
+
+    /**
+     * @brief init_nginx 子命令：独立配置 nginx
+     * @details 将指定目录或 tar.gz 中的 nginx 配置安装到系统 nginx 管理目录下，
+     *          集成到系统 nginx 的 conf.d/snippets 目录，使静态文件和反向代理配置生效。
+     */
+    class InitNginxCommand : public CliCommand {
+    public:
+        const char* Name() const override;
+        const char* Description() const override;
+        void Setup(CLI::App &app) override;
+        ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
+
+    private:
+        std::string mDir;  // nginx 配置源路径（目录或 tar.gz）
+    };
+
+    /**
+     * @brief reset_nginx 子命令：重置 nginx 配置
+     * @details 三种模式可切换：
+     *          -wait:  等待状态（所有路由返回 404，用于服务升级期间）
+     *          -now:   恢复正常（使 scm_*.conf 生效，移除 waiting 配置）
+     *          -back:  全部无效（只能访问 nginx 欢迎页）
+     */
+    class ResetNginxCommand : public CliCommand {
+    public:
+        const char* Name() const override;
+        const char* Description() const override;
+        void Setup(CLI::App &app) override;
+        ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
+
+    private:
+        bool mWait {false};  // -wait 等待状态
+        bool mNow {false};   // -now 恢复正常
+        bool mBack {false};   // -back 全部无效
+    };
+
+    /**
+     * @brief add_model 子命令：安装/升级模型文件
+     * @details 将指定目录或 tar/tar.gz 包中的模型安装到 scmd.yaml 配置的 model_dir 下，
+     *          自动停止依赖模型的服务，验证运行 10s 无影响后完成，否则回退模型。
+     */
+    class AddModelCommand : public CliCommand {
+    public:
+        const char* Name() const override;
+        const char* Description() const override;
+        void Setup(CLI::App &app) override;
+        ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
+
+    private:
+        std::string mSrcPath;  // 模型源路径（目录或 tar/tar.gz 包，支持相对路径，发送前转为绝对路径）
+    };
+
+    /**
+     * @brief clear_model 子命令：停用并备份模型
+     * @details 将 model_dir 下指定模型重命名为 <name>.back，
+     *          验证依赖服务无影响后完成，否则回退。
+     */
+    class ClearModelCommand : public CliCommand {
+    public:
+        const char* Name() const override;
+        const char* Description() const override;
+        void Setup(CLI::App &app) override;
+        ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
+
+    private:
+        std::string mModelName;  // 模型名（model_dir 下的文件或目录名）
     };
 
 }  // namespace qifeng::scm
