@@ -12,32 +12,33 @@ namespace qifeng::scm {
 
     namespace {
 
-        // 命令枚举与字符串名称的映射表
-        constexpr std::size_t kCommandCount = 21;
+        // 命令枚举与字符串名称的映射表（大小通过 CTAD 自动推导，无需手工维护计数常量）
         using CommandNamePair = std::pair<ScmCommand, const char*>;
-        constexpr std::array<CommandNamePair, kCommandCount> kCommandNameMap = {{
-            {ScmCommand::VERSION, "VERSION"},
-            {ScmCommand::INSTALL, "INSTALL"},
-            {ScmCommand::START, "START"},
-            {ScmCommand::STOP, "STOP"},
-            {ScmCommand::RESTART, "RESTART"},
-            {ScmCommand::RESTART_ALL, "RESTART_ALL"},
-            {ScmCommand::UPGRADE, "UPGRADE"},
-            {ScmCommand::LIST, "LIST"},
-            {ScmCommand::INFO, "INFO"},
-            {ScmCommand::LOG, "LOG"},
-            {ScmCommand::UNINSTALL, "UNINSTALL"},
-            {ScmCommand::RELOAD, "RELOAD"},
-            {ScmCommand::RELOAD_ALL, "RELOAD_ALL"},
-            {ScmCommand::KILL, "KILL"},
-            {ScmCommand::SLOG, "SLOG"},
-            {ScmCommand::CHECK, "CHECK"},
-            {ScmCommand::INIT_NGINX, "INIT_NGINX"},
-            {ScmCommand::RESET_NGINX, "RESET_NGINX"},
-            {ScmCommand::ADD_MODEL, "ADD_MODEL"},
-            {ScmCommand::CLEAR_MODEL, "CLEAR_MODEL"},
-            {ScmCommand::UPGRADES, "UPGRADES"}
-        }};
+        constexpr std::array kCommandNameMap = {
+            CommandNamePair{ScmCommand::VERSION, "VERSION"},
+            CommandNamePair{ScmCommand::INSTALL, "INSTALL"},
+            CommandNamePair{ScmCommand::START, "START"},
+            CommandNamePair{ScmCommand::STOP, "STOP"},
+            CommandNamePair{ScmCommand::STOP_ALL, "STOP_ALL"},
+            CommandNamePair{ScmCommand::RESTART, "RESTART"},
+            CommandNamePair{ScmCommand::RESTART_ALL, "RESTART_ALL"},
+            CommandNamePair{ScmCommand::UPGRADE, "UPGRADE"},
+            CommandNamePair{ScmCommand::LIST, "LIST"},
+            CommandNamePair{ScmCommand::INFO, "INFO"},
+            CommandNamePair{ScmCommand::LOG, "LOG"},
+            CommandNamePair{ScmCommand::UNINSTALL, "UNINSTALL"},
+            CommandNamePair{ScmCommand::UNINSTALL_ALL, "UNINSTALL_ALL"},
+            CommandNamePair{ScmCommand::RELOAD, "RELOAD"},
+            CommandNamePair{ScmCommand::RELOAD_ALL, "RELOAD_ALL"},
+            CommandNamePair{ScmCommand::KILL, "KILL"},
+            CommandNamePair{ScmCommand::SLOG, "SLOG"},
+            CommandNamePair{ScmCommand::CHECK, "CHECK"},
+            CommandNamePair{ScmCommand::INIT_NGINX, "INIT_NGINX"},
+            CommandNamePair{ScmCommand::RESET_NGINX, "RESET_NGINX"},
+            CommandNamePair{ScmCommand::ADD_MODEL, "ADD_MODEL"},
+            CommandNamePair{ScmCommand::CLEAR_MODEL, "CLEAR_MODEL"},
+            CommandNamePair{ScmCommand::UPGRADES, "UPGRADES"}
+        };
 
         // 各命令参数结构体的 JSON 序列化辅助函数
         Json::Value ParamsToJson(const VersionRequest& /*request*/) {
@@ -61,6 +62,10 @@ namespace qifeng::scm {
             Json::Value params(Json::objectValue);
             params["serviceName"] = request.serviceName;
             return params;
+        }
+
+        Json::Value ParamsToJson(const StopAllRequest& /*request*/) {
+            return Json::Value(Json::objectValue);
         }
 
         Json::Value ParamsToJson(const RestartRequest& request) {
@@ -102,6 +107,10 @@ namespace qifeng::scm {
             Json::Value params(Json::objectValue);
             params["serviceName"] = request.serviceName;
             return params;
+        }
+
+        Json::Value ParamsToJson(const UninstallAllRequest& /*request*/) {
+            return Json::Value(Json::objectValue);
         }
 
         Json::Value ParamsToJson(const ReloadRequest& request) {
@@ -194,6 +203,10 @@ namespace qifeng::scm {
             return true;
         }
 
+        bool ParamsFromJson(StopAllRequest& /*request*/, const Json::Value& /*params*/) {
+            return true;
+        }
+
         bool ParamsFromJson(RestartRequest& request, const Json::Value& params) {
             if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
                 return false;
@@ -247,6 +260,10 @@ namespace qifeng::scm {
                 return false;
             }
             request.serviceName = params["serviceName"].asString();
+            return true;
+        }
+
+        bool ParamsFromJson(UninstallAllRequest& /*request*/, const Json::Value& /*params*/) {
             return true;
         }
 
@@ -394,6 +411,12 @@ namespace qifeng::scm {
                 request.data = param;
                 break;
             }
+            case ScmCommand::STOP_ALL: {
+                StopAllRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
             case ScmCommand::RESTART: {
                 RestartRequest param;
                 if (!ParamsFromJson(param, params)) return std::nullopt;
@@ -432,6 +455,12 @@ namespace qifeng::scm {
             }
             case ScmCommand::UNINSTALL: {
                 UninstallRequest param;
+                if (!ParamsFromJson(param, params)) return std::nullopt;
+                request.data = param;
+                break;
+            }
+            case ScmCommand::UNINSTALL_ALL: {
+                UninstallAllRequest param;
                 if (!ParamsFromJson(param, params)) return std::nullopt;
                 request.data = param;
                 break;

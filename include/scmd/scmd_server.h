@@ -3,7 +3,6 @@
  */
 #pragma once
 
-#include "common/json_load.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "scmd/command_dispatcher.h"
@@ -16,6 +15,7 @@
 namespace qifeng::scm {
     class ServiceControl;
     class UdsWrapper;
+    class OperationRecoveryService;
 
     /**
      * @brief SCMD 服务端
@@ -24,6 +24,8 @@ namespace qifeng::scm {
      *    1. 一问一答，暂时是同步的（单客户端）；
      *    2. 支持优雅退出、当执行完相应的操作后退出
      *    3. 补充关键操作记录到文件last_key_opt.yaml、用于启动时恢复
+     * @details 开机自检职责已抽出至 SelfCheckService（在 main 中调用），
+     *          操作恢复职责已抽出至 OperationRecoveryService。
      */
     class ScmServer {
     public:
@@ -58,14 +60,6 @@ namespace qifeng::scm {
          */
         bool IsRunning() const;
 
-        /**
-         * @brief 执行开机自检
-         * @details 读取自检配置文件并运行所有检查项，输出结果摘要。
-         *          应在 Start() 之前调用，确保设备就绪后再进入服务循环。
-         * @return true 自检通过或仅告警，可以继续启动；false 自检失败且 fail_action=halt，应中止启动
-         */
-        bool RunSelfCheck();
-
     private:
         /**
          * @brief 处理单个客户端连接（一问一答模式）
@@ -75,21 +69,15 @@ namespace qifeng::scm {
 
         /**
          * @brief 注册所有命令处理器
-         * @details 将各命令 Handler 注册到 CommandDispatcher 中
+         * @details 通过 HandlerRegistry 自注册机制加载所有 handler 到 CommandDispatcher
          */
         void RegisterHandlers();
-
-        /**
-         * @brief 恢复上次未完成的关键操作
-         */
-        void RecoverLastOperation();
 
         std::shared_ptr<ServiceControl> mServiceControl;
         std::unique_ptr<UdsWrapper> mUdsServer;
         KeyOperationRecorder mKeyRecorder;
         CommandDispatcher mDispatcher;
-        std::string mSelfTestConfigPath;  // 自检配置文件路径
-        JsonLoad mJsonLoader;             // 由 ScmServer 管理的 JSON 加载器，供 CheckerRunner 使用
+        std::unique_ptr<OperationRecoveryService> mRecoveryService;  // 操作恢复服务
         std::atomic<bool> mRunning {false};
     };
 }  // namespace qifeng::scm

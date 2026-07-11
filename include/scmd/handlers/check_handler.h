@@ -18,9 +18,9 @@ namespace qifeng::scm {
     public:
         /**
          * @brief 构造函数
-         * @param configPath 自检配置文件路径（selftest.json）
+         * @param ctx 运行期依赖上下文，从中获取自检配置文件路径（selftest.json）
          */
-        explicit CheckHandler(std::string configPath);
+        explicit CheckHandler(const HandlerContext& ctx) : mConfigPath(ctx.selfTestConfigPath) {}
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,

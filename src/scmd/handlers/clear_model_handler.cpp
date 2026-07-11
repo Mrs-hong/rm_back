@@ -7,6 +7,7 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -37,5 +38,7 @@ namespace qifeng::scm {
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::CLEAR_MODEL, ClearModelHandler)
 
 }  // namespace qifeng::scm

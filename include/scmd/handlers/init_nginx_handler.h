@@ -14,6 +14,8 @@ namespace qifeng::scm {
      */
     class InitNginxHandler : public ICommandHandler {
     public:
+        explicit InitNginxHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,

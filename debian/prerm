@@ -3,7 +3,11 @@ set -e
 
 case "$1" in
     remove|upgrade|deconfigure)
-        # 停止服务
+        # 升级或卸载前停止所有通过 scmd 管理的服务，再停止 scmd 自身
+        # 使用 qf_scmc stop -a 停止所有已装服务（失败不中断，尽力停止）
+        if command -v qf_scmc >/dev/null 2>&1; then
+            qf_scmc stop -a || true
+        fi
         systemctl stop qifeng-scmd.service || true
         ;;
 

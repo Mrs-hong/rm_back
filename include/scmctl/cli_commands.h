@@ -86,6 +86,7 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
+        bool mAll {false};  // -a 停止全部服务
     };
 
     class RestartCommand : public CliCommand {
@@ -172,6 +173,7 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
+        bool mAll {false};  // -a 卸载全部已装服务
     };
 
     class ReloadCommand : public CliCommand {

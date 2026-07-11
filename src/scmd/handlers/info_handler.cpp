@@ -9,6 +9,7 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -55,10 +56,10 @@ namespace qifeng::scm {
                     memStream << std::fixed << std::setprecision(2) << memMB << " MB";
                     root["memoryUsage"] = memStream.str();
                 }
-                // CPU 使用率：格式化百分比并标注核心数
+                // CPU 使用率：info.cpuUsage 为 0.0~1.0 比率，展示为百分比并标注核心数
                 {
                     unsigned int numCores = std::thread::hardware_concurrency();
-                    double cpuPercent = static_cast<double>(info.cpuUsage);
+                    double cpuPercent = info.cpuUsage * 100.0;
                     std::ostringstream cpuStream;
                     cpuStream << std::fixed << std::setprecision(2) << cpuPercent << "%";
                     if (numCores > 0) {
@@ -66,9 +67,7 @@ namespace qifeng::scm {
                     }
                     root["cpuUsage"] = cpuStream.str();
                 }
-                root["configFilePath"] = info.configFilePath;
                 root["rootPath"] = info.rootPath;
-                root["dbFilePath"] = info.dbFilePath;
                 root["recoveryCount"] = info.recoveryCount;
 
                 // --error 参数：附加错误诊断信息到响应末尾
@@ -93,5 +92,7 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::INFO, InfoHandler)
 
 }  // namespace qifeng::scm

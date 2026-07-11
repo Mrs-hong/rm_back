@@ -14,6 +14,8 @@ namespace qifeng::scm {
      */
     class VersionHandler : public ICommandHandler {
     public:
+        explicit VersionHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,

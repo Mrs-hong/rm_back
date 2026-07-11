@@ -6,6 +6,7 @@
 #include "common/scmd_types.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
+#include "service_manger/service_context.h"
 
 #include <memory>
 #include <string>
@@ -13,11 +14,16 @@
 namespace qifeng::scm {
     class ConfigLoader;
     class ServiceManager;
+    class NginxManager;
+    class ModelManager;
+    class UpgradeService;
+    class DatabaseService;
 
     /**
      * @brief 服务主类：scmd的核心功能入口
      * @details 作为门面类协调 ConfigLoader、ServiceManager、DatabaseInit 三个组件，
      * 提供完整的服务生命周期管理和数据库操作功能。
+     * @details nginx/模型/升级领域逻辑已委托给 NginxManager/ModelManager/UpgradeService。
      */
     class ServiceControl {
     public:
@@ -50,6 +56,14 @@ namespace qifeng::scm {
         ResultMsg UninstallService(const std::string &serviceName);
 
         /**
+         * @brief 卸载所有已安装服务（用于UNINSTALL_ALL命令）
+         * @details 遍历所有已安装服务逐个卸载，保留 scmd 自身。
+         *          卸载顺序按配置中服务序列的逆序，确保依赖关系正确处理。
+         * @return ResultMsg 操作结果，部分失败时返回警告
+         */
+        ResultMsg UninstallAllServices();
+
+        /**
          * @brief 升级服务
          * @details 停止运行中的服务、备份旧版本、安装新版本、恢复运行状态。
          * 升级过程中数据目录会被保留。
@@ -74,6 +88,13 @@ namespace qifeng::scm {
          * @return ResultMsg 操作结果
          */
         ResultMsg StopService(const std::string &serviceName);
+
+        /**
+         * @brief 停止所有已安装服务（用于STOP_ALL命令）
+         * @details 委托 ServiceManager::StopAllServices，按依赖逆序停止所有服务
+         * @return ResultMsg 操作结果
+         */
+        ResultMsg StopAllServices();
 
         /**
          * @brief 重启服务
@@ -146,30 +167,6 @@ namespace qifeng::scm {
          * @return ResultMsg 操作结果
          */
         ResultMsg DisableAutoStart(const std::string &serviceName);
-
-        // === 数据库操作 ===
-
-        /**
-         * @brief 创建数据库用户
-         * @details 在指定服务的数据库中创建新用户，需在数据库启动后调用
-         * @param username 用户名
-         * @param password 密码
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg CreateDatabaseUser(const DatabaseType &dbType, const std::string &username,
-                                     const std::string &password);
-
-        /**
-         * @brief 删除数据库用户
-         * @details 在指定服务的数据库中删除指定用户及所有权限数据库，需在数据库启动后调用。
-         *          提供密码时可通过用户身份连接发现更多数据库（包括无显式 GRANT 的库）。
-         * @param dbType 数据库类型
-         * @param username 用户名
-         * @param password 用户密码（可选，提供时可发现更多数据库）
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg DeleteDatabaseUser(const DatabaseType &dbType, const std::string &username,
-                                     const std::string &password = "");
 
         // === 扩展接口（供ScmServer调用） ===
 
@@ -289,47 +286,6 @@ namespace qifeng::scm {
 
     private:
         /**
-         * @brief 初始化服务的数据库
-         * @details 为服务执行数据库初始化脚本
-         * @param serviceName 服务名称
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg InitServiceDatabase(const std::string &serviceName);
-
-        std::string GetDependentDatabaseServiceName(const std::string &serviceName);
-
-        /**
-         * @brief 写入数据库用户密码到文件
-         * @details 用于后续服务启动时验证数据库连接
-         * @param serviceDefinition 服务定义
-         * @param dbUserName 数据库用户名
-         * @param dbPassword 数据库密码
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg CreateDbUserPassword(const ServiceDefinition &serviceDefinition, const std::string &dbUserName,
-                                       const std::string &dbPassword);
-
-        /**
-         * @brief 清除数据库用户密码文件
-         * @details 用于在服务卸载时删除数据库用户密码文件
-         * @param serviceDefinition 服务定义
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg ClearDbUserPasswordFile(const ServiceDefinition &serviceDefinition);
-
-        /**
-         * @brief 为服务执行数据库初始化脚本
-         * @details 从指定目录执行所有SQL脚本
-         * @param dbServiceName 数据库服务名称
-         * @param sqlDir SQL初始化脚本目录路径
-         * @param dbUserName 数据库用户名
-         * @param dbPassword 数据库密码
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg ExecuteDbInitScripts(const DatabaseType &dbType, const std::string &sqlDir,
-                                       const std::string &dbUserName = "", const std::string &dbPassword = "");
-
-        /**
          * @brief 清除服务数据
          * @details 尝试删除服务所有关联文件
          * @param serviceName 服务名称
@@ -337,19 +293,16 @@ namespace qifeng::scm {
          */
         ResultMsg ClearServiceData(const std::string &serviceName);
 
-        /**
-         * @brief 清除数据库数据
-         * @details 尝试删除服务所有关联数据库用户、数据库等。
-         *          从服务密码文件中读取用户密码，以用户身份发现所有可访问数据库。
-         * @param svc 服务定义（需包含 dbInfo 和 currentServiceDir）
-         * @return ResultMsg 操作结果
-         */
-        ResultMsg ClearDatabaseData(const ServiceDefinition &svc);
-
     private:
         bool mIsInit {false};                             // 是否初始化
         ServiceRuntimeInfo mServiceRuntimeInfo;           // 服务运行时信息
         std::shared_ptr<ConfigLoader> mConfigLoader;      // 配置加载器
         std::shared_ptr<ServiceManager> mServiceManager;  // 服务管理器
+        ServiceContext mContext;                          // 共享依赖上下文（需保活以供领域管理器持有引用）
+        std::shared_ptr<NginxManager> mNginxManager;      // Nginx 配置管理器
+        std::shared_ptr<ModelManager> mModelManager;      // 模型文件管理器
+        // 注意：使用 elaborated type specifier（class UpgradeService）避免与同名成员函数 UpgradeService 冲突
+        std::shared_ptr<class UpgradeService> mUpgradeService;  // 升级服务管理器
+        std::shared_ptr<DatabaseService> mDatabaseService;      // 数据库服务管理器
     };
 }  // namespace qifeng::scm

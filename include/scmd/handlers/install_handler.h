@@ -14,10 +14,14 @@ namespace qifeng::scm {
      */
     class InstallHandler : public ICommandHandler {
     public:
+        explicit InstallHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,
                            KeyOperationRecorder& recorder) override;
+
+        ResultMsg Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) override;
     };
 
 }  // namespace qifeng::scm

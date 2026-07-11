@@ -13,6 +13,7 @@ namespace qifeng::scm {
 
     class ServiceControl;
     class KeyOperationRecorder;
+    struct KeyOperationRecord;
 
     /**
      * @brief 命令分发器
@@ -37,6 +38,14 @@ namespace qifeng::scm {
         void Register(std::unique_ptr<ICommandHandler> handler);
 
         /**
+         * @brief 从 HandlerRegistry 加载所有已注册的 handler
+         * @param ctx 构造 handler 所需的运行期依赖上下文
+         * @details 调用 HandlerRegistry::BuildAll 构造所有 handler 并逐个注册。
+         *          替代 ScmServer 中手工列举所有 handler 的脚手架代码。
+         */
+        void LoadFromRegistry(const HandlerContext& ctx);
+
+        /**
          * @brief 分发请求到对应处理器
          * @param request 已解析的请求对象
          * @param serviceControl 服务控制门面
@@ -46,6 +55,16 @@ namespace qifeng::scm {
         ScmResponse Dispatch(const ScmRequest& request,
                              ServiceControl& serviceControl,
                              KeyOperationRecorder& recorder) const;
+
+        /**
+         * @brief 分发操作恢复到对应处理器
+         * @param record 上次未完成的关键操作记录
+         * @param serviceControl 服务控制门面
+         * @return 恢复结果；若操作类型未知或无对应处理器则返回警告
+         * @details 根据 record.optName 解析命令类型，查表调用对应 handler 的 Recover()。
+         *          替代 ScmServer 中手工 switch-case 的恢复逻辑。
+         */
+        ResultMsg Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) const;
 
     private:
         std::unordered_map<ScmCommand, std::unique_ptr<ICommandHandler>> mHandlers;

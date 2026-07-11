@@ -14,6 +14,8 @@ namespace qifeng::scm {
      */
     class LogHandler : public ICommandHandler {
     public:
+        explicit LogHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,

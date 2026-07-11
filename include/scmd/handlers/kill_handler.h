@@ -19,9 +19,9 @@ namespace qifeng::scm {
     public:
         /**
          * @brief 构造函数
-         * @param shutdownCallback 停止回调，由 ScmServer 提供
+         * @param ctx 运行期依赖上下文，从中获取停止回调
          */
-        explicit KillHandler(std::function<void()> shutdownCallback);
+        explicit KillHandler(const HandlerContext& ctx) : mShutdownCallback(ctx.shutdownCallback) {}
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,

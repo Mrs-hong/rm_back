@@ -15,6 +15,8 @@ namespace qifeng::scm {
      */
     class ClearModelHandler : public ICommandHandler {
     public:
+        explicit ClearModelHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,

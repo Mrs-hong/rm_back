@@ -6,6 +6,7 @@
 
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -26,6 +27,13 @@ namespace qifeng::scm {
         mHandlers.emplace(cmd, std::move(handler));
     }
 
+    void CommandDispatcher::LoadFromRegistry(const HandlerContext& ctx) {
+        auto handlers = HandlerRegistry::Instance().BuildAll(ctx);
+        for (auto& handler : handlers) {
+            Register(std::move(handler));
+        }
+    }
+
     ScmResponse CommandDispatcher::Dispatch(const ScmRequest& request,
                                             ServiceControl& serviceControl,
                                             KeyOperationRecorder& recorder) const {
@@ -40,6 +48,23 @@ namespace qifeng::scm {
         }
 
         return it->second->Handle(request, serviceControl, recorder);
+    }
+
+    ResultMsg CommandDispatcher::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) const {
+        // 将操作名字符串映射为命令枚举
+        auto cmdOpt = StringToScmCommand(record.optName);
+        if (!cmdOpt.has_value()) {
+            SLOG_WARN << "Unknown operation to recover: " << record.optName;
+            return MakeWarning("Unknown operation: " + record.optName);
+        }
+
+        auto it = mHandlers.find(cmdOpt.value());
+        if (it == mHandlers.end()) {
+            SLOG_WARN << "No handler registered for recovery operation: " << record.optName;
+            return MakeWarning("No handler for operation: " + record.optName);
+        }
+
+        return it->second->Recover(record, serviceControl);
     }
 
 }  // namespace qifeng::scm

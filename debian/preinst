@@ -1,0 +1,27 @@
+#!/bin/bash
+# preinst: 安装新包前执行，升级场景下备份用户配置
+set -e
+
+case "$1" in
+    install)
+        # 全新安装，无需备份
+        ;;
+    upgrade)
+        # 升级前备份用户配置文件（postinst 会根据 .bak 恢复用户自定义内容）
+        if [ -f /etc/qifeng-scm/scmd.yaml ]; then
+            cp -a /etc/qifeng-scm/scmd.yaml /etc/qifeng-scm/scmd.yaml.bak
+        fi
+        if [ -f /etc/qifeng-scm/selftest.json ]; then
+            cp -a /etc/qifeng-scm/selftest.json /etc/qifeng-scm/selftest.json.bak
+        fi
+        # /var/lib/qifeng-scm/services 下的已装服务数据由 postinst 保留，此处不做清理
+        ;;
+    abort-upgrade)
+        ;;
+    *)
+        echo "preinst called with unknown argument: $1" >&2
+        exit 1
+        ;;
+esac
+
+exit 0

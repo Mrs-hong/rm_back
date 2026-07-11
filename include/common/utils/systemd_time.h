@@ -10,6 +10,7 @@
 #include <cstdint>
 #include <ctime>
 #include <iomanip>
+#include <thread>
 #include <sstream>
 #include <string>
 
@@ -59,21 +60,28 @@ namespace qifeng::scm::utils {
     }
 
     /**
-     * @brief 计算 CPU 占用百分比
-     * @details 公式：CPUUsageNSec / 运行秒数 / 1e9 * 100
+     * @brief 计算 CPU 占用比率（已按核心数归一化）
+     * @details 公式：(CPUUsageNSec / 1e9) / 运行秒数 / 核心数
+     *          返回 0.0~1.0 的比率，1.0 表示占满所有核心。
+     *          cpuUsageNSec 是进程累计 CPU 时间（含所有线程所有核心），
+     *          多线程进程使用 N 核时未归一化会得到 N×100%，除以核心数后归一为 0.0~1.0。
      * @param cpuUsageNSec 进程累计 CPU 时间（纳秒）
      * @param activeEnterUsec 进程启动时间（自 epoch 的微秒时间戳）
-     * @return size_t CPU 占用百分比（0-100）
+     * @return double CPU 占用比率（0.0~1.0，已按核心数归一化）
      */
-    inline size_t CalculateCpuUsage(uint64_t cpuUsageNSec, uint64_t activeEnterUsec) {
+    inline double CalculateCpuUsage(uint64_t cpuUsageNSec, uint64_t activeEnterUsec) {
         auto now = std::chrono::system_clock::now();
         auto start = std::chrono::system_clock::time_point(std::chrono::microseconds(activeEnterUsec));
         auto runSec = std::chrono::duration_cast<std::chrono::seconds>(now - start).count();
         if (runSec <= 0) {
-            return 0;
+            return 0.0;
+        }
+        unsigned int numCores = std::thread::hardware_concurrency();
+        if (numCores == 0) {
+            numCores = 1;  // 防除零，获取核心数失败时按单核处理
         }
         double cpuSec = static_cast<double>(cpuUsageNSec) / 1e9;
-        double percent = (cpuSec / static_cast<double>(runSec)) * 100.0;
-        return static_cast<size_t>(percent);
+        double ratio = (cpuSec / static_cast<double>(runSec)) / static_cast<double>(numCores);
+        return ratio;
     }
 }  // namespace qifeng::scm::utils

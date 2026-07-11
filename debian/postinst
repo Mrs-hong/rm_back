@@ -18,15 +18,31 @@ case "$1" in
         chmod 755 /var/lib/qifeng-scm/backup
         chmod 755 /var/log/qifeng-scm
 
+        # 升级场景（$2 为旧版本号，非空）：保留用户自定义的配置文件
+        # conffiles 机制已对 scmd.yaml/selftest.json 提供交互式保留，此处做兜底：
+        # 若 dpkg 采用了新包配置（用户选择覆盖或非交互模式），且存在 .bak 备份，
+        # 则恢复用户旧配置，避免升级导致配置丢失。
+        if [ -n "$2" ]; then
+            if [ -f /etc/qifeng-scm/scmd.yaml.bak ]; then
+                cp -a /etc/qifeng-scm/scmd.yaml.bak /etc/qifeng-scm/scmd.yaml
+                rm -f /etc/qifeng-scm/scmd.yaml.bak
+            fi
+            if [ -f /etc/qifeng-scm/selftest.json.bak ]; then
+                cp -a /etc/qifeng-scm/selftest.json.bak /etc/qifeng-scm/selftest.json
+                rm -f /etc/qifeng-scm/selftest.json.bak
+            fi
+            # 升级场景：保留 /var/lib/qifeng-scm/services 下的已装服务数据，不清理
+        fi
+
         # 更新动态链接器缓存
         ldconfig
 
         # 重载 systemd 配置
         systemctl daemon-reload
 
-        # 设置开机自启并立即启动
+        # 设置开机自启并立即启动（升级和新装均执行）
         systemctl enable qifeng-scmd.service
-        systemctl start qifeng-scmd.service
+        systemctl restart qifeng-scmd.service
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)

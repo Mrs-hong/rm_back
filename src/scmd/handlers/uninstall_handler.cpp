@@ -4,9 +4,11 @@
 
 #include "scmd/handlers/uninstall_handler.h"
 
+#include "common/config.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -39,5 +41,21 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg UninstallHandler::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) {
+        // 卸载未完成，尝试继续卸载
+        const auto& configLoader = serviceControl.GetConfigLoader();
+        auto* svc = configLoader.GetServiceByName(record.serviceName);
+        ResultMsg recoverResult;
+        if (svc) {
+            SLOG_INFO << "Uninstall was interrupted, retrying: " << record.serviceName;
+            recoverResult = serviceControl.UninstallService(record.serviceName);
+        } else {
+            recoverResult = MakeSuccess();
+        }
+        return recoverResult;
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::UNINSTALL, UninstallHandler)
 
 }  // namespace qifeng::scm

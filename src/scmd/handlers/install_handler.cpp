@@ -4,9 +4,11 @@
 
 #include "scmd/handlers/install_handler.h"
 
+#include "common/config.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -42,5 +44,35 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg InstallHandler::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) {
+        // 安装未完成，检查服务是否已存在
+        const auto& configLoader = serviceControl.GetConfigLoader();
+        auto* svc = configLoader.GetServiceByName(record.serviceName);
+        ResultMsg recoverResult;
+        if (svc) {
+            // 服务已部分安装，先卸载清理再重新安装
+            SLOG_INFO << "Service partially installed, cleaning up: " << record.serviceName;
+            auto cleanResult = serviceControl.UninstallService(record.serviceName);
+            if (!cleanResult.IsDefalutSuccess()) {
+                recoverResult = cleanResult;
+            } else if (!record.tarDir.empty()) {
+                // 有软件包路径，可以重新安装
+                SLOG_INFO << "Retrying install with tarDir: " << record.tarDir;
+                recoverResult = serviceControl.Installed(record.serviceName, record.tarDir);
+            } else {
+                recoverResult = MakeWarning("Install interrupted but tarDir not recorded, cannot retry");
+            }
+        } else if (!record.tarDir.empty()) {
+            // 服务不存在且有软件包路径，直接重新安装
+            SLOG_INFO << "Retrying install with tarDir: " << record.tarDir;
+            recoverResult = serviceControl.Installed(record.tarDir, record.serviceName);
+        } else {
+            recoverResult = MakeWarning("Install interrupted but tarDir not recorded, cannot retry");
+        }
+        return recoverResult;
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::INSTALL, InstallHandler)
 
 }  // namespace qifeng::scm

@@ -94,7 +94,7 @@ namespace qifeng {
             std::string startTime;       // 服务启动时间: 年月日时分秒毫秒
             std::string runTime;         // 服务运行时间：天、时、分、秒、毫秒
             size_t memoryUsage {0};      // 服务内存占用（字节）
-            size_t cpuUsage {0};         // 服务CPU占用（%）
+            double cpuUsage {0.0};       // 服务CPU占用比率（0.0~1.0，已按核心数归一化）
             std::string configFilePath;  // 服务配置文件路径
             std::string rootPath;        // 服务安装根路径
             std::string dbFilePath;      // 数据库文件路径

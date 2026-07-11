@@ -14,6 +14,8 @@ namespace qifeng::scm {
      */
     class RestartAllHandler : public ICommandHandler {
     public:
+        explicit RestartAllHandler(const HandlerContext&) {}
+
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
                            ServiceControl& serviceControl,

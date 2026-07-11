@@ -6,14 +6,11 @@
 
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
 namespace qifeng::scm {
-
-    KillHandler::KillHandler(std::function<void()> shutdownCallback)
-        : mShutdownCallback(std::move(shutdownCallback)) {
-    }
 
     ScmCommand KillHandler::GetCommand() const {
         return ScmCommand::KILL;
@@ -32,5 +29,7 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::KILL, KillHandler)
 
 }  // namespace qifeng::scm

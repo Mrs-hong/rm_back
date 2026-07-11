@@ -23,6 +23,7 @@ namespace qifeng::scm {
         INSTALL,      // install --name [--tar_dir] 安装服务
         START,        // start --name [--version] 启动服务
         STOP,         // stop --name 停止服务
+        STOP_ALL,     // stop -a 停止全部服务
         RESTART,      // restart --name 重启服务
         RESTART_ALL,  // restart -a 重启全部
         UPGRADE,      // upgrade --name --tar_dir 升级服务
@@ -30,6 +31,7 @@ namespace qifeng::scm {
         INFO,         // info --name 查看服务详情
         LOG,          // log --type -n 查看操作日志
         UNINSTALL,    // uninstall --name 卸载服务
+        UNINSTALL_ALL,  // uninstall -a 卸载全部已装服务（保留 scmd 自身）
         RELOAD,       // reload --name 重载服务配置
         RELOAD_ALL,   // reload -a 重载全部服务配置
         KILL,         // kill 使scmd优雅退出
@@ -73,6 +75,8 @@ namespace qifeng::scm {
         std::string serviceName;  // 服务名称
     };
 
+    struct StopAllRequest {};
+
     struct RestartRequest {
         std::string serviceName;  // 服务名称
     };
@@ -99,6 +103,8 @@ namespace qifeng::scm {
     struct UninstallRequest {
         std::string serviceName;  // 服务名称
     };
+
+    struct UninstallAllRequest {};
 
     struct ReloadRequest {
         std::string serviceName;  // 服务名称
@@ -174,6 +180,7 @@ namespace qifeng::scm {
         InstallRequest,
         StartRequest,
         StopRequest,
+        StopAllRequest,
         RestartRequest,
         RestartAllRequest,
         UpgradeRequest,
@@ -181,6 +188,7 @@ namespace qifeng::scm {
         InfoRequest,
         LogRequest,
         UninstallRequest,
+        UninstallAllRequest,
         ReloadRequest,
         ReloadAllRequest,
         KillRequest,
@@ -192,6 +200,36 @@ namespace qifeng::scm {
         ClearModelRequest,
         UpgradesRequest
     >;
+
+    /**
+     * @brief 请求结构体到 ScmCommand 枚举的映射 trait
+     * @details 新增命令时只需添加一个特化，无需维护 if-constexpr 链。
+     *          遗漏特化会在编译期报错（Incomplete type），安全可靠。
+     */
+    template <typename T> struct RequestCommand;
+    template <> struct RequestCommand<VersionRequest> { static constexpr ScmCommand value = ScmCommand::VERSION; };
+    template <> struct RequestCommand<InstallRequest> { static constexpr ScmCommand value = ScmCommand::INSTALL; };
+    template <> struct RequestCommand<StartRequest> { static constexpr ScmCommand value = ScmCommand::START; };
+    template <> struct RequestCommand<StopRequest> { static constexpr ScmCommand value = ScmCommand::STOP; };
+    template <> struct RequestCommand<StopAllRequest> { static constexpr ScmCommand value = ScmCommand::STOP_ALL; };
+    template <> struct RequestCommand<RestartRequest> { static constexpr ScmCommand value = ScmCommand::RESTART; };
+    template <> struct RequestCommand<RestartAllRequest> { static constexpr ScmCommand value = ScmCommand::RESTART_ALL; };
+    template <> struct RequestCommand<UpgradeRequest> { static constexpr ScmCommand value = ScmCommand::UPGRADE; };
+    template <> struct RequestCommand<ListRequest> { static constexpr ScmCommand value = ScmCommand::LIST; };
+    template <> struct RequestCommand<InfoRequest> { static constexpr ScmCommand value = ScmCommand::INFO; };
+    template <> struct RequestCommand<LogRequest> { static constexpr ScmCommand value = ScmCommand::LOG; };
+    template <> struct RequestCommand<UninstallRequest> { static constexpr ScmCommand value = ScmCommand::UNINSTALL; };
+    template <> struct RequestCommand<UninstallAllRequest> { static constexpr ScmCommand value = ScmCommand::UNINSTALL_ALL; };
+    template <> struct RequestCommand<ReloadRequest> { static constexpr ScmCommand value = ScmCommand::RELOAD; };
+    template <> struct RequestCommand<ReloadAllRequest> { static constexpr ScmCommand value = ScmCommand::RELOAD_ALL; };
+    template <> struct RequestCommand<KillRequest> { static constexpr ScmCommand value = ScmCommand::KILL; };
+    template <> struct RequestCommand<SlogRequest> { static constexpr ScmCommand value = ScmCommand::SLOG; };
+    template <> struct RequestCommand<CheckRequest> { static constexpr ScmCommand value = ScmCommand::CHECK; };
+    template <> struct RequestCommand<InitNginxRequest> { static constexpr ScmCommand value = ScmCommand::INIT_NGINX; };
+    template <> struct RequestCommand<ResetNginxRequest> { static constexpr ScmCommand value = ScmCommand::RESET_NGINX; };
+    template <> struct RequestCommand<AddModelRequest> { static constexpr ScmCommand value = ScmCommand::ADD_MODEL; };
+    template <> struct RequestCommand<ClearModelRequest> { static constexpr ScmCommand value = ScmCommand::CLEAR_MODEL; };
+    template <> struct RequestCommand<UpgradesRequest> { static constexpr ScmCommand value = ScmCommand::UPGRADES; };
 
     /**
      * @brief scmctl请求结构体
@@ -206,29 +244,7 @@ namespace qifeng::scm {
          */
         ScmCommand Command() const {
             return std::visit([](const auto& param) -> ScmCommand {
-                using T = std::decay_t<decltype(param)>;
-                if constexpr (std::is_same_v<T, VersionRequest>) return ScmCommand::VERSION;
-                if constexpr (std::is_same_v<T, InstallRequest>) return ScmCommand::INSTALL;
-                if constexpr (std::is_same_v<T, StartRequest>) return ScmCommand::START;
-                if constexpr (std::is_same_v<T, StopRequest>) return ScmCommand::STOP;
-                if constexpr (std::is_same_v<T, RestartRequest>) return ScmCommand::RESTART;
-                if constexpr (std::is_same_v<T, RestartAllRequest>) return ScmCommand::RESTART_ALL;
-                if constexpr (std::is_same_v<T, UpgradeRequest>) return ScmCommand::UPGRADE;
-                if constexpr (std::is_same_v<T, ListRequest>) return ScmCommand::LIST;
-                if constexpr (std::is_same_v<T, InfoRequest>) return ScmCommand::INFO;
-                if constexpr (std::is_same_v<T, LogRequest>) return ScmCommand::LOG;
-                if constexpr (std::is_same_v<T, UninstallRequest>) return ScmCommand::UNINSTALL;
-                if constexpr (std::is_same_v<T, ReloadRequest>) return ScmCommand::RELOAD;
-                if constexpr (std::is_same_v<T, ReloadAllRequest>) return ScmCommand::RELOAD_ALL;
-                if constexpr (std::is_same_v<T, KillRequest>) return ScmCommand::KILL;
-                if constexpr (std::is_same_v<T, SlogRequest>) return ScmCommand::SLOG;
-                if constexpr (std::is_same_v<T, CheckRequest>) return ScmCommand::CHECK;
-                if constexpr (std::is_same_v<T, InitNginxRequest>) return ScmCommand::INIT_NGINX;
-                if constexpr (std::is_same_v<T, ResetNginxRequest>) return ScmCommand::RESET_NGINX;
-                if constexpr (std::is_same_v<T, AddModelRequest>) return ScmCommand::ADD_MODEL;
-                if constexpr (std::is_same_v<T, ClearModelRequest>) return ScmCommand::CLEAR_MODEL;
-                if constexpr (std::is_same_v<T, UpgradesRequest>) return ScmCommand::UPGRADES;
-                return ScmCommand::VERSION;  // 不会到达
+                return RequestCommand<std::decay_t<decltype(param)>>::value;
             }, data);
         }
 

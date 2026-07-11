@@ -4,9 +4,11 @@
 
 #include "scmd/handlers/upgrade_handler.h"
 
+#include "common/config.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -39,5 +41,23 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg UpgradeHandler::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) {
+        // 升级未完成，检查服务状态
+        const auto& configLoader = serviceControl.GetConfigLoader();
+        auto* svc = configLoader.GetServiceByName(record.serviceName);
+        ResultMsg recoverResult;
+        if (svc && !record.tarDir.empty()) {
+            // 服务存在且有新版本路径，尝试重新升级
+            SLOG_INFO << "Retrying upgrade with tarDir: " << record.tarDir;
+            recoverResult = serviceControl.UpgradeService(record.serviceName, record.tarDir);
+        } else {
+            SLOG_INFO << "Upgrade was interrupted, manual check recommended for: " << record.serviceName;
+            recoverResult = MakeWarning("Upgrade was interrupted, manual check recommended for: " + record.serviceName);
+        }
+        return recoverResult;
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::UPGRADE, UpgradeHandler)
 
 }  // namespace qifeng::scm

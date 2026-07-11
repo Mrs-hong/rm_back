@@ -2,6 +2,7 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 #include "scmctl/cli_commands.h"
+#include "scmctl/cli_command_registry.h"
 
 #include <filesystem>
 
@@ -63,13 +64,18 @@ namespace qifeng::scm {
     void StopCommand::Setup(CLI::App &app) {
         auto* cmd = app.add_subcommand(Name(), Description());
         cmd->add_option("--name,-n", mServiceName, "服务名称（不指定时操作scmd自身）");
+        cmd->add_flag("-a", mAll, "停止所有已安装服务");
     }
 
     ResultMsg StopCommand::BuildRequest(CLI::App &app, ScmRequest &req) {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = StopRequest{mServiceName};
+        if (mAll) {
+            req.data = StopAllRequest{};
+        } else {
+            req.data = StopRequest{mServiceName};
+        }
         return MakeSuccess();
     }
 
@@ -223,14 +229,22 @@ namespace qifeng::scm {
 
     void UninstallCommand::Setup(CLI::App &app) {
         auto* cmd = app.add_subcommand(Name(), Description());
-        cmd->add_option("--name,-n", mServiceName, "服务名称")->required();
+        cmd->add_option("--name,-n", mServiceName, "服务名称");
+        cmd->add_flag("-a", mAll, "卸载所有已安装服务（保留 scmd 自身）");
     }
 
     ResultMsg UninstallCommand::BuildRequest(CLI::App &app, ScmRequest &req) {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = UninstallRequest{mServiceName};
+        if (mAll) {
+            req.data = UninstallAllRequest{};
+        } else {
+            if (mServiceName.empty()) {
+                return ResultMsg(-1, "uninstall 需要指定 --name 或 -a");
+            }
+            req.data = UninstallRequest{mServiceName};
+        }
         return MakeSuccess();
     }
 
@@ -436,5 +450,26 @@ namespace qifeng::scm {
         req.data = ClearModelRequest{mModelName};
         return MakeSuccess();
     }
+
+    // -------------------- CLI 命令自注册 --------------------
+    // 各命令通过宏自动注册到 CliCommandRegistry，新增命令只需在实现末尾添加 REGISTER_CLI_COMMAND 宏
+    REGISTER_CLI_COMMAND(InstallCommand)
+    REGISTER_CLI_COMMAND(StartCommand)
+    REGISTER_CLI_COMMAND(StopCommand)
+    REGISTER_CLI_COMMAND(RestartCommand)
+    REGISTER_CLI_COMMAND(UpgradeCommand)
+    REGISTER_CLI_COMMAND(UpgradesCommand)
+    REGISTER_CLI_COMMAND(ListCommand)
+    REGISTER_CLI_COMMAND(InfoCommand)
+    REGISTER_CLI_COMMAND(LogCommand)
+    REGISTER_CLI_COMMAND(UninstallCommand)
+    REGISTER_CLI_COMMAND(ReloadCommand)
+    REGISTER_CLI_COMMAND(KillCommand)
+    REGISTER_CLI_COMMAND(SlogCommand)
+    REGISTER_CLI_COMMAND(CheckCommand)
+    REGISTER_CLI_COMMAND(InitNginxCommand)
+    REGISTER_CLI_COMMAND(ResetNginxCommand)
+    REGISTER_CLI_COMMAND(AddModelCommand)
+    REGISTER_CLI_COMMAND(ClearModelCommand)
 
 }  // namespace qifeng::scm

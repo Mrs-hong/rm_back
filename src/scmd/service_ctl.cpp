@@ -9,10 +9,12 @@
 #include "common/config.h"
 #include "common/utils.h"
 #include "qifeng_framework/common/logger.h"
+#include "service_manger/database_service.h"
 #include "service_manger/file_manager.h"
+#include "service_manger/model_manager.h"
+#include "service_manger/nginx_manager.h"
 #include "service_manger/service_manager.h"
-#include "service_tool/tool_mariadb.h"
-#include "service_tool/tools_def.h"
+#include "service_manger/upgrade_service.h"
 
 #include <algorithm>
 #include <fstream>
@@ -33,6 +35,16 @@ namespace qifeng::scm {
         SLOG_INFO << "ServiceControl initializing...";
 
         mServiceManager = std::make_shared<ServiceManager>(mConfigLoader);
+
+        // 构造共享依赖上下文和领域管理器
+        // 注意：mContext 需作为成员保活，因为 NginxManager/ModelManager/UpgradeService/DatabaseService
+        //       内部以 const ServiceContext& 引用持有它
+        mContext = mServiceManager->GetServiceContext();
+        mDatabaseService = std::make_shared<DatabaseService>(mContext);
+        mNginxManager = std::make_shared<NginxManager>(mContext, *mServiceManager);
+        mModelManager = std::make_shared<ModelManager>(mContext, *mServiceManager);
+        mUpgradeService = std::make_shared<class UpgradeService>(mContext, *mServiceManager, *mModelManager,
+                                                                  *mNginxManager, *mDatabaseService);
 
         auto allServices = mConfigLoader->GetAllServices();
         if (allServices.empty()) {
@@ -78,7 +90,7 @@ namespace qifeng::scm {
             SLOG_WARN << "Service installed with verification warning: " << verifyWarning;
         }
 
-        result = InitServiceDatabase(actualServiceName);
+        result = mDatabaseService->InitServiceDatabase(actualServiceName);
         if (!result.IsDefalutSuccess()) {
             // 数据建库操作失败，回滚安装
             UninstallService(actualServiceName);
@@ -104,7 +116,7 @@ namespace qifeng::scm {
 
         // 先清除数据库相关（在删除服务文件之前，以便读取密码文件发现所有数据库）
         if (svc->dbInfo.dbType != DatabaseType::NONE) {
-            ResultMsg result = ClearDatabaseData(*svc);
+            ResultMsg result = mDatabaseService->ClearDatabaseData(*svc);
             if (result.code == -1) {
                 return MakeError("clear database data failed:" + result.msg);
             }
@@ -123,13 +135,13 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "Upgrading service: " << serviceName << " from " << serviceTarPath;
-        auto result = mServiceManager->UpdateService(serviceName, serviceTarPath);
+        auto result = mUpgradeService->UpdateService(serviceName, serviceTarPath);
         if (!result.IsDefalutSuccess()) {
             return result;
         }
 
         // 确认升级完成，清理旧版本备份
-        auto cleanResult = mServiceManager->CleanUpgradeBackup(serviceName);
+        auto cleanResult = mUpgradeService->CleanUpgradeBackup(serviceName);
         if (!cleanResult.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to clean upgrade backup: " << cleanResult.msg;
         }
@@ -142,165 +154,12 @@ namespace qifeng::scm {
         return PerformIntegratedUpgrade(serviceName, "");
     }
 
-    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     ResultMsg ServiceControl::PerformIntegratedUpgrade(const std::string &serviceName, const std::string &tarDir) {
-        SLOG_INFO << "Perform integrated upgrade for service: " << serviceName
-                  << ", tarDir: " << (tarDir.empty() ? "<internal soft_dir>" : tarDir);
-
         if (!mIsInit) {
             return MakeError("ServiceControl is not initialized");
         }
-
-        // 解析升级结果路径（仅在配置了 upgrade.result_path 时记录结果）
-        auto* svc = mConfigLoader->GetServiceByName(serviceName);
-        if (svc == nullptr) {
-            return MakeError("Service not found: " + serviceName);
-        }
-        std::string absResultPath;
-        if (!svc->upgradeConfig.resultPath.empty()) {
-            absResultPath =
-                utils::GetAbsolutePath(utils::JoinPath(svc->currentServiceDir, svc->upgradeConfig.resultPath));
-            SLOG_INFO << "Upgrade result will be written to: " << absResultPath;
-        } else {
-            SLOG_INFO << "No upgrade.result_path configured, skip result file writing";
-        }
-
-        std::string upgradeTime = utils::GetCurrentTimeString();
-        std::string newVersion;
-        std::string modelInstalledName;  // 非空表示已安装模型（需在失败时回退、成功时清理备份）
-
-        // 辅助：写结果文件（失败不影响返回值，仅告警）
-        auto writeResult = [&](bool success, const std::string &reason) {
-            if (absResultPath.empty()) {
-                return;
-            }
-            auto writeRet = utils::WriteUpgradeResult(absResultPath, success, upgradeTime, newVersion, reason);
-            if (!writeRet.IsDefalutSuccess()) {
-                SLOG_WARN << "Failed to write upgrade result file: " << writeRet.msg;
-            }
-        };
-
-        // 辅助：恢复 nginx 正常配置（流程失败时调用）
-        auto restoreNginx = [&]() {
-            SLOG_INFO << "Restoring nginx to normal mode";
-            auto ret = mServiceManager->ResetNginx(NginxResetMode::NORMAL);
-            if (!ret.IsDefalutSuccess()) {
-                SLOG_ERROR << "Failed to restore nginx: " << ret.msg;
-            }
-        };
-
-        // 1. 进入 nginx 等待页面（所有路由返回404，避免升级期间访问到不一致状态）
-        SLOG_INFO << "Step 1: Set nginx to waiting mode";
-        auto waitRet = mServiceManager->ResetNginx(NginxResetMode::WAIT);
-        if (!waitRet.IsDefalutSuccess()) {
-            SLOG_ERROR << "Failed to set nginx waiting mode: " << waitRet.msg;
-            // nginx 未进入等待态，直接返回，不继续后续流程
-            return waitRet;
-        }
-
-        // 2. 查找升级素材（服务包/model/nginx）
-        //    使用 RAII 确保临时解压目录在所有退出路径上被清理
-        SLOG_INFO << "Step 2: Find upgrade artifacts";
-        UpgradeArtifacts artifacts;
-        auto findRet = mServiceManager->FindUpgradeArtifacts(serviceName, tarDir, artifacts);
-        if (!findRet.IsDefalutSuccess()) {
-            SLOG_ERROR << "Find upgrade artifacts failed: " << findRet.msg;
-            restoreNginx();
-            writeResult(false, findRet.msg);
-            return findRet;
-        }
-        // RAII 守卫：方法结束时清理素材临时目录（仅当 -d 为 tar 包时 tempDir 非空）
-        struct TempDirGuard {
-            ServiceManager &sm;
-            UpgradeArtifacts &arts;
-            explicit TempDirGuard(ServiceManager &s, UpgradeArtifacts &a) : sm(s), arts(a) {}
-            ~TempDirGuard() { sm.CleanupArtifactsTempDir(arts); }
-            TempDirGuard(const TempDirGuard &) = delete;
-            TempDirGuard &operator=(const TempDirGuard &) = delete;
-            TempDirGuard(TempDirGuard &&) = delete;
-            TempDirGuard &operator=(TempDirGuard &&) = delete;
-        } tempDirGuard(*mServiceManager, artifacts);
-        SLOG_INFO << "Artifacts found - servicePackage: "
-                  << (artifacts.servicePackage.empty() ? "<none>" : artifacts.servicePackage)
-                  << ", modelPath: " << (artifacts.modelPath.empty() ? "<none>" : artifacts.modelPath)
-                  << ", nginxDir: " << (artifacts.nginxDir.empty() ? "<none>" : artifacts.nginxDir);
-
-        // 3. 若有 model 素材：安装模型（排除当前升级服务，保留 .back 备份以便回退）
-        if (!artifacts.modelPath.empty()) {
-            SLOG_INFO << "Step 3: Add model (excluding service: " << serviceName << ")";
-            auto modelRet =
-                mServiceManager->AddModelWithBackupRetained(artifacts.modelPath, serviceName, modelInstalledName);
-            if (!modelRet.IsDefalutSuccess()) {
-                SLOG_ERROR << "Add model failed: " << modelRet.msg;
-                restoreNginx();
-                writeResult(false, modelRet.msg);
-                return modelRet;
-            }
-            SLOG_INFO << "Model added successfully: " << modelInstalledName << " (backup retained)";
-        } else {
-            SLOG_INFO << "Step 3: No model artifact, skip";
-        }
-
-        // 4. 若有服务包：执行服务升级，失败则回退模型
-        ResultMsg result = MakeSuccess();
-        if (!artifacts.servicePackage.empty()) {
-            SLOG_INFO << "Step 4: Upgrade service from package: " << artifacts.servicePackage;
-            // 解析新版本号（用于结果记录，失败不影响升级流程）
-            newVersion = mServiceManager->ReadVersionFromPackage(serviceName, artifacts.servicePackage);
-            SLOG_INFO << "New version from package: " << (newVersion.empty() ? "<unknown>" : newVersion);
-
-            result = UpgradeService(serviceName, artifacts.servicePackage);
-            if (!result.IsDefalutSuccess()) {
-                SLOG_ERROR << "Upgrade service failed: " << result.msg << ", rolling back model if any";
-                // 回退模型（若已安装）
-                if (!modelInstalledName.empty()) {
-                    auto rollbackRet = mServiceManager->RollbackModel(modelInstalledName);
-                    if (!rollbackRet.IsDefalutSuccess()) {
-                        SLOG_ERROR << "Rollback model failed: " << rollbackRet.msg;
-                    }
-                }
-                restoreNginx();
-                writeResult(false, result.msg);
-                return result;
-            }
-            SLOG_INFO << "Service upgraded successfully";
-        } else {
-            SLOG_INFO << "Step 4: No service package, skip service upgrade";
-        }
-
-        // 5. 成功收尾：清理模型备份，更新或恢复 nginx 配置
-        SLOG_INFO << "Step 5: Finalize - clean model backup, update nginx";
-        if (!modelInstalledName.empty()) {
-            auto cleanRet = mServiceManager->CleanModelBackup(modelInstalledName);
-            if (!cleanRet.IsDefalutSuccess()) {
-                SLOG_WARN << "Failed to clean model backup: " << cleanRet.msg;
-            }
-        }
-
-        if (!artifacts.nginxDir.empty()) {
-            // 有 nginx 素材：使用第一个 nginx 前缀目录更新配置
-            // 注意：此处失败不回滚已升级的服务/模型（核心升级已成功），仅恢复 nginx 旧配置并返回警告
-            SLOG_INFO << "Updating nginx config from: " << artifacts.nginxDir;
-            auto nginxRet = mServiceManager->InitNginx(artifacts.nginxDir);
-            if (!nginxRet.IsDefalutSuccess()) {
-                SLOG_ERROR << "InitNginx failed: " << nginxRet.msg << ", fallback to reset_nginx -n";
-                restoreNginx();
-                std::string warnMsg = "Service upgraded successfully, but nginx config update failed: " + nginxRet.msg
-                                      + " (nginx restored to previous config)";
-                writeResult(false, warnMsg);
-                SLOG_WARN << warnMsg;
-                return MakeWarning(warnMsg);
-            }
-            SLOG_INFO << "Nginx config updated successfully";
-        } else {
-            // 无 nginx 素材：恢复 nginx 正常配置（移除 waiting.conf，使 scm_*.conf 生效）
-            SLOG_INFO << "No nginx artifact, restore nginx to normal mode";
-            restoreNginx();
-        }
-
-        writeResult(true, "");
-        SLOG_INFO << "Integrated upgrade completed successfully for service: " << serviceName;
-        return MakeSuccess();
+        // 委托给 UpgradeService：编排逻辑（nginx 切换、素材查找、模型安装、服务升级、收尾）已移至该领域管理器
+        return mUpgradeService->PerformIntegratedUpgrade(serviceName, tarDir);
     }
 
     ResultMsg ServiceControl::StartService(const std::string &serviceName) {
@@ -317,6 +176,14 @@ namespace qifeng::scm {
         }
         SLOG_INFO << "Stopping service: " << serviceName;
         return mServiceManager->StopService(serviceName);
+    }
+
+    ResultMsg ServiceControl::StopAllServices() {
+        if (!mIsInit) {
+            return MakeError("ServiceControl is not initialized");
+        }
+        SLOG_INFO << "Stopping all services";
+        return mServiceManager->StopAllServices();
     }
 
     ResultMsg ServiceControl::RestartService(const std::string &serviceName) {
@@ -394,116 +261,6 @@ namespace qifeng::scm {
         return mServiceManager->DisableAutoStart(serviceName);
     }
 
-    ResultMsg ServiceControl::InitServiceDatabase(const std::string &serviceName) {
-        auto svc = mConfigLoader->GetServiceByName(serviceName);
-        if (svc == nullptr) {
-            return MakeError("Service not found: " + serviceName);
-        }
-
-        if (svc->dbInfo.dbType != DatabaseType::NONE && !svc->dbInfo.sqlDir.empty()) {
-            SLOG_INFO << "Creating database user for service: " << serviceName;
-            std::string dbUserName = serviceName;
-            std::string dbPassword = utils::GenerateRandomPassword(12);
-            SLOG_DEBUG << "start create " << serviceName << " db user password file ";
-            ResultMsg res = CreateDbUserPassword(*svc, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
-                SLOG_WARN << "Write db user password error, do clear  ";
-                ClearDbUserPasswordFile(*svc);
-                return res;
-            }
-            res = CreateDatabaseUser(svc->dbInfo.dbType, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
-                SLOG_WARN << "Create database user error, do clear  ";
-                ClearDbUserPasswordFile(*svc);
-                return res;
-            }
-
-            SLOG_INFO << "Executing database init scripts for service: " << serviceName;
-            // sqlDir 是当前服务的相对路径，基于当前服务目录解析为绝对路径
-            std::string absSqlDir = utils::GetAbsolutePath(utils::JoinPath(svc->currentServiceDir, svc->dbInfo.sqlDir));
-            res = ExecuteDbInitScripts(svc->dbInfo.dbType, absSqlDir, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
-                // 执行脚本失败，删除用户
-                SLOG_WARN << "Failed to execute database init scripts for service: " << serviceName
-                          << ", deleting user: " << dbUserName;
-                DeleteDatabaseUser(svc->dbInfo.dbType, dbUserName, dbPassword);
-                ClearDbUserPasswordFile(*svc);
-            }
-            return res;
-        }
-        return MakeSuccess();
-    }
-
-    std::string ServiceControl::GetDependentDatabaseServiceName(const std::string &serviceName) {
-        auto svc = mConfigLoader->GetServiceByName(serviceName);
-        if (svc == nullptr) {
-            return "";
-        }
-        std::string dbServiceName;
-        for (auto &[name, _] : svc->dependencies) {
-            if (tool::IsMariadbService(name)) {
-                dbServiceName = name;
-                break;
-            }
-        }
-        return dbServiceName;
-    }
-
-    ResultMsg ServiceControl::CreateDbUserPassword(const ServiceDefinition &serviceDefinition,
-                                                   const std::string &dbUserName, const std::string &dbPassword) {
-        std::string actualFilePath =
-            utils::JoinPath(serviceDefinition.currentServiceDir, serviceDefinition.dbInfo.outputDir);
-        auto res = utils::CreateDirectory(actualFilePath);
-        if (!res.IsDefalutSuccess()) {
-            return MakeError("Write db user password error when create directory failed: " + actualFilePath);
-        }
-        std::string dbPassFile = utils::JoinPath(actualFilePath, serviceDefinition.serviceName);
-        std::ofstream ofs(dbPassFile, std::ios::trunc);
-        if (!ofs.is_open()) {
-            return MakeError("Write db user password error when failed to open file: " + dbPassFile);
-        }
-        ofs << dbUserName << std::endl << dbPassword << std::endl;
-        return MakeSuccess();
-    }
-
-    ResultMsg ServiceControl::ClearDbUserPasswordFile(const ServiceDefinition &serviceDefinition) {
-        std::string actualFilePath =
-            utils::JoinPath(serviceDefinition.currentServiceDir, serviceDefinition.dbInfo.outputDir);
-        std::string dbPassFile = utils::JoinPath(actualFilePath, serviceDefinition.serviceName);
-        auto res = utils::RemoveFile(dbPassFile);
-        if (!res.IsDefalutSuccess()) {
-            return MakeError("Clear db user password file error when remove file failed: " + dbPassFile);
-        }
-        return MakeSuccess();
-    }
-
-    ResultMsg ServiceControl::CreateDatabaseUser(const DatabaseType &dbType, const std::string &username,
-                                                 const std::string &password) {
-        if (!mIsInit) {
-            return MakeError("ServiceControl is not initialized");
-        }
-        ResultMsg result;
-        if (dbType == DatabaseType::MYSQL) {
-            tool::MariadbDef dbDef;
-            tool::Mariadb mariadb(tool::MariadbDef {});
-            return mariadb.CreateUser(username, password);
-        }
-        return MakeError("Unsupported database service ");
-    }
-
-    ResultMsg ServiceControl::DeleteDatabaseUser(const DatabaseType &dbType, const std::string &username,
-                                                 const std::string &password) {
-        if (!mIsInit) {
-            return MakeError("ServiceControl is not initialized");
-        }
-        ResultMsg result;
-        if (dbType == DatabaseType::MYSQL) {
-            tool::Mariadb mariadb(tool::MariadbDef {});
-            return mariadb.DeleteUserAndDatabase(username, password);
-        }
-        return MakeError("Unsupported database service ");
-    }
-
     const ConfigLoader &ServiceControl::GetConfigLoader() const {
         return *mConfigLoader;
     }
@@ -540,6 +297,40 @@ namespace qifeng::scm {
         }
 
         SLOG_INFO << "All services restarted successfully";
+        return MakeSuccess();
+    }
+
+    ResultMsg ServiceControl::UninstallAllServices() {
+        if (!mIsInit) {
+            return MakeError("ServiceControl is not initialized");
+        }
+        SLOG_INFO << "Uninstalling all services";
+
+        // 获取所有已安装服务，按逆序逐个卸载（后安装的先卸载，尽量保证依赖关系正确）
+        auto allServices = mConfigLoader->GetAllServices();
+        if (allServices.empty()) {
+            SLOG_INFO << "No services installed, nothing to uninstall";
+            return MakeSuccess();
+        }
+
+        int failCount = 0;
+        std::string lastError;
+        for (auto it = allServices.rbegin(); it != allServices.rend(); ++it) {
+            const auto &svcName = it->serviceName;
+            SLOG_INFO << "Uninstalling service: " << svcName;
+            auto result = UninstallService(svcName);
+            if (!result.IsDefalutSuccess()) {
+                ++failCount;
+                lastError = svcName + ": " + result.msg;
+                SLOG_WARN << "Failed to uninstall service " << svcName << ": " << result.msg;
+            }
+        }
+
+        if (failCount > 0) {
+            return MakeWarning("Uninstalled " + std::to_string(allServices.size() - static_cast<size_t>(failCount))
+                               + "/" + std::to_string(allServices.size()) + " services, last error: " + lastError);
+        }
+        SLOG_INFO << "All services uninstalled successfully";
         return MakeSuccess();
     }
 
@@ -736,34 +527,6 @@ namespace qifeng::scm {
         return result;
     }
 
-    // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-    ResultMsg ServiceControl::ExecuteDbInitScripts(const DatabaseType &dbType, const std::string &sqlDir,
-                                                   const std::string &dbUserName, const std::string &dbPassword) {
-        if (!mIsInit) {
-            return MakeError("ServiceControl is not initialized");
-        }
-        if (dbType == DatabaseType::MYSQL) {
-            tool::Mariadb mariadb(tool::MariadbDef {});
-            // 获得sqlDir下全部以.sql结尾的脚本绝对路径
-            std::vector<std::string> sqlFiles;
-            ResultMsg res = utils::GetAllFilesInDir(sqlFiles, sqlDir, ".sql");
-            if (!res.IsDefalutSuccess()) {
-                return MakeError("Get all sql files error: " + res.msg);
-            }
-            std::sort(sqlFiles.begin(), sqlFiles.end());
-            for (const auto &sqlFile : sqlFiles) {
-                SLOG_INFO << "Executing SQL file: " << sqlFile;
-                res = mariadb.ExecuteSqlFileByUser(dbUserName, dbPassword, sqlFile);
-                if (!res.IsDefalutSuccess()) {
-                    return MakeError("Execute SQL file: " + sqlFile + " error: " + res.msg);
-                }
-            }
-        } else {
-            return MakeError("Unsupported database service");
-        }
-        return MakeSuccess();
-    }
-
     ResultMsg ServiceControl::ClearServiceData(const std::string &serviceName) {
         if (!mIsInit) {
             return MakeError("ServiceControl is not initialized");
@@ -774,7 +537,7 @@ namespace qifeng::scm {
         }
         // 先清除数据库相关（在删除服务数据之前，以便读取密码文件）
         if (svc->dbInfo.dbType != DatabaseType::NONE) {
-            ResultMsg result = ClearDatabaseData(*svc);
+            ResultMsg result = mDatabaseService->ClearDatabaseData(*svc);
             if (result.code == -1) {
                 return MakeError("clear database data failed:" + result.msg);
             }
@@ -783,30 +546,12 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
-    ResultMsg ServiceControl::ClearDatabaseData(const ServiceDefinition &svc) {
-        // 从密码文件读取用户密码，用于以用户身份发现所有可访问数据库
-        std::string password;
-        std::string dbPassFile =
-            utils::JoinPath(utils::JoinPath(svc.currentServiceDir, svc.dbInfo.outputDir), svc.serviceName);
-        std::ifstream ifs(dbPassFile);
-        if (ifs.is_open()) {
-            std::string userName;
-            std::getline(ifs, userName);  // 第一行：用户名
-            std::getline(ifs, password);  // 第二行：密码
-            ifs.close();
-        } else {
-            SLOG_WARN << "Cannot read db user password file: " << dbPassFile
-                      << ", will use mysql.db query only to find databases";
-        }
-        return DeleteDatabaseUser(svc.dbInfo.dbType, svc.serviceName, password);
-    }
-
     ResultMsg ServiceControl::InitNginx(const std::string &dirPath) {
         if (!mIsInit) {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "InitNginx from: " << dirPath;
-        return mServiceManager->InitNginx(dirPath);
+        return mNginxManager->InitNginx(dirPath);
     }
 
     ResultMsg ServiceControl::ResetNginx(NginxResetMode mode) {
@@ -814,7 +559,7 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "ResetNginx mode=" << static_cast<int>(mode);
-        return mServiceManager->ResetNginx(mode);
+        return mNginxManager->ResetNginx(mode);
     }
 
     ResultMsg ServiceControl::AddModel(const std::string &srcPath) {
@@ -822,7 +567,7 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "AddModel from: " << srcPath;
-        return mServiceManager->AddModel(srcPath);
+        return mModelManager->AddModel(srcPath);
     }
 
     ResultMsg ServiceControl::ClearModel(const std::string &modelName) {
@@ -830,7 +575,7 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "ClearModel name=" << modelName;
-        return mServiceManager->ClearModel(modelName);
+        return mModelManager->ClearModel(modelName);
     }
 
 }  // namespace qifeng::scm

@@ -1,0 +1,30 @@
+# qifeng-scm 主配置文件
+# 安装时复制到 /etc/qifeng-scm/scmd.yaml
+
+scmd:
+  # 根目录，所有子目录基于此派生
+  root_dir: /var/lib/qifeng-scm
+
+  # 日志配置
+  log:
+    level: info
+    max_file_size: 52428800  # 50MB，单位字节
+    max_files: 7
+
+  # Unix Domain Socket 配置
+  uds:
+    socket_path: /run/qifeng-scm/scmd.sock
+    socket_mode: "0666"
+
+  # 操作超时时间（秒）
+  opt_timeout_sec: 10
+
+  # 模型文件配置
+  model_dir: /var/lib/qifeng-scm/models
+  model_env_var: QIFENG_MODEL_DIR
+
+  # 开机自检配置
+  selftest:
+    enabled: true
+    config_path: /etc/qifeng-scm/selftest.json
+    fail_action: warn  # warn 或 halt

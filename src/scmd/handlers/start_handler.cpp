@@ -7,6 +7,7 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -41,5 +42,12 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg StartHandler::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) {
+        SLOG_INFO << "Start was interrupted, retrying: " << record.serviceName;
+        return serviceControl.StartService(record.serviceName);
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::START, StartHandler)
 
 }  // namespace qifeng::scm

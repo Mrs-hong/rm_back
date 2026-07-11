@@ -1,12 +1,10 @@
 /*
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
-#include "scmctl/cli_commands.h"
+#include "scmctl/cli_command_registry.h"
 #include "scmctl/cli_paser.h"
 
 #include <CLI/CLI.hpp>
-#include <memory>
-#include <vector>
 
 namespace qifeng::scm {
 
@@ -15,26 +13,8 @@ namespace qifeng::scm {
         app.set_version_flag("--version,-v", "0.0.1");
         app.require_subcommand(0, 1);
 
-        // 注册所有命令
-        std::vector<std::unique_ptr<CliCommand>> commands;
-        commands.emplace_back(std::make_unique<InstallCommand>());
-        commands.emplace_back(std::make_unique<StartCommand>());
-        commands.emplace_back(std::make_unique<StopCommand>());
-        commands.emplace_back(std::make_unique<RestartCommand>());
-        commands.emplace_back(std::make_unique<ReloadCommand>());
-        commands.emplace_back(std::make_unique<UpgradeCommand>());
-        commands.emplace_back(std::make_unique<UpgradesCommand>());
-        commands.emplace_back(std::make_unique<ListCommand>());
-        commands.emplace_back(std::make_unique<InfoCommand>());
-        commands.emplace_back(std::make_unique<LogCommand>());
-        commands.emplace_back(std::make_unique<UninstallCommand>());
-        commands.emplace_back(std::make_unique<KillCommand>());
-        commands.emplace_back(std::make_unique<SlogCommand>());
-        commands.emplace_back(std::make_unique<CheckCommand>());
-        commands.emplace_back(std::make_unique<InitNginxCommand>());
-        commands.emplace_back(std::make_unique<ResetNginxCommand>());
-        commands.emplace_back(std::make_unique<AddModelCommand>());
-        commands.emplace_back(std::make_unique<ClearModelCommand>());
+        // 通过注册表自动获取所有已注册命令（新增命令无需修改此文件）
+        auto commands = CliCommandRegistry::Instance().BuildAll();
 
         for (auto &cmd : commands) {
             cmd->Setup(app);

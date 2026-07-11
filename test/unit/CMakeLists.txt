@@ -163,6 +163,7 @@ set(COMMAND_DISPATCHER_TEST_SOURCES test_command_dispatcher.cpp)
 
 set(COMMAND_DISPATCHER_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/scmd/command_dispatcher.cpp
+    ${CMAKE_SOURCE_DIR}/src/scmd/handler_registry.cpp
     ${CMAKE_SOURCE_DIR}/src/ipc/protocol.cpp
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )

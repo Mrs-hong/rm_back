@@ -6,6 +6,7 @@
 
 #include "common/version.hpp"
 #include "ipc/data_def.h"
+#include "scmd/handler_registry.h"
 #include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
 
@@ -27,5 +28,7 @@ namespace qifeng::scm {
         response.data["gitCommit"] = versionInfo.gitCommit;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::VERSION, VersionHandler)
 
 }  // namespace qifeng::scm
