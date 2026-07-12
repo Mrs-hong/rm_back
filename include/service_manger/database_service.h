@@ -14,7 +14,7 @@ namespace qifeng::scm {
 
     /**
      * @brief 数据库服务管理器
-     * @details 从 ServiceControl 和 UpgradeService 中提取的数据库逻辑统一管理。
+     * @details 从 ServiceContainer 和 UpgradeService 中提取的数据库逻辑统一管理。
      *          负责服务数据库初始化（安装时）、数据库用户管理、SQL 脚本执行、
      *          升级期数据库备份/恢复以及卸载时数据库清理。
      *          通过 ServiceContext 共享 ConfigLoader/FileManager 依赖，

@@ -9,6 +9,18 @@
 namespace qifeng::scm {
 
     /**
+     * @brief LIST 命令请求参数（无参数）
+     */
+    struct ListRequest {};
+
+    template <>
+    struct RequestCommand<ListRequest> { static constexpr ScmCommand value = ScmCommand::LIST; };
+
+    inline Json::Value ToJson(const ListRequest& /*req*/) {
+        return Json::Value(Json::objectValue);
+    }
+
+    /**
      * @brief LIST 命令处理器
      * @details 返回所有已安装服务的列表及运行状态。
      */
@@ -18,7 +30,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

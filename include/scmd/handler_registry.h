@@ -4,7 +4,6 @@
 
 #pragma once
 
-#include "ipc/data_def.h"
 #include "scmd/command_handler.h"
 
 #include <memory>

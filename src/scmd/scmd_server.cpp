@@ -6,12 +6,11 @@
 
 #include "common/config.h"
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "ipc/protocol.h"
 #include "ipc/uds.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/operation_recovery.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_container.h"
 
 #include <cerrno>
 #include <iostream>
@@ -21,9 +20,9 @@
 
 namespace qifeng::scm {
 
-    ScmServer::ScmServer(std::shared_ptr<ServiceControl> serviceControl) : mServiceControl(std::move(serviceControl)) {
-        // 构造操作恢复服务（依赖 dispatcher、serviceControl、keyRecorder，均已在成员初始化时构造）
-        mRecoveryService = std::make_unique<OperationRecoveryService>(mDispatcher, *mServiceControl, mKeyRecorder);
+    ScmServer::ScmServer(std::shared_ptr<ServiceContainer> serviceContainer) : mServiceContainer(std::move(serviceContainer)) {
+        // 构造操作恢复服务（依赖 dispatcher、serviceContainer、keyRecorder，均已在成员初始化时构造）
+        mRecoveryService = std::make_unique<OperationRecoveryService>(mDispatcher, mServiceContainer->GetServiceContext(), mKeyRecorder);
     }
 
     ScmServer::~ScmServer() {
@@ -32,12 +31,12 @@ namespace qifeng::scm {
 
     // NOLINTNEXTLINE(readability-function-size)
     ResultMsg ScmServer::Start(const std::string &socketPath) {
-        if (!mServiceControl) {
-            return MakeError("ServiceControl is null");
+        if (!mServiceContainer) {
+            return MakeError("ServiceContainer is null");
         }
 
         // 设置关键操作记录器文件路径
-        const auto &configLoader = mServiceControl->GetConfigLoader();
+        const auto &configLoader = mServiceContainer->GetConfigLoader();
         mKeyRecorder.SetFilePath(configLoader.GetKeyOptFilePath());
 
         // 注册所有命令处理器（需在恢复操作前注册，恢复逻辑通过分发器查表执行）
@@ -109,7 +108,7 @@ namespace qifeng::scm {
         // KILL 命令需要停止服务器自身，通过回调注入停止逻辑，避免 handler 反向依赖 ScmServer
         HandlerContext ctx;
         // 从配置计算自检配置路径（SelfCheckService 抽出后不再依赖成员变量）
-        const auto& configInfo = mServiceControl->GetConfigLoader().GetConfigInfo();
+        const auto& configInfo = mServiceContainer->GetConfigLoader().GetConfigInfo();
         ctx.selfTestConfigPath = configInfo.selftestConfigPath.empty()
             ? configInfo.configDir + "/selftest.json"
             : configInfo.selftestConfigPath;
@@ -162,10 +161,10 @@ namespace qifeng::scm {
                     return;
                 }
 
-                SLOG_INFO << "Received command: " << ScmCommandToString(request.Command());
+                SLOG_INFO << "Received command: " << ScmCommandToString(request.command);
 
                 // 分发请求并获取响应
-                ScmResponse response = mDispatcher.Dispatch(request, *mServiceControl, mKeyRecorder);
+                ScmResponse response = mDispatcher.Dispatch(request, mServiceContainer->GetServiceContext(), mKeyRecorder);
 
                 // 发送响应（直接使用系统调用）
                 auto encoded = ControlProtocol::EncodeResponse(response);

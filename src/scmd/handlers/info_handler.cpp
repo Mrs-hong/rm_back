@@ -7,11 +7,11 @@
 #include "common/scmd_types.h"
 #include "common/service_error_info.h"
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 #include <iomanip>
 #include <sstream>
@@ -19,15 +19,26 @@
 
 namespace qifeng::scm {
 
+    static std::optional<InfoRequest> FromJson(const Json::Value& params) {
+        InfoRequest req;
+        if (params.isMember("serviceName") && params["serviceName"].isString()) {
+            req.serviceName = params["serviceName"].asString();
+        }
+        if (params.isMember("infoDetail") && params["infoDetail"].isBool()) {
+            req.infoDetail = params["infoDetail"].asBool();
+        }
+        return req;
+    }
+
     ScmCommand InfoHandler::GetCommand() const {
         return ScmCommand::INFO;
     }
 
     ScmResponse InfoHandler::Handle(const ScmRequest& request,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& /*recorder*/) {
-        const auto* params = std::get_if<InfoRequest>(&request.data);
-        if (params == nullptr || params->serviceName.empty()) {
+        const auto params = FromJson(request.params);
+        if (!params.has_value() || params->serviceName.empty()) {
             SLOG_WARN << "Info command missing service name";
             ScmResponse response;
             response.code = -1;
@@ -36,10 +47,10 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.GetServiceStatus(params->serviceName);
+        auto result = ctx.serviceManager->GetServiceStatus(params->serviceName);
         response.code = result.code;
         if (result.IsDefalutSuccess()) {
-            auto info = serviceControl.GetServiceRuntimeInfo(params->serviceName);
+            auto info = ctx.serviceManager->GetServiceRuntimeInfo(params->serviceName);
             if (info.pid > 0 || params->infoDetail) {
                 response.message = "success";
                 Json::Value root;

@@ -378,7 +378,7 @@ namespace qifeng::scm {
         // 5. 验证通过，恢复服务起初状态
         RestoreServicesByState(preStates);
 
-        // 6. 清理 .back 备份（clear_model 成功后不再保留 .back，与 add_model 行为对称）
+        // 6. 删除 .back（clear_model 验证通过后删除模型，与 add_model 行为对称）
         if (fs::exists(backupPath)) {
             utils::ForceDeleteDirectory(backupPath);
         }

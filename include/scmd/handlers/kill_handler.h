@@ -10,6 +10,15 @@
 
 namespace qifeng::scm {
 
+    struct KillRequest {};
+
+    template <>
+    struct RequestCommand<KillRequest> { static constexpr ScmCommand value = ScmCommand::KILL; };
+
+    inline Json::Value ToJson(const KillRequest& /*req*/) {
+        return Json::Value(Json::objectValue);
+    }
+
     /**
      * @brief KILL 命令处理器
      * @details 触发 scmd 优雅退出。通过回调将具体的停止逻辑委托给 ScmServer，
@@ -25,7 +34,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
 
     private:

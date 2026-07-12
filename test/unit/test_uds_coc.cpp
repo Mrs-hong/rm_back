@@ -8,6 +8,21 @@
 
 #include "ipc/protocol.h"
 #include "ipc/uds.h"
+#include "scmd/handlers/info_handler.h"
+#include "scmd/handlers/install_handler.h"
+#include "scmd/handlers/kill_handler.h"
+#include "scmd/handlers/list_handler.h"
+#include "scmd/handlers/log_handler.h"
+#include "scmd/handlers/reload_all_handler.h"
+#include "scmd/handlers/reload_handler.h"
+#include "scmd/handlers/restart_all_handler.h"
+#include "scmd/handlers/restart_handler.h"
+#include "scmd/handlers/slog_handler.h"
+#include "scmd/handlers/start_handler.h"
+#include "scmd/handlers/stop_handler.h"
+#include "scmd/handlers/uninstall_handler.h"
+#include "scmd/handlers/upgrade_handler.h"
+#include "scmd/handlers/version_handler.h"
 
 #include <gtest/gtest.h>
 
@@ -25,8 +40,7 @@ using namespace qifeng::scm;
 // ============================================================================
 
 TEST(ProtocolTest, EncodeDecodeRequest) {
-    ScmRequest original;
-    original.data = StartRequest{"test_service"};
+    ScmRequest original = MakeRequest(StartRequest{"test_service"});
 
     std::string encoded = ControlProtocol::EncodeRequest(original);
     EXPECT_FALSE(encoded.empty());
@@ -36,10 +50,9 @@ TEST(ProtocolTest, EncodeDecodeRequest) {
     ScmRequest decoded;
     ASSERT_TRUE(ControlProtocol::DecodeRequest(jsonStr, decoded));
 
-    EXPECT_EQ(decoded.Command(), ScmCommand::START);
-    const auto* params = std::get_if<StartRequest>(&decoded.data);
-    ASSERT_NE(params, nullptr);
-    EXPECT_EQ(params->serviceName, "test_service");
+    EXPECT_EQ(decoded.command, ScmCommand::START);
+    ASSERT_TRUE(decoded.params.isMember("serviceName"));
+    EXPECT_EQ(decoded.params["serviceName"].asString(), "test_service");
 }
 
 TEST(ProtocolTest, EncodeDecodeResponse) {
@@ -65,25 +78,25 @@ TEST(ProtocolTest, EncodeDecodeResponse) {
 
 TEST(ProtocolTest, EncodeDecodeAllCommands) {
     ScmRequest requests[] = {
-        ScmRequest{VersionRequest{}},
-        ScmRequest{InstallRequest{"svc", "/tmp/pkg"}},
-        ScmRequest{StartRequest{"svc"}},
-        ScmRequest{StopRequest{"svc"}},
-        ScmRequest{RestartRequest{"svc"}},
-        ScmRequest{RestartAllRequest{}},
-        ScmRequest{UpgradeRequest{"svc", "/tmp/pkg"}},
-        ScmRequest{ListRequest{}},
-        ScmRequest{InfoRequest{"svc", true}},
-        ScmRequest{LogRequest{1, 10}},
-        ScmRequest{UninstallRequest{"svc"}},
-        ScmRequest{ReloadRequest{"svc"}},
-        ScmRequest{ReloadAllRequest{}},
-        ScmRequest{KillRequest{}},
-        ScmRequest{SlogRequest{"svc", 20}},
+        MakeRequest(VersionRequest{}),
+        MakeRequest(InstallRequest{"svc", "/tmp/pkg"}),
+        MakeRequest(StartRequest{"svc"}),
+        MakeRequest(StopRequest{"svc"}),
+        MakeRequest(RestartRequest{"svc"}),
+        MakeRequest(RestartAllRequest{}),
+        MakeRequest(UpgradeRequest{"svc", "/tmp/pkg"}),
+        MakeRequest(ListRequest{}),
+        MakeRequest(InfoRequest{"svc", true}),
+        MakeRequest(LogRequest{1, 10}),
+        MakeRequest(UninstallRequest{"svc"}),
+        MakeRequest(ReloadRequest{"svc"}),
+        MakeRequest(ReloadAllRequest{}),
+        MakeRequest(KillRequest{}),
+        MakeRequest(SlogRequest{"svc", 20}),
     };
 
     for (const auto& original : requests) {
-        auto cmd = original.Command();
+        auto cmd = original.command;
 
         std::string encoded = ControlProtocol::EncodeRequest(original);
         std::string jsonStr = encoded.substr(0, encoded.size() - 1);
@@ -91,7 +104,7 @@ TEST(ProtocolTest, EncodeDecodeAllCommands) {
         ScmRequest decoded;
         ASSERT_TRUE(ControlProtocol::DecodeRequest(jsonStr, decoded))
             << "Failed for command: " << ScmCommandToString(cmd);
-        EXPECT_EQ(decoded.Command(), cmd) << "Command mismatch for: " << ScmCommandToString(cmd);
+        EXPECT_EQ(decoded.command, cmd) << "Command mismatch for: " << ScmCommandToString(cmd);
     }
 }
 
@@ -249,9 +262,9 @@ TEST_F(UdsIpcTest, RequestResponse) {
             exit(5);
         }
 
-        if (req.Command() != ScmCommand::START) {
-            const auto* params = std::get_if<StartRequest>(&req.data);
-            if (params == nullptr || params->serviceName != "test_service") {
+        if (req.command != ScmCommand::START) {
+            if (!req.params.isMember("serviceName") ||
+                req.params["serviceName"].asString() != "test_service") {
                 close(clientFd);
                 exit(6);
             }
@@ -275,8 +288,7 @@ TEST_F(UdsIpcTest, RequestResponse) {
         ASSERT_TRUE(client.Initialize().code == 0);
         ASSERT_TRUE(client.Connect().code == 0);
 
-        ScmRequest req;
-        req.data = StartRequest{"test_service"};
+        ScmRequest req = MakeRequest(StartRequest{"test_service"});
 
         std::string reqData = ControlProtocol::EncodeRequest(req);
         ssize_t sent = client.Send(client.GetSocketFd(), reqData);
@@ -340,7 +352,7 @@ TEST_F(UdsIpcTest, MultipleCommands) {
 
             ScmResponse resp;
             resp.code = 0;
-            resp.message = ScmCommandToString(req.Command());
+            resp.message = ScmCommandToString(req.command);
             allResponses += ControlProtocol::EncodeResponse(resp);
         }
 
@@ -358,9 +370,9 @@ TEST_F(UdsIpcTest, MultipleCommands) {
         ASSERT_TRUE(client.Initialize().code == 0);
         ASSERT_TRUE(client.Connect().code == 0);
 
-        ScmRequest req1{ListRequest{}};
-        ScmRequest req2{VersionRequest{}};
-        ScmRequest req3{InfoRequest{"svc_a", false}};
+        ScmRequest req1 = MakeRequest(ListRequest{});
+        ScmRequest req2 = MakeRequest(VersionRequest{});
+        ScmRequest req3 = MakeRequest(InfoRequest{"svc_a", false});
 
         std::string allRequests;
         allRequests += ControlProtocol::EncodeRequest(req1);
@@ -437,7 +449,7 @@ TEST_F(UdsIpcTest, ErrorResponse) {
         ASSERT_TRUE(client.Initialize().code == 0);
         ASSERT_TRUE(client.Connect().code == 0);
 
-        ScmRequest req{StartRequest{"nonexistent"}};
+        ScmRequest req = MakeRequest(StartRequest{"nonexistent"});
 
         client.Send(client.GetSocketFd(), ControlProtocol::EncodeRequest(req));
 

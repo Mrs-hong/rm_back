@@ -6,23 +6,30 @@
 
 #include "checker/checker_runner.h"
 #include "common/json_load.h"
-#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
+
+    static std::optional<CheckRequest> FromJson(const Json::Value& params) {
+        CheckRequest req;
+        if (params.isObject() && params.isMember("configPath") && params["configPath"].isString()) {
+            req.configPath = params["configPath"].asString();
+        }
+        return req;
+    }
 
     ScmCommand CheckHandler::GetCommand() const {
         return ScmCommand::CHECK;
     }
 
     ScmResponse CheckHandler::Handle(const ScmRequest& request,
-                                      ServiceControl& /*serviceControl*/,
+                                      const ServiceContext& /*ctx*/,
                                       KeyOperationRecorder& /*recorder*/) {
         // 支持请求中指定配置路径，为空则使用构造时传入的默认路径
-        const auto* params = std::get_if<CheckRequest>(&request.data);
+        auto params = FromJson(request.params);
         std::string configPath = mConfigPath;
         if (params && !params->configPath.empty()) {
             configPath = params->configPath;

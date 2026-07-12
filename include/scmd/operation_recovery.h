@@ -10,7 +10,7 @@
 
 namespace qifeng::scm {
     class CommandDispatcher;
-    class ServiceControl;
+    struct ServiceContext;
     class KeyOperationRecorder;
 
     /**
@@ -24,11 +24,11 @@ namespace qifeng::scm {
         /**
          * @brief 构造函数
          * @param dispatcher 命令分发器（需已通过 LoadFromRegistry 注册所有 handler）
-         * @param serviceControl 服务控制门面
+         * @param ctx 服务上下文，包含所有子服务
          * @param recorder 关键操作记录器（需已设置文件路径）
          */
         OperationRecoveryService(CommandDispatcher& dispatcher,
-                                 ServiceControl& serviceControl,
+                                 const ServiceContext& ctx,
                                  KeyOperationRecorder& recorder);
 
         /**
@@ -42,7 +42,7 @@ namespace qifeng::scm {
 
     private:
         CommandDispatcher& mDispatcher;
-        ServiceControl& mServiceControl;
+        const ServiceContext& mContext;
         KeyOperationRecorder& mRecorder;
     };
 

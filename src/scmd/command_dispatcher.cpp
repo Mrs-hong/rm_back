@@ -4,11 +4,11 @@
 
 #include "scmd/command_dispatcher.h"
 
-#include "ipc/data_def.h"
+#include "ipc/protocol.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -35,9 +35,9 @@ namespace qifeng::scm {
     }
 
     ScmResponse CommandDispatcher::Dispatch(const ScmRequest& request,
-                                            ServiceControl& serviceControl,
+                                            const ServiceContext& ctx,
                                             KeyOperationRecorder& recorder) const {
-        ScmCommand cmd = request.Command();
+        ScmCommand cmd = request.command;
         auto it = mHandlers.find(cmd);
         if (it == mHandlers.end()) {
             ScmResponse response;
@@ -47,10 +47,10 @@ namespace qifeng::scm {
             return response;
         }
 
-        return it->second->Handle(request, serviceControl, recorder);
+        return it->second->Handle(request, ctx, recorder);
     }
 
-    ResultMsg CommandDispatcher::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) const {
+    ResultMsg CommandDispatcher::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) const {
         // 将操作名字符串映射为命令枚举
         auto cmdOpt = StringToScmCommand(record.optName);
         if (!cmdOpt.has_value()) {
@@ -64,7 +64,7 @@ namespace qifeng::scm {
             return MakeWarning("No handler for operation: " + record.optName);
         }
 
-        return it->second->Recover(record, serviceControl);
+        return it->second->Recover(record, ctx);
     }
 
 }  // namespace qifeng::scm

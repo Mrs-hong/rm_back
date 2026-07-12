@@ -9,9 +9,24 @@
 namespace qifeng::scm {
 
     /**
+     * @brief CLEAR_MODEL 命令请求参数
+     */
+    struct ClearModelRequest {
+        std::string modelName;  // 模型名（model_dir 下的文件或目录名）
+    };
+
+    template <>
+    struct RequestCommand<ClearModelRequest> { static constexpr ScmCommand value = ScmCommand::CLEAR_MODEL; };
+
+    inline Json::Value ToJson(const ClearModelRequest& req) {
+        Json::Value root;
+        root["modelName"] = req.modelName;
+        return root;
+    }
+
+    /**
      * @brief CLEAR_MODEL 命令处理器
-     * @details 停用并备份模型：将 model_dir 下指定模型重命名为 <name>.back，
-     *          验证依赖服务无影响后完成，否则回退。
+     * @details 清除（删除）模型：临时重命名为 .back 以便验证回退，验证通过后删除模型，失败则回退。
      */
     class ClearModelHandler : public ICommandHandler {
     public:
@@ -19,7 +34,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

@@ -5,7 +5,6 @@
 #pragma once
 #include "common/scmd_types.h"
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "service_manger/service_context.h"
 #include <memory>
 #include <string>

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/types.h"
-#include "ipc/data_def.h"
+#include "ipc/protocol.h"
 #include "scmd/command_dispatcher.h"
 #include "service_manger/key_recoder.h"
 
@@ -13,13 +13,13 @@
 #include <string>
 
 namespace qifeng::scm {
-    class ServiceControl;
+    class ServiceContainer;
     class UdsWrapper;
     class OperationRecoveryService;
 
     /**
      * @brief SCMD 服务端
-     * @details 居于uds功能块，负责接收scmctl的请求，并根据请求调用ServiceControl的功能，将结果返回；
+     * @details 居于uds功能块，负责接收scmctl的请求，并根据请求调用ServiceContainer的功能，将结果返回；
      * 其它要求：
      *    1. 一问一答，暂时是同步的（单客户端）；
      *    2. 支持优雅退出、当执行完相应的操作后退出
@@ -31,9 +31,9 @@ namespace qifeng::scm {
     public:
         /**
          * @brief 构造函数
-         * @param serviceControl 服务控制门面类
+         * @param serviceContainer 服务控制门面类
          */
-        explicit ScmServer(std::shared_ptr<ServiceControl> serviceControl);
+        explicit ScmServer(std::shared_ptr<ServiceContainer> serviceContainer);
 
         ~ScmServer();
 
@@ -73,7 +73,7 @@ namespace qifeng::scm {
          */
         void RegisterHandlers();
 
-        std::shared_ptr<ServiceControl> mServiceControl;
+        std::shared_ptr<ServiceContainer> mServiceContainer;
         std::unique_ptr<UdsWrapper> mUdsServer;
         KeyOperationRecorder mKeyRecorder;
         CommandDispatcher mDispatcher;

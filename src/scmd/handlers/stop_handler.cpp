@@ -5,35 +5,44 @@
 #include "scmd/handlers/stop_handler.h"
 
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
+
+    static std::optional<StopRequest> FromJson(const Json::Value& params) {
+        StopRequest req;
+        if (params.isMember("serviceName") && params["serviceName"].isString()) {
+            req.serviceName = params["serviceName"].asString();
+        }
+        return req;
+    }
 
     ScmCommand StopHandler::GetCommand() const {
         return ScmCommand::STOP;
     }
 
     ScmResponse StopHandler::Handle(const ScmRequest& request,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& recorder) {
-        const auto* params = std::get_if<StopRequest>(&request.data);
-        if (params == nullptr || params->serviceName.empty()) {
+        auto paramsOpt = FromJson(request.params);
+        if (!paramsOpt || paramsOpt->serviceName.empty()) {
             // 未指定服务名时，操作 scmd 自身
             SLOG_INFO << "Stop command without service name, operating on scmd self";
             ScmResponse response;
-            auto result = serviceControl.StopScmdSelf();
+            auto result = ctx.serviceManager->StopScmdSelf();
             response.code = result.code;
             response.message = result.msg;
             return response;
         }
 
+        const auto& params = *paramsOpt;
         ScmResponse response;
-        recorder.RecordOperation({"stop", params->serviceName, 2, "", ""});
-        auto result = serviceControl.StopService(params->serviceName);
+        recorder.RecordOperation({"stop", params.serviceName, 2, ""});
+        auto result = ctx.serviceManager->StopService(params.serviceName);
         response.code = result.code;
         response.message = result.msg;
         recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
@@ -43,9 +52,9 @@ namespace qifeng::scm {
         return response;
     }
 
-    ResultMsg StopHandler::Recover(const KeyOperationRecord& record, ServiceControl& serviceControl) {
+    ResultMsg StopHandler::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) {
         SLOG_INFO << "Stop was interrupted, retrying: " << record.serviceName;
-        return serviceControl.StopService(record.serviceName);
+        return ctx.serviceManager->StopService(record.serviceName);
     }
 
     REGISTER_COMMAND_HANDLER(ScmCommand::STOP, StopHandler)

@@ -4,7 +4,7 @@
 
 #pragma once
 #include "common/types.h"
-#include "ipc/data_def.h"
+#include "common/scmd_types.h"
 #include <string>
 
 namespace qifeng::scm {

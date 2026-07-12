@@ -8,6 +8,15 @@
 
 namespace qifeng::scm {
 
+    struct ReloadAllRequest {};
+
+    template <>
+    struct RequestCommand<ReloadAllRequest> { static constexpr ScmCommand value = ScmCommand::RELOAD_ALL; };
+
+    inline Json::Value ToJson(const ReloadAllRequest& /*req*/) {
+        return Json::Value(Json::objectValue);
+    }
+
     /**
      * @brief RELOAD_ALL 命令处理器
      * @details 重载所有已安装服务的配置。
@@ -18,7 +27,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

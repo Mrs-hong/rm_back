@@ -6,17 +6,17 @@
 
 #include "qifeng_framework/common/logger.h"
 #include "scmd/command_dispatcher.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 #include <iostream>
 
 namespace qifeng::scm {
 
     OperationRecoveryService::OperationRecoveryService(CommandDispatcher& dispatcher,
-                                                       ServiceControl& serviceControl,
+                                                       const ServiceContext& ctx,
                                                        KeyOperationRecorder& recorder)
-        : mDispatcher(dispatcher), mServiceControl(serviceControl), mRecorder(recorder) {
+        : mDispatcher(dispatcher), mContext(ctx), mRecorder(recorder) {
     }
 
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
@@ -28,7 +28,7 @@ namespace qifeng::scm {
         }
 
         SLOG_INFO << "Found last key operation: " << record.optName << " service=" << record.serviceName
-                  << " tarDir=" << record.tarDir << " sqlDir=" << record.sqlDir << " result=" << record.result;
+                  << " tarDir=" << record.tarDir << " result=" << record.result;
 
         // result语义：0成功 1失败 2进行中（被异常终止）
         if (record.result == 0) {
@@ -52,7 +52,7 @@ namespace qifeng::scm {
                   << "，正在恢复..." << std::endl;
 
         // 由分发器根据 record.optName 查表分发到对应 handler 的 Recover()
-        auto recoverResult = mDispatcher.Recover(record, mServiceControl);
+        auto recoverResult = mDispatcher.Recover(record, mContext);
 
         if (recoverResult.IsDefalutSuccess()) {
             SLOG_INFO << "Recovery completed successfully for: " << record.optName;

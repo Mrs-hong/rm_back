@@ -5,10 +5,10 @@
 #include "scmd/handlers/stop_all_handler.h"
 
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
 
@@ -17,10 +17,10 @@ namespace qifeng::scm {
     }
 
     ScmResponse StopAllHandler::Handle(const ScmRequest& /*request*/,
-                                       ServiceControl& serviceControl,
+                                       const ServiceContext& ctx,
                                        KeyOperationRecorder& /*recorder*/) {
         ScmResponse response;
-        auto result = serviceControl.StopAllServices();
+        auto result = ctx.serviceManager->StopAllServices();
         response.code = result.code;
         response.message = result.msg;
         return response;

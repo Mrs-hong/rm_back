@@ -5,23 +5,31 @@
 #include "scmd/handlers/add_model_handler.h"
 
 #include "common/types.h"
-#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/model_manager.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
+
+    static std::optional<AddModelRequest> FromJson(const Json::Value& params) {
+        AddModelRequest req;
+        if (params.isMember("srcPath") && params["srcPath"].isString()) {
+            req.srcPath = params["srcPath"].asString();
+        }
+        return req;
+    }
 
     ScmCommand AddModelHandler::GetCommand() const {
         return ScmCommand::ADD_MODEL;
     }
 
     ScmResponse AddModelHandler::Handle(const ScmRequest& request,
-                                          ServiceControl& serviceControl,
-                                          KeyOperationRecorder& /*recorder*/) {
-        const auto* params = std::get_if<AddModelRequest>(&request.data);
-        if (params == nullptr || params->srcPath.empty()) {
+                                        const ServiceContext& ctx,
+                                        KeyOperationRecorder& /*recorder*/) {
+        auto paramsOpt = FromJson(request.params);
+        if (!paramsOpt.has_value() || paramsOpt->srcPath.empty()) {
             SLOG_WARN << "add_model command missing source path";
             ScmResponse response;
             response.code = -1;
@@ -30,7 +38,7 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.AddModel(params->srcPath);
+        auto result = ctx.modelManager->AddModel(paramsOpt->srcPath);
         response.code = result.code;
         response.message = result.msg;
         return response;

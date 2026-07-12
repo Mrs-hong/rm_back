@@ -45,8 +45,8 @@ namespace qifeng::scm {
         ResultMsg AddModel(const std::string &srcPath);
 
         /**
-         * @brief 停用并备份模型
-         * @details 将 model_dir 下指定模型重命名为 <name>.back，验证依赖服务无影响后完成。
+         * @brief 清除（删除）模型
+         * @details 将 model_dir 下指定模型临时重命名为 <name>.back 以便验证回退，验证通过后删除。
          * @param modelName 模型名（model_dir 下的文件或目录名）
          * @return ResultMsg 操作结果
          */

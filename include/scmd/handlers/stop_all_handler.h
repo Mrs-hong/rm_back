@@ -8,6 +8,15 @@
 
 namespace qifeng::scm {
 
+    struct StopAllRequest {};
+
+    template <>
+    struct RequestCommand<StopAllRequest> { static constexpr ScmCommand value = ScmCommand::STOP_ALL; };
+
+    inline Json::Value ToJson(const StopAllRequest& /*req*/) {
+        return Json::Value(Json::objectValue);
+    }
+
     /**
      * @brief STOP_ALL 命令处理器
      * @details 停止所有已安装服务。
@@ -18,7 +27,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

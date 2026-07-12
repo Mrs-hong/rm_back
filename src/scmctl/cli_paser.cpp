@@ -3,6 +3,7 @@
  */
 #include "scmctl/cli_command_registry.h"
 #include "scmctl/cli_paser.h"
+#include "scmd/handlers/version_handler.h"
 
 #include <CLI/CLI.hpp>
 
@@ -23,7 +24,7 @@ namespace qifeng::scm {
         try {
             app.parse(argc, argv);
         } catch (const CLI::CallForVersion &e) {
-            mRequest.data = VersionRequest{};
+            mRequest = MakeRequest(VersionRequest{});
             return MakeWarning(e.what());
         } catch (const CLI::ParseError &e) {
             if (e.get_exit_code() == 0) {

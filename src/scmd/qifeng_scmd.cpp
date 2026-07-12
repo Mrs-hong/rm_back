@@ -6,7 +6,7 @@
 #include "common/version.hpp"
 #include "scmd/scmd_server.h"
 #include "scmd/self_check_service.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_container.h"
 
 #include <atomic>
 #include <csignal>
@@ -53,8 +53,8 @@ int main() {
     std::cout << "qf_scmd version " << versionInfo.version << " (build: " << versionInfo.buildTime
               << ", commit: " << versionInfo.gitCommit << ")" << std::endl;
 
-    // 1. 创建ServiceControl并初始化
-    auto serviceControl = std::make_shared<qifeng::scm::ServiceControl>();
+    // 1. 创建ServiceContainer并初始化
+    auto serviceControl = std::make_shared<qifeng::scm::ServiceContainer>();
     auto result = serviceControl->Init();
     if (!result.IsDefalutSuccess()) {
         std::cerr << "[scmd] 初始化失败: " << result.msg << std::endl;

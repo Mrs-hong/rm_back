@@ -9,6 +9,20 @@
 namespace qifeng::scm {
 
     /**
+     * @brief UNINSTALL_ALL 命令请求参数
+     */
+    struct UninstallAllRequest {};
+
+    template <>
+    struct RequestCommand<UninstallAllRequest> {
+        static constexpr ScmCommand value = ScmCommand::UNINSTALL_ALL;
+    };
+
+    inline Json::Value ToJson(const UninstallAllRequest& /*req*/) {
+        return Json::Value{};
+    }
+
+    /**
      * @brief UNINSTALL_ALL 命令处理器
      * @details 卸载所有已安装服务，但保留 scmd 自身。
      */
@@ -18,7 +32,7 @@ namespace qifeng::scm {
 
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

@@ -170,5 +170,17 @@ namespace qifeng {
             Status status;
             std::string serviceName;
         };
+
+        /**
+         * @brief nginx 重置模式
+         * @details WAIT: 等待状态（所有路由返回 404，用于服务升级期间）
+         *          NORMAL: 恢复正常（使 scm_*.conf 生效，移除 waiting 配置）
+         *          BACK: 全部无效（只能访问 nginx 欢迎页，移除所有 scm 配置和系统默认站点）
+         */
+        enum class NginxResetMode {
+            WAIT,    // 等待状态：安装 waiting.conf，所有路由返回 404
+            NORMAL,  // 恢复正常：移除 waiting.conf，恢复 scm_*.conf
+            BACK     // 全部无效：移除所有 scm 配置，恢复系统默认欢迎页
+        };
     }  // namespace scm
 }  // namespace qifeng
