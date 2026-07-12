@@ -47,8 +47,8 @@ namespace qifeng::scm {
         auto result = ctx.upgradeService->PerformIntegratedUpgrade(params->serviceName, params->tarDir);
         response.code = result.code;
         response.message = result.msg;
-        recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
-        if (result.IsDefalutSuccess()) {
+        recorder.UpdateResult(result.IsDefaultSuccess() ? 0 : 1);
+        if (result.IsDefaultSuccess()) {
             recorder.Clear();
         }
         return response;

@@ -25,19 +25,19 @@ namespace qifeng::scm {
 
         // 先停止所有服务
         auto stopResult = ctx.serviceManager->StopAllServices();
-        if (!stopResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to stop: " << stopResult.msg;
         }
 
         // 再启动所有autoStart服务
         auto startResult = ctx.serviceManager->StartAllAutoStartServices();
-        if (!startResult.IsDefalutSuccess()) {
+        if (!startResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to start: " << startResult.msg;
         }
 
         // 任一步骤失败则返回警告
         ResultMsg result;
-        if (!stopResult.IsDefalutSuccess() || !startResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess() || !startResult.IsDefaultSuccess()) {
             result = MakeWarning("Some services failed during restart");
         } else {
             SLOG_INFO << "All services restarted successfully";

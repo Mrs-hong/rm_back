@@ -47,13 +47,13 @@ namespace qifeng::scm {
         }
 
         auto result = InitializeFileManager();
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             SLOG_ERROR << "Failed to initialize FileManager: " << result.msg;
             return;
         }
 
         result = InitializeDBusManager();
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             SLOG_ERROR << "Failed to initialize DBusManager: " << result.msg;
             return;
         }
@@ -71,7 +71,7 @@ namespace qifeng::scm {
     ResultMsg ServiceManager::InitializeFileManager() {
         if (!mConfigLoader->IsInitialized()) {
             auto initResult = mConfigLoader->Initialize();
-            if (!initResult.IsDefalutSuccess()) {
+            if (!initResult.IsDefaultSuccess()) {
                 return MakeError("Failed to initialize ConfigLoader: " + initResult.msg);
             }
         }
@@ -88,7 +88,7 @@ namespace qifeng::scm {
 
         mFileManager = std::make_shared<FileManager>(std::move(dirConfig));
         auto result = mFileManager->InitFileDir();
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to initialize FileManager: " + result.msg);
         }
 
@@ -103,7 +103,7 @@ namespace qifeng::scm {
 
         // sd_bus_open_system成功不代表实际能通信，需做一次真实调用验证
         auto testResult = mDBusManager->ReloadDaemon();
-        if (!testResult.IsDefalutSuccess()) {
+        if (!testResult.IsDefaultSuccess()) {
             SLOG_WARN << "DBus与systemd通信失败: " << testResult.msg;
             if (geteuid() != 0) {
                 SLOG_WARN << "请使用sudo启动scmd以获得systemd控制权限";
@@ -135,7 +135,7 @@ namespace qifeng::scm {
     ResultMsg ServiceManager::ExtractSoftwareTar(const std::string &tarPath, const std::string &extractDir,
                                                  const std::string &newName) {
         auto result = utils::ExtractTarWithCleanup(tarPath, extractDir);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return result;
         }
 
@@ -166,7 +166,7 @@ namespace qifeng::scm {
         // EnsureSequenceUpdated 内部已调用 CheckDependenciesMap 进行完整依赖检查
         // 若存在循环依赖，序列计算会失败，此处直接返回
         auto seqResult = EnsureSequenceUpdated();
-        if (!seqResult.IsDefalutSuccess()) {
+        if (!seqResult.IsDefaultSuccess()) {
             return seqResult;
         }
 
@@ -191,7 +191,7 @@ namespace qifeng::scm {
 
     ResultMsg ServiceManager::StartDependentServices(const std::string &serviceName) {
         auto seqResult = EnsureSequenceUpdated();
-        if (!seqResult.IsDefalutSuccess()) {
+        if (!seqResult.IsDefaultSuccess()) {
             return seqResult;
         }
         // 系统服务暂时不检测、直接跳过
@@ -219,12 +219,12 @@ namespace qifeng::scm {
             }
 
             auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(name));
-            if (stateResult.IsDefalutSuccess() && stateResult.msg == "active") {
+            if (stateResult.IsDefaultSuccess() && stateResult.msg == "active") {
                 continue;
             }
 
             auto startResult = mDBusManager->StartUnit(ToSystemdUnitName(name));
-            if (!startResult.IsDefalutSuccess()) {
+            if (!startResult.IsDefaultSuccess()) {
                 return MakeError("Failed to start dependency service " + name + ": " + startResult.msg);
             }
 
@@ -257,27 +257,27 @@ namespace qifeng::scm {
 
         auto genResult = ServiceGenerator::GenerateContent(*svc, FileManager::GetServiceFilePrefix(),
                                                            mConfigLoader->GetConfigInfo());
-        if (!genResult.IsDefalutSuccess()) {
+        if (!genResult.IsDefaultSuccess()) {
             return MakeError("Failed to generate service file content: " + genResult.msg);
         }
 
         // 检查 service 文件是否已存在，若存在则更新
         auto fileResult = mFileManager->CreateServiceFile(genResult.msg, serviceName);
-        if (!fileResult.IsDefalutSuccess()) {
+        if (!fileResult.IsDefaultSuccess()) {
             // 文件已存在时尝试更新
             fileResult = mFileManager->FreshServiceFile(genResult.msg, serviceName);
-            if (!fileResult.IsDefalutSuccess()) {
+            if (!fileResult.IsDefaultSuccess()) {
                 return MakeError("Failed to create/update service file: " + fileResult.msg);
             }
         }
 
         auto linkResult = mFileManager->FreshServiceSymlink(serviceName);
-        if (!linkResult.IsDefalutSuccess()) {
+        if (!linkResult.IsDefaultSuccess()) {
             return MakeError("Failed to fresh/update service symlink: " + linkResult.msg);
         }
 
         auto reloadResult = mDBusManager->ReloadDaemon();
-        if (!reloadResult.IsDefalutSuccess()) {
+        if (!reloadResult.IsDefaultSuccess()) {
             return MakeError("Failed to reload systemd daemon: " + reloadResult.msg);
         }
 
@@ -326,13 +326,13 @@ namespace qifeng::scm {
 
         // 服务活跃状态
         auto stateResult = mDBusManager->GetUnitActiveState(unitName);
-        if (stateResult.IsDefalutSuccess()) {
+        if (stateResult.IsDefaultSuccess()) {
             info.status = stateResult.msg;
         }
 
         // 主进程 PID
         auto pidResult = mDBusManager->GetServiceMainPID(unitName);
-        if (pidResult.IsDefalutSuccess()) {
+        if (pidResult.IsDefaultSuccess()) {
             try {
                 info.pid = static_cast<pid_t>(std::stoul(pidResult.msg));
             } catch (...) {
@@ -342,7 +342,7 @@ namespace qifeng::scm {
 
         // 重启次数
         auto nRestartsResult = mDBusManager->GetServiceNRestarts(unitName);
-        if (nRestartsResult.IsDefalutSuccess()) {
+        if (nRestartsResult.IsDefaultSuccess()) {
             try {
                 info.recoveryCount = std::stoi(nRestartsResult.msg);
             } catch (...) {
@@ -352,7 +352,7 @@ namespace qifeng::scm {
 
         // 内存使用量（systemd 在服务未运行时返回 UINT64_MAX，视为 0）
         auto memResult = mDBusManager->GetServiceMemoryCurrent(unitName);
-        if (memResult.IsDefalutSuccess()) {
+        if (memResult.IsDefaultSuccess()) {
             try {
                 uint64_t memValue = std::stoull(memResult.msg);
                 info.memoryUsage = (memValue == UINT64_MAX) ? 0 : static_cast<size_t>(memValue);
@@ -364,7 +364,7 @@ namespace qifeng::scm {
         // 启动时间与运行时长（从 ActiveEnterTimestamp 获取）
         uint64_t activeEnterUsec = 0;
         auto timestampResult = mDBusManager->GetUnitActiveEnterTimestamp(unitName);
-        if (timestampResult.IsDefalutSuccess()) {
+        if (timestampResult.IsDefaultSuccess()) {
             try {
                 activeEnterUsec = std::stoull(timestampResult.msg);
                 if (activeEnterUsec > 0) {
@@ -378,7 +378,7 @@ namespace qifeng::scm {
 
         // CPU 占用比率（0.0~1.0，已按核心数归一化）
         auto cpuResult = mDBusManager->GetServiceCPUUsageNSec(unitName);
-        if (cpuResult.IsDefalutSuccess() && activeEnterUsec > 0) {
+        if (cpuResult.IsDefaultSuccess() && activeEnterUsec > 0) {
             try {
                 uint64_t cpuUsageNSec = std::stoull(cpuResult.msg);
                 info.cpuUsage = utils::CalculateCpuUsage(cpuUsageNSec, activeEnterUsec);
@@ -390,7 +390,7 @@ namespace qifeng::scm {
         // --- 3. 错误诊断信息（SubState + 失败原因） ---
         // 获取 SubState（无论服务是否 active 都采集）
         auto subStateResult = mDBusManager->GetUnitSubState(unitName);
-        if (subStateResult.IsDefalutSuccess()) {
+        if (subStateResult.IsDefaultSuccess()) {
             info.subState = subStateResult.msg;
         }
 
@@ -398,12 +398,12 @@ namespace qifeng::scm {
         bool isActive = (info.status == "active" || info.status == "activating");
         if (!isActive) {
             auto resultResult = mDBusManager->GetServiceResult(unitName);
-            if (resultResult.IsDefalutSuccess()) {
+            if (resultResult.IsDefaultSuccess()) {
                 info.errorResult = resultResult.msg;
             }
 
             auto exitCodeResult = mDBusManager->GetServiceExecMainCode(unitName);
-            if (exitCodeResult.IsDefalutSuccess()) {
+            if (exitCodeResult.IsDefaultSuccess()) {
                 try {
                     info.exitCode = std::stoi(exitCodeResult.msg);
                 } catch (...) {
@@ -412,7 +412,7 @@ namespace qifeng::scm {
             }
 
             auto exitStatusResult = mDBusManager->GetServiceExecMainStatus(unitName);
-            if (exitStatusResult.IsDefalutSuccess()) {
+            if (exitStatusResult.IsDefaultSuccess()) {
                 try {
                     info.exitStatus = std::stoi(exitStatusResult.msg);
                 } catch (...) {
@@ -426,7 +426,7 @@ namespace qifeng::scm {
 
     void ServiceManager::CleanupTempDirectory(const std::string &dirPath) {
         auto result = utils::ForceDeleteDirectory(dirPath);
-        if (result.IsDefalutSuccess()) {
+        if (result.IsDefaultSuccess()) {
             SLOG_INFO << "Cleaned up temp directory: " << dirPath;
         } else {
             SLOG_ERROR << "Failed to cleanup temp directory: " << dirPath << ", error: " << result.msg;
@@ -463,7 +463,7 @@ namespace qifeng::scm {
     std::vector<std::string> ServiceManager::GetDependentServices(const std::string &serviceName) {
         // 优先使用缓存的反向邻接表，避免每次线性扫描所有服务
         auto seqResult = EnsureSequenceUpdated();
-        if (seqResult.IsDefalutSuccess()) {
+        if (seqResult.IsDefaultSuccess()) {
             auto it = mServiceSequence.reverseAdj.find(serviceName);
             if (it != mServiceSequence.reverseAdj.end()) {
                 return it->second;
@@ -491,7 +491,7 @@ namespace qifeng::scm {
         // 准备源目录：tar 包则解压，已解压目录则直接拷贝到临时目录
         if (IsTarPackage(softwareTarPath)) {
             result = ExtractSoftwareTar(softwareTarPath, extractDir, serviceName);
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 CleanupTempDirectory(extractDir);
                 return result;
             }
@@ -525,7 +525,7 @@ namespace qifeng::scm {
             actualServiceName = configServiceName;
             // 使用拷贝而非移动：避免安装失败时（服务被中断）用户源目录丢失无法恢复
             result = utils::CopyDirectory(softwareTarPath, extractDir);
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 CleanupTempDirectory(extractDir);
                 return result;
             }
@@ -534,7 +534,7 @@ namespace qifeng::scm {
             if (!fs::exists(serviceSubDir)) {
                 // service.yaml 直接在 extractDir 下：创建 serviceName 子目录并移入所有内容
                 auto mkdirRet = utils::CreateDirectory(serviceSubDir);
-                if (!mkdirRet.IsDefalutSuccess()) {
+                if (!mkdirRet.IsDefaultSuccess()) {
                     CleanupTempDirectory(extractDir);
                     return MakeError("Failed to create service subdirectory: " + mkdirRet.msg);
                 }
@@ -556,7 +556,7 @@ namespace qifeng::scm {
         }
 
         result = mFileManager->InstallSoftwarePackage(actualServiceName, extractDir);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             CleanupTempDirectory(extractDir);
             return MakeError("Failed to install software package: " + result.msg);
         }
@@ -564,7 +564,7 @@ namespace qifeng::scm {
         // 注册服务到 ConfigLoader（使用安装后的服务目录）
         std::string installedServiceDir = mFileManager->GetServiceWDir(actualServiceName);
         result = mConfigLoader->AddService(installedServiceDir);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             SLOG_ERROR << "Failed to register service in ConfigLoader: " << result.msg;
             // AddService 失败时需回滚：删除已拷贝的服务目录
             mFileManager->CleanupService(actualServiceName);
@@ -573,7 +573,7 @@ namespace qifeng::scm {
         }
 
         result = GenerateAndCreateServiceFile(actualServiceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             // 删除已经拷贝过来的服务目录
             mConfigLoader->RemoveService(actualServiceName);
             mFileManager->CleanupService(actualServiceName);
@@ -600,12 +600,12 @@ namespace qifeng::scm {
                 auto parentDir = fs::path(linkPath).parent_path().string();
                 if (!parentDir.empty() && !fs::exists(parentDir)) {
                     auto mkdirRet = utils::CreateDirectory(parentDir);
-                    if (!mkdirRet.IsDefalutSuccess()) {
+                    if (!mkdirRet.IsDefaultSuccess()) {
                         SLOG_ERROR << "Failed to create parent directory for model symlink: " << parentDir;
                     }
                 }
                 auto symlinkResult = utils::CreateSymbolicLink(targetPath, linkPath);
-                if (!symlinkResult.IsDefalutSuccess()) {
+                if (!symlinkResult.IsDefaultSuccess()) {
                     SLOG_ERROR << "Failed to create model symlink, rolling back installation: "
                                << symlinkResult.msg;
                     mConfigLoader->RemoveService(actualServiceName);
@@ -627,7 +627,7 @@ namespace qifeng::scm {
         if (keepSec > 0) {
             SLOG_INFO << "Verifying installed service keeps running for " << keepSec << "s: " << actualServiceName;
             auto startRet = StartService(actualServiceName);
-            if (!startRet.IsDefalutSuccess()) {
+            if (!startRet.IsDefaultSuccess()) {
                 SLOG_WARN << "Installed service failed to start: " << startRet.msg;
                 return MakeWarning(actualServiceName + " installed, but failed to start: " + startRet.msg);
             }
@@ -659,18 +659,18 @@ namespace qifeng::scm {
         }
 
         auto depResult = CheckServiceDependencies(serviceName);
-        if (!depResult.IsDefalutSuccess()) {
+        if (!depResult.IsDefaultSuccess()) {
             return depResult;
         }
 
         auto startDepResult = StartDependentServices(serviceName);
-        if (!startDepResult.IsDefalutSuccess()) {
+        if (!startDepResult.IsDefaultSuccess()) {
             return startDepResult;
         }
 
         // 使用 scmd_ 前缀的 systemd 单元名
         auto result = mDBusManager->StartUnit(ToSystemdUnitName(serviceName));
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to start service: " + result.msg);
         }
 
@@ -680,7 +680,7 @@ namespace qifeng::scm {
         // 接受 "active"（已运行）和 "activating"（启动中）两种状态为成功
         // 原因：systemd 启动某些服务（如 Type=simple 但依赖未就绪、或 Type=forking 派生中）
         //       会短暂停留在 activating，属正常过渡态，不应判定为失败
-        if (stateResult.IsDefalutSuccess() && (stateResult.msg == "active" || stateResult.msg == "activating")) {
+        if (stateResult.IsDefaultSuccess() && (stateResult.msg == "active" || stateResult.msg == "activating")) {
             SLOG_INFO << "Service started successfully: " << serviceName << " (state: " << stateResult.msg << ")";
             return MakeSuccess();
         } else {
@@ -705,13 +705,13 @@ namespace qifeng::scm {
         auto dependents = GetDependentServices(serviceName);
         for (const auto &depName : dependents) {
             auto depState = mDBusManager->GetUnitActiveState(ToSystemdUnitName(depName));
-            if (depState.IsDefalutSuccess() && depState.msg == "active") {
+            if (depState.IsDefaultSuccess() && depState.msg == "active") {
                 SLOG_WARN << "Warning: service " << depName << " depends on " << serviceName << " and is still running";
             }
         }
 
         auto result = mDBusManager->StopUnit(ToSystemdUnitName(serviceName));
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to stop service: " + result.msg);
         }
 
@@ -720,7 +720,7 @@ namespace qifeng::scm {
         std::string finalState;
         for (uint32_t i = 0; i < timeoutSec * 2; ++i) {
             auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-            if (stateResult.IsDefalutSuccess()) {
+            if (stateResult.IsDefaultSuccess()) {
                 finalState = stateResult.msg;
                 if (stateResult.msg == "inactive" || stateResult.msg == "failed") {
                     SLOG_INFO << "Service stopped successfully: " << serviceName;
@@ -735,7 +735,7 @@ namespace qifeng::scm {
                   << ", force killing process for: " << serviceName;
 
         auto pidResult = mDBusManager->GetServiceMainPID(ToSystemdUnitName(serviceName));
-        if (!pidResult.IsDefalutSuccess() || pidResult.msg.empty()) {
+        if (!pidResult.IsDefaultSuccess() || pidResult.msg.empty()) {
             SLOG_WARN << "Failed to get service PID, cannot kill: " << serviceName;
             return MakeError("Service stop timeout and unable to get PID: " + serviceName);
         }
@@ -762,7 +762,7 @@ namespace qifeng::scm {
         // 等待进程退出后确认最终状态
         std::this_thread::sleep_for(std::chrono::milliseconds(500));
         auto finalCheck = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-        if (finalCheck.IsDefalutSuccess() && (finalCheck.msg == "inactive" || finalCheck.msg == "failed")) {
+        if (finalCheck.IsDefaultSuccess() && (finalCheck.msg == "inactive" || finalCheck.msg == "failed")) {
             return MakeSuccess();
         }
         return MakeError("Service stop timeout and unexpected final state: " + finalCheck.msg);
@@ -782,7 +782,7 @@ namespace qifeng::scm {
 
         // 使用 DBusManager::RestartUnit 原子操作，而非手动 stop+start
         auto result = mDBusManager->RestartUnit(ToSystemdUnitName(serviceName));
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to restart service: " + result.msg);
         }
 
@@ -790,7 +790,7 @@ namespace qifeng::scm {
 
         auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
         // 与 StartService 保持一致：接受 "active" 和 "activating" 为成功
-        if (stateResult.IsDefalutSuccess() && (stateResult.msg == "active" || stateResult.msg == "activating")) {
+        if (stateResult.IsDefaultSuccess() && (stateResult.msg == "active" || stateResult.msg == "activating")) {
             SLOG_INFO << "Service restarted successfully: " << serviceName << " (state: " << stateResult.msg << ")";
             return MakeSuccess();
         } else {
@@ -825,27 +825,27 @@ namespace qifeng::scm {
         if (serviceName.empty()) {
             // 重载所有服务：停止所有 -> 重新加载配置 -> 重新生成文件 -> 启动 auto-start
             auto result = StopAllServices();
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 return MakeError("Failed to stop services before reload: " + result.msg);
             }
 
             auto allServices = mConfigLoader->GetAllServices();
             for (const auto &svc : allServices) {
                 result = mConfigLoader->ReloadService(svc.serviceName);
-                if (!result.IsDefalutSuccess()) {
+                if (!result.IsDefaultSuccess()) {
                     SLOG_ERROR << "Failed to reload service config " << svc.serviceName << ": " << result.msg;
                     continue;
                 }
 
                 result = GenerateAndCreateServiceFile(svc.serviceName);
-                if (!result.IsDefalutSuccess()) {
+                if (!result.IsDefaultSuccess()) {
                     SLOG_ERROR << "Failed to regenerate service file for " << svc.serviceName << ": " << result.msg;
                 }
             }
             MarkSequenceDirty();
 
             result = StartAllAutoStartServices();
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 return MakeError("Failed to start services after reload: " + result.msg);
             }
             return MakeSuccess();
@@ -853,24 +853,24 @@ namespace qifeng::scm {
 
         // 重载单个服务：停止 -> 重新加载配置 -> 重新生成文件 -> 启动
         auto result = StopService(serviceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to stop service before reload: " + result.msg);
         }
 
         result = mConfigLoader->ReloadService(serviceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return result;
         }
 
         result = GenerateAndCreateServiceFile(serviceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return result;
         }
 
         MarkSequenceDirty();
 
         result = StartService(serviceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to start service after reload: " + result.msg);
         }
 
@@ -917,7 +917,7 @@ namespace qifeng::scm {
 
     bool ServiceManager::IsServiceActive(const std::string &serviceName) {
         auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-        return stateResult.IsDefalutSuccess() && stateResult.msg == "active";
+        return stateResult.IsDefaultSuccess() && stateResult.msg == "active";
     }
 
     ResultMsg ServiceManager::UninstallService(const std::string &serviceName) {
@@ -934,16 +934,16 @@ namespace qifeng::scm {
 
         // 先检查并停止运行中的服务
         auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-        if (stateResult.IsDefalutSuccess() && stateResult.msg == "active") {
+        if (stateResult.IsDefaultSuccess() && stateResult.msg == "active") {
             auto stopResult = StopService(serviceName);
-            if (!stopResult.IsDefalutSuccess()) {
+            if (!stopResult.IsDefaultSuccess()) {
                 SLOG_INFO << "Failed to stop service during uninstall: " << stopResult.msg;
             }
         }
 
         // 禁用开机自启
         auto disableResult = mDBusManager->DisableUnit(ToSystemdUnitName(serviceName));
-        if (!disableResult.IsDefalutSuccess()) {
+        if (!disableResult.IsDefaultSuccess()) {
             SLOG_INFO << "Failed to disable auto-start during uninstall: " << disableResult.msg;
         }
 
@@ -951,12 +951,12 @@ namespace qifeng::scm {
         mFileManager->CleanupService(serviceName);
 
         auto removeResult = mConfigLoader->RemoveService(serviceName);
-        if (!removeResult.IsDefalutSuccess()) {
+        if (!removeResult.IsDefaultSuccess()) {
             return MakeError("Failed to remove service from ConfigLoader: " + removeResult.msg);
         }
 
         auto reloadResult = mDBusManager->ReloadDaemon();
-        if (!reloadResult.IsDefalutSuccess()) {
+        if (!reloadResult.IsDefaultSuccess()) {
             return MakeError("Failed to reload systemd daemon: " + reloadResult.msg);
         }
 
@@ -969,16 +969,16 @@ namespace qifeng::scm {
         SLOG_INFO << "Clearing service data for " << serviceName;
         // 先检查并停止运行中的服务
         auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(serviceName));
-        if (stateResult.IsDefalutSuccess() && stateResult.msg == "active") {
+        if (stateResult.IsDefaultSuccess() && stateResult.msg == "active") {
             auto stopResult = StopService(serviceName);
-            if (!stopResult.IsDefalutSuccess()) {
+            if (!stopResult.IsDefaultSuccess()) {
                 SLOG_INFO << "Failed to stop service during uninstall: " << stopResult.msg;
             }
         }
 
         // 禁用开机自启
         auto disableResult = mDBusManager->DisableUnit(ToSystemdUnitName(serviceName));
-        if (!disableResult.IsDefalutSuccess()) {
+        if (!disableResult.IsDefaultSuccess()) {
             SLOG_INFO << "Failed to disable auto-start during uninstall: " << disableResult.msg;
         }
 
@@ -1007,7 +1007,7 @@ namespace qifeng::scm {
         }
 
         auto result = mDBusManager->EnableUnit(ToSystemdUnitName(serviceName));
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to enable auto-start: " + result.msg);
         }
 
@@ -1028,7 +1028,7 @@ namespace qifeng::scm {
         }
 
         auto result = mDBusManager->DisableUnit(ToSystemdUnitName(serviceName));
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to disable auto-start: " + result.msg);
         }
 
@@ -1045,7 +1045,7 @@ namespace qifeng::scm {
         }
 
         auto seqResult = EnsureSequenceUpdated();
-        if (!seqResult.IsDefalutSuccess()) {
+        if (!seqResult.IsDefaultSuccess()) {
             return seqResult;
         }
 
@@ -1056,7 +1056,7 @@ namespace qifeng::scm {
             }
 
             auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(svcName));
-            if (stateResult.IsDefalutSuccess() && stateResult.msg == "active") {
+            if (stateResult.IsDefaultSuccess() && stateResult.msg == "active") {
                 SLOG_INFO << "Service already running: " << svcName;
                 continue;
             }
@@ -1077,7 +1077,7 @@ namespace qifeng::scm {
                 }
                 if (!depSvc->isAutoStart) {
                     auto depState = mDBusManager->GetUnitActiveState(ToSystemdUnitName(depName));
-                    if (!(depState.IsDefalutSuccess() && depState.msg == "active")) {
+                    if (!(depState.IsDefaultSuccess() && depState.msg == "active")) {
                         SLOG_WARN << "Skipping auto-start for " << svcName << ": dependency " << depName
                                   << " has autoStart=false and is not running";
                         canAutoStart = false;
@@ -1090,7 +1090,7 @@ namespace qifeng::scm {
             }
 
             auto result = StartService(svcName);
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 SLOG_ERROR << "Failed to start auto-start service " << svcName << ": " << result.msg;
             }
         }
@@ -1107,18 +1107,18 @@ namespace qifeng::scm {
         }
 
         auto seqResult = EnsureSequenceUpdated();
-        if (!seqResult.IsDefalutSuccess()) {
+        if (!seqResult.IsDefaultSuccess()) {
             return seqResult;
         }
 
         for (const auto &svcName : mServiceSequence.stopOrder) {
             auto stateResult = mDBusManager->GetUnitActiveState(ToSystemdUnitName(svcName));
-            if (!stateResult.IsDefalutSuccess() || stateResult.msg != "active") {
+            if (!stateResult.IsDefaultSuccess() || stateResult.msg != "active") {
                 continue;
             }
 
             auto result = StopService(svcName);
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 SLOG_ERROR << "Failed to stop service " << svcName << ": " << result.msg;
             }
         }

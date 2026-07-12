@@ -44,7 +44,7 @@ namespace qifeng::scm {
             // tar 包：解压到临时目录（不指定子目录名，由 FileManager 内部查找 nginx/frontend 子目录）
             tempDir = utils::GenerateTempDir(mCtx.fileManager->GetCurDirConfig().tempDir);
             auto extractResult = mServiceManager.ExtractSoftwareTar(dirPath, tempDir);
-            if (!extractResult.IsDefalutSuccess()) {
+            if (!extractResult.IsDefaultSuccess()) {
                 mServiceManager.CleanupTempDirectory(tempDir);
                 return MakeError("Failed to extract tar for nginx: " + extractResult.msg);
             }
@@ -64,7 +64,7 @@ namespace qifeng::scm {
             mServiceManager.CleanupTempDirectory(tempDir);
         }
 
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             SLOG_ERROR << "Failed to init nginx: " << result.msg;
             return result;
         }
@@ -78,11 +78,11 @@ namespace qifeng::scm {
 
         // 1. 先检查系统默认配置是否有效
         auto testResult = nginx.TestSystemConfig();
-        if (!testResult.IsDefalutSuccess()) {
+        if (!testResult.IsDefaultSuccess()) {
             // 配置测试失败，回退 nginx 配置
             SLOG_ERROR << "nginx system config test failed, rolling back: " << testResult.msg;
             auto rollbackResult = mCtx.fileManager->ResetNginx();
-            if (!rollbackResult.IsDefalutSuccess()) {
+            if (!rollbackResult.IsDefaultSuccess()) {
                 SLOG_WARN << "Failed to rollback nginx config: " << rollbackResult.msg;
             }
             return MakeError("nginx config test failed: " + testResult.msg);
@@ -92,14 +92,14 @@ namespace qifeng::scm {
         ResultMsg applyResult;
         if (nginx.IsRunning()) {
             applyResult = nginx.Reload();
-            if (!applyResult.IsDefalutSuccess()) {
+            if (!applyResult.IsDefaultSuccess()) {
                 SLOG_ERROR << "nginx reload failed: " << applyResult.msg;
                 return applyResult;
             }
             SLOG_INFO << "nginx reloaded after config test";
         } else {
             applyResult = nginx.StartSystem();
-            if (!applyResult.IsDefalutSuccess()) {
+            if (!applyResult.IsDefaultSuccess()) {
                 SLOG_ERROR << "nginx system start failed: " << applyResult.msg;
                 return applyResult;
             }
@@ -129,7 +129,7 @@ namespace qifeng::scm {
                 return MakeError("Invalid nginx reset mode");
         }
 
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             SLOG_ERROR << "Failed to reset nginx: " << result.msg;
             return result;
         }
@@ -138,7 +138,7 @@ namespace qifeng::scm {
         tool::Nginx nginx;
         if (nginx.IsInstalled() && nginx.IsRunning()) {
             auto reloadResult = nginx.Reload();
-            if (!reloadResult.IsDefalutSuccess()) {
+            if (!reloadResult.IsDefaultSuccess()) {
                 SLOG_WARN << "Failed to reload nginx after reset: " << reloadResult.msg;
             }
         }

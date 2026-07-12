@@ -44,14 +44,14 @@ namespace qifeng::scm {
         ScmResponse response;
         recorder.RecordOperation({"upgrade", params->serviceName, 2, params->tarDir});
         auto result = ctx.upgradeService->UpdateService(params->serviceName, params->tarDir);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             response.code = result.code;
             response.message = result.msg;
             recorder.UpdateResult(1);
             return response;
         }
         auto cleanResult = ctx.upgradeService->CleanUpgradeBackup(params->serviceName);
-        if (!cleanResult.IsDefalutSuccess()) {
+        if (!cleanResult.IsDefaultSuccess()) {
             SLOG_WARN << "Failed to clean upgrade backup: " << cleanResult.msg;
         }
         response.code = 0;

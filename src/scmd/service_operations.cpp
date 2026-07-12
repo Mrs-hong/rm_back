@@ -40,7 +40,7 @@ namespace qifeng::scm {
         }
 
         result = ctx.databaseService->InitServiceDatabase(actualServiceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             // 数据建库操作失败，回滚安装
             UninstallServiceWithCleanup(ctx, actualServiceName);
             return MakeError("install service " + actualServiceName + " failed: " + result.msg);

@@ -51,7 +51,7 @@ int main(int argc, char* argv[]) {
     // 1. 解析命令行参数
     qifeng::scm::CliPaser parser;
     qifeng::scm::ResultMsg result = parser.Parse(argc, argv);
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         if (result.code == 1) {
             std::cout << result.msg;
             return 0;

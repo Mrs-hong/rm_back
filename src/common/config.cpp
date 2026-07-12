@@ -64,7 +64,7 @@ namespace {  // 辅助函数
     qifeng::scm::ServiceDefinition InitServiceDefinitionFromYAML(const std::string &yamlPath) {
         qifeng::scm::utils::YamlResolve resolver;
         auto initRet = resolver.Init(yamlPath);
-        if (!initRet.IsDefalutSuccess()) {
+        if (!initRet.IsDefaultSuccess()) {
             throw std::runtime_error("Failed to load service.yaml: " + initRet.msg);
         }
 
@@ -250,7 +250,7 @@ namespace qifeng {
         ResultMsg ConfigLoader::Initialize(bool isScanServices) {
             // 加载自己配置项
             auto ret = LoadSelfConfigFile();
-            if (!ret.IsDefalutSuccess()) {
+            if (!ret.IsDefaultSuccess()) {
                 std::cerr << "Failed to load self config file: " << ret.msg << std::endl;
                 // 使用默认配置
             }

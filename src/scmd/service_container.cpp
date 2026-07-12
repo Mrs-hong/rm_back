@@ -19,7 +19,7 @@ namespace qifeng::scm {
     ResultMsg ServiceContainer::Init() {
         mConfigLoader = std::make_shared<ConfigLoader>();
         auto result = mConfigLoader->Initialize();
-        if (!result.IsDefalutSuccess() && result.code != 1) {
+        if (!result.IsDefaultSuccess() && result.code != 1) {
             return MakeError("Failed to initialize ConfigLoader: " + result.msg);
         }
 
@@ -52,7 +52,7 @@ namespace qifeng::scm {
         } else {
             SLOG_INFO << "Found " << allServices.size() << " installed service(s), starting auto-start services...";
             result = mServiceManager->StartAllAutoStartServices();
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 SLOG_WARN << "Some auto-start services failed: " << result.msg;
             }
         }

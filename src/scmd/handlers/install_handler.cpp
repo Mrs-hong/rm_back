@@ -64,7 +64,7 @@ namespace qifeng::scm {
             // 服务已部分安装，先卸载清理再重新安装
             SLOG_INFO << "Service partially installed, cleaning up: " << record.serviceName;
             auto cleanResult = UninstallServiceWithCleanup(ctx, record.serviceName);
-            if (!cleanResult.IsDefalutSuccess()) {
+            if (!cleanResult.IsDefaultSuccess()) {
                 recoverResult = cleanResult;
             } else if (!record.tarDir.empty()) {
                 // 有软件包路径，可以重新安装

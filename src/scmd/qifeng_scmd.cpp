@@ -56,7 +56,7 @@ int main() {
     // 1. 创建ServiceContainer并初始化
     auto serviceControl = std::make_shared<qifeng::scm::ServiceContainer>();
     auto result = serviceControl->Init();
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         std::cerr << "[scmd] 初始化失败: " << result.msg << std::endl;
         return 1;
     }
@@ -87,7 +87,7 @@ int main() {
     // 7. 清理
     gServer = nullptr;
 
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         std::cerr << "[scmd] 服务异常退出: " << result.msg << std::endl;
         return 1;
     }

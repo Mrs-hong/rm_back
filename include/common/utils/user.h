@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "common/scmd_def.h"
 #include "common/types.h"
 
 #include <string>

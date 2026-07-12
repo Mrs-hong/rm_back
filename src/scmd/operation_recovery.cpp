@@ -54,7 +54,7 @@ namespace qifeng::scm {
         // 由分发器根据 record.optName 查表分发到对应 handler 的 Recover()
         auto recoverResult = mDispatcher.Recover(record, mContext);
 
-        if (recoverResult.IsDefalutSuccess()) {
+        if (recoverResult.IsDefaultSuccess()) {
             SLOG_INFO << "Recovery completed successfully for: " << record.optName;
             std::cout << "[scmd] 操作恢复成功: " << record.optName << std::endl;
             // 恢复成功后标记为已完成(result=0)，不立即清除记录

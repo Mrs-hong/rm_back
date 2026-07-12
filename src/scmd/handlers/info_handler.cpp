@@ -49,7 +49,7 @@ namespace qifeng::scm {
         ScmResponse response;
         auto result = ctx.serviceManager->GetServiceStatus(params->serviceName);
         response.code = result.code;
-        if (result.IsDefalutSuccess()) {
+        if (result.IsDefaultSuccess()) {
             auto info = ctx.serviceManager->GetServiceRuntimeInfo(params->serviceName);
             if (info.pid > 0 || params->infoDetail) {
                 response.message = "success";

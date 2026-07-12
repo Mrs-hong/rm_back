@@ -36,7 +36,7 @@ namespace qifeng::scm {
                 const auto& svcName = it->serviceName;
                 SLOG_INFO << "Uninstalling service: " << svcName;
                 auto uninstallResult = UninstallServiceWithCleanup(ctx, svcName);
-                if (!uninstallResult.IsDefalutSuccess()) {
+                if (!uninstallResult.IsDefaultSuccess()) {
                     ++failCount;
                     lastError = svcName + ": " + uninstallResult.msg;
                     SLOG_WARN << "Failed to uninstall service " << svcName << ": " << uninstallResult.msg;
