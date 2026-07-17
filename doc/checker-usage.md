@@ -132,7 +132,7 @@ qf_scmc check --config /path/to/selftest.json
     "ping_count": 3
   },
   "model": {
-    "path": "/opt/sophon/selftest/fsmn_fp32_.bmodel"
+    "path": "/etc/qifeng-scm/fsmn_fp32_.bmodel"
   },
   "scripts": [
     {
@@ -248,7 +248,7 @@ scmd:
 |------|------|------|
 | self-check 脚本 | `/usr/lib/qifeng-scm/self-check` | 外部自检脚本（ScriptChecker 调用） |
 | self-check 配置 | `/etc/qifeng-scm/self-check.ini` | self-check 脚本的配置文件 |
-| 探测模型 | `/opt/sophon/selftest/fsmn_fp32_.bmodel` | ModelInferenceChecker 使用的 bmodel 文件 |
+| 探测模型 | `/etc/qifeng-scm/fsmn_fp32_.bmodel` | ModelInferenceChecker 使用的 bmodel 文件 |
 | 自检配置 | `/etc/qifeng-scm/selftest.json` | 自检项配置文件 |
 | 主配置 | `/etc/qifeng-scm/scmd.yaml` | scmd 主配置（含 selftest 段） |
 | 自检报告 | `/var/log/qifeng-scm/selftest-report.json` | 自检结果 JSON 报告 |
@@ -300,7 +300,7 @@ scmd:
 
 | 现象 | 可能原因 | 排查方法 |
 |------|----------|----------|
-| 模型文件不存在 | 部署不完整 | `ls -la /opt/sophon/selftest/fsmn_fp32_.bmodel` 确认文件存在 |
+| 模型文件不存在 | 部署不完整 | `ls -la /etc/qifeng-scm/fsmn_fp32_.bmodel` 确认文件存在 |
 | 模型加载失败 | TPU 异常或模型损坏 | 先修复 TPU，再检查模型文件 MD5 |
 | 推理结果异常 | 模型与设备不匹配 | 确认模型为 BM1684 平台编译 |
 

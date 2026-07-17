@@ -94,7 +94,7 @@ namespace qifeng {
             std::string startTime;       // 服务启动时间: 年月日时分秒毫秒
             std::string runTime;         // 服务运行时间：天、时、分、秒、毫秒
             size_t memoryUsage {0};      // 服务内存占用（字节）
-            double cpuUsage {0.0};       // 服务CPU占用比率（0.0~1.0，已按核心数归一化）
+            size_t cpuUsage {0};         // 服务CPU占用（%）
             std::string configFilePath;  // 服务配置文件路径
             std::string rootPath;        // 服务安装根路径
             std::string dbFilePath;      // 数据库文件路径
@@ -169,18 +169,6 @@ namespace qifeng {
             enum class Status { VERSION_CONFLICT, MISSING, CIRCULAR, IMPACTED };
             Status status;
             std::string serviceName;
-        };
-
-        /**
-         * @brief nginx 重置模式
-         * @details WAIT: 等待状态（所有路由返回 404，用于服务升级期间）
-         *          NORMAL: 恢复正常（使 scm_*.conf 生效，移除 waiting 配置）
-         *          BACK: 全部无效（只能访问 nginx 欢迎页，移除所有 scm 配置和系统默认站点）
-         */
-        enum class NginxResetMode {
-            WAIT,    // 等待状态：安装 waiting.conf，所有路由返回 404
-            NORMAL,  // 恢复正常：移除 waiting.conf，恢复 scm_*.conf
-            BACK     // 全部无效：移除所有 scm 配置，恢复系统默认欢迎页
         };
     }  // namespace scm
 }  // namespace qifeng

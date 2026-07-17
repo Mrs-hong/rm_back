@@ -481,7 +481,7 @@ main()
       "elapsed_ms": 520,
       "message": "inference OK",
       "details": {
-        "model": "/opt/sophon/selftest/fsmn_fp32_.bmodel"
+        "model": "/etc/qifeng-scm/fsmn_fp32_.bmodel"
       }
     },
     "display": {
@@ -546,7 +546,7 @@ main()
   "microphone": { "device": "default", "duration_ms": 400, "min_rms": 50 },
   "light": { "gpio": "488" },
   "network": { "gateway": "192.168.1.1", "ping_count": 3 },
-  "model": { "path": "/opt/sophon/selftest/fsmn_fp32_.bmodel" },
+  "model": { "path": "/etc/qifeng-scm/fsmn_fp32_.bmodel" },
   "scripts": [
     {
       "name": "self_check_script",
@@ -576,7 +576,7 @@ main()
 | `light.gpio` | string | `488` | LED GPIO 编号 |
 | `network.gateway` | string | `192.168.1.1` | 网关地址（用于 ping 测试） |
 | `network.ping_count` | int | 3 | ping 次数 |
-| `model.path` | string | `/opt/sophon/selftest/fsmn_fp32_.bmodel` | 探测模型文件路径 |
+| `model.path` | string | `/etc/qifeng-scm/fsmn_fp32_.bmodel` | 探测模型文件路径 |
 | `scripts` | array | [] | 脚本检查器列表 |
 | `scripts[].name` | string | - | 检查项名（报告 key，需唯一） |
 | `scripts[].path` | string | - | 脚本绝对路径 |

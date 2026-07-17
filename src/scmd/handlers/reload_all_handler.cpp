@@ -5,10 +5,9 @@
 #include "scmd/handlers/reload_all_handler.h"
 
 #include "common/types.h"
-#include "scmd/handler_registry.h"
+#include "ipc/data_def.h"
+#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
-#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
 
@@ -17,16 +16,14 @@ namespace qifeng::scm {
     }
 
     ScmResponse ReloadAllHandler::Handle(const ScmRequest& /*request*/,
-                                         const ServiceContext& ctx,
+                                         ServiceControl& serviceControl,
                                          KeyOperationRecorder& /*recorder*/) {
         ScmResponse response;
         // 使用空服务名表示重载全部服务配置
-        auto result = ctx.serviceManager->ReloadService("");
+        auto result = serviceControl.ReloadService("");
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
-
-    REGISTER_COMMAND_HANDLER(ScmCommand::RELOAD_ALL, ReloadAllHandler)
 
 }  // namespace qifeng::scm

@@ -5,13 +5,9 @@
 #include "scmd/command_dispatcher.h"
 
 #include "common/types.h"
-#include "ipc/protocol.h"
+#include "ipc/data_def.h"
 #include "scmd/command_handler.h"
-#include "scmd/handlers/kill_handler.h"
-#include "scmd/handlers/list_handler.h"
-#include "scmd/handlers/version_handler.h"
 #include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
 
 #include <gtest/gtest.h>
 
@@ -28,7 +24,7 @@ namespace qifeng::scm {
         }
 
         ScmResponse Handle(const ScmRequest& /*request*/,
-                           const ServiceContext& /*ctx*/,
+                           ServiceControl& /*serviceControl*/,
                            KeyOperationRecorder& /*recorder*/) override {
             ScmResponse resp;
             resp.code = 0;
@@ -45,18 +41,18 @@ namespace qifeng::scm {
         dispatcher.Register(std::make_unique<MockHandler>(ScmCommand::LIST));
         dispatcher.Register(std::make_unique<MockHandler>(ScmCommand::VERSION));
 
-        ScmRequest listReq = MakeRequest(ListRequest{});
-        ScmRequest versionReq = MakeRequest(VersionRequest{});
+        ScmRequest listReq{ListRequest{}};
+        ScmRequest versionReq{VersionRequest{}};
 
-        // MockHandler 不使用 ctx，传入空 ServiceContext 即可
-        ServiceContext ctx;
+        // 由于 MockHandler 不依赖 ServiceControl，可以传入 nullptr 并确保不会解引用
+        ServiceControl* serviceControl = nullptr;
         KeyOperationRecorder recorder;
 
-        ScmResponse listResp = dispatcher.Dispatch(listReq, ctx, recorder);
+        ScmResponse listResp = dispatcher.Dispatch(listReq, *serviceControl, recorder);
         EXPECT_EQ(listResp.code, 0);
         EXPECT_EQ(listResp.message, "handled");
 
-        ScmResponse versionResp = dispatcher.Dispatch(versionReq, ctx, recorder);
+        ScmResponse versionResp = dispatcher.Dispatch(versionReq, *serviceControl, recorder);
         EXPECT_EQ(versionResp.code, 0);
         EXPECT_EQ(versionResp.message, "handled");
     }
@@ -65,11 +61,11 @@ namespace qifeng::scm {
         CommandDispatcher dispatcher;
         dispatcher.Register(std::make_unique<MockHandler>(ScmCommand::LIST));
 
-        ScmRequest unknownReq = MakeRequest(KillRequest{});
-        ServiceContext ctx;
+        ScmRequest unknownReq{KillRequest{}};
+        ServiceControl* serviceControl = nullptr;
         KeyOperationRecorder recorder;
 
-        ScmResponse resp = dispatcher.Dispatch(unknownReq, ctx, recorder);
+        ScmResponse resp = dispatcher.Dispatch(unknownReq, *serviceControl, recorder);
         EXPECT_EQ(resp.code, -1);
         EXPECT_EQ(resp.message, "Unknown command");
     }
@@ -79,11 +75,11 @@ namespace qifeng::scm {
         dispatcher.Register(std::make_unique<MockHandler>(ScmCommand::LIST));
         dispatcher.Register(std::make_unique<MockHandler>(ScmCommand::LIST));
 
-        ScmRequest req = MakeRequest(ListRequest{});
-        ServiceContext ctx;
+        ScmRequest req{ListRequest{}};
+        ServiceControl* serviceControl = nullptr;
         KeyOperationRecorder recorder;
 
-        ScmResponse resp = dispatcher.Dispatch(req, ctx, recorder);
+        ScmResponse resp = dispatcher.Dispatch(req, *serviceControl, recorder);
         EXPECT_EQ(resp.code, 0);
         EXPECT_EQ(resp.message, "handled");
     }

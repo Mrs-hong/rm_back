@@ -1,7 +1,6 @@
 /*
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
-#include "scmctl/cli_command_registry.h"
 #include "scmctl/cli_commands.h"
 
 #include <filesystem>
@@ -28,7 +27,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req = MakeRequest(InstallRequest {mServiceName, absDir});
+        req.data = InstallRequest{mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -49,7 +48,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(StartRequest {mServiceName});
+        req.data = StartRequest{mServiceName};
         return MakeSuccess();
     }
 
@@ -64,18 +63,13 @@ namespace qifeng::scm {
     void StopCommand::Setup(CLI::App &app) {
         auto* cmd = app.add_subcommand(Name(), Description());
         cmd->add_option("--name,-n", mServiceName, "服务名称（不指定时操作scmd自身）");
-        cmd->add_flag("-a", mAll, "停止所有已安装服务");
     }
 
     ResultMsg StopCommand::BuildRequest(CLI::App &app, ScmRequest &req) {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        if (mAll) {
-            req = MakeRequest(StopAllRequest {});
-        } else {
-            req = MakeRequest(StopRequest {mServiceName});
-        }
+        req.data = StopRequest{mServiceName};
         return MakeSuccess();
     }
 
@@ -98,11 +92,11 @@ namespace qifeng::scm {
             return ResultMsg(2, "");
         }
         if (mAll) {
-            req = MakeRequest(RestartAllRequest {});
+            req.data = RestartAllRequest{};
             return MakeSuccess();
         }
         // 无 --name 且无 -a 时，操作 scmd 自身（发送空 serviceName）
-        req = MakeRequest(RestartRequest {mServiceName});
+        req.data = RestartRequest{mServiceName};
         return MakeSuccess();
     }
 
@@ -126,7 +120,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req = MakeRequest(UpgradeRequest {mServiceName, absDir});
+        req.data = UpgradeRequest{mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -151,7 +145,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径，空值保持为空
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req = MakeRequest(UpgradesRequest {mServiceName, absDir});
+        req.data = UpgradesRequest{mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -171,7 +165,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(ListRequest {});
+        req.data = ListRequest{};
         return MakeSuccess();
     }
 
@@ -193,7 +187,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(InfoRequest {mServiceName, mShowError});
+        req.data = InfoRequest{mServiceName, mShowError};
         return MakeSuccess();
     }
 
@@ -215,7 +209,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(LogRequest {mLogType, mLogCount});
+        req.data = LogRequest{mLogType, mLogCount};
         return MakeSuccess();
     }
 
@@ -229,22 +223,14 @@ namespace qifeng::scm {
 
     void UninstallCommand::Setup(CLI::App &app) {
         auto* cmd = app.add_subcommand(Name(), Description());
-        cmd->add_option("--name,-n", mServiceName, "服务名称");
-        cmd->add_flag("-a", mAll, "卸载所有已安装服务（保留 scmd 自身）");
+        cmd->add_option("--name,-n", mServiceName, "服务名称")->required();
     }
 
     ResultMsg UninstallCommand::BuildRequest(CLI::App &app, ScmRequest &req) {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        if (mAll) {
-            req = MakeRequest(UninstallAllRequest {});
-        } else {
-            if (mServiceName.empty()) {
-                return ResultMsg(-1, "uninstall 需要指定 --name 或 -a");
-            }
-            req = MakeRequest(UninstallRequest {mServiceName});
-        }
+        req.data = UninstallRequest{mServiceName};
         return MakeSuccess();
     }
 
@@ -267,13 +253,13 @@ namespace qifeng::scm {
             return ResultMsg(2, "");
         }
         if (mAll) {
-            req = MakeRequest(ReloadAllRequest {});
+            req.data = ReloadAllRequest{};
             return MakeSuccess();
         }
         if (mServiceName.empty()) {
             return MakeError("reload requires --name or -a flag");
         }
-        req = MakeRequest(ReloadRequest {mServiceName});
+        req.data = ReloadRequest{mServiceName};
         return MakeSuccess();
     }
 
@@ -293,7 +279,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(KillRequest {});
+        req.data = KillRequest{};
         return MakeSuccess();
     }
 
@@ -315,7 +301,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(SlogRequest {mServiceName, mLogCount});
+        req.data = SlogRequest{mServiceName, mLogCount};
         return MakeSuccess();
     }
 
@@ -336,7 +322,9 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req = MakeRequest(CheckRequest {mConfigPath});
+        // 将相对路径转换为绝对路径，便于 scmd 端定位文件
+        std::string absPath = mConfigPath.empty() ? mConfigPath : std::filesystem::absolute(mConfigPath).string();
+        req.data = CheckRequest{absPath};
         return MakeSuccess();
     }
 
@@ -359,7 +347,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req = MakeRequest(InitNginxRequest {absDir});
+        req.data = InitNginxRequest{absDir};
         return MakeSuccess();
     }
 
@@ -399,7 +387,7 @@ namespace qifeng::scm {
             mode = NginxResetMode::NORMAL;
         }
 
-        req = MakeRequest(ResetNginxRequest {mode});
+        req.data = ResetNginxRequest{mode};
         return MakeSuccess();
     }
 
@@ -423,7 +411,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径，便于 scmd 端定位文件
         std::string absPath = mSrcPath.empty() ? mSrcPath : std::filesystem::absolute(mSrcPath).string();
-        req = MakeRequest(AddModelRequest {absPath});
+        req.data = AddModelRequest{absPath};
         return MakeSuccess();
     }
 
@@ -432,7 +420,7 @@ namespace qifeng::scm {
         return "clear_model";
     }
     const char* ClearModelCommand::Description() const {
-        return "清除模型（删除指定模型并验证依赖服务无影响）";
+        return "停用并备份模型（重命名为 .back 并验证依赖服务无影响）";
     }
 
     void ClearModelCommand::Setup(CLI::App &app) {
@@ -447,29 +435,8 @@ namespace qifeng::scm {
         if (mModelName.empty()) {
             return MakeError("clear_model requires --name");
         }
-        req = MakeRequest(ClearModelRequest {mModelName});
+        req.data = ClearModelRequest{mModelName};
         return MakeSuccess();
     }
-
-    // -------------------- CLI 命令自注册 --------------------
-    // 各命令通过宏自动注册到 CliCommandRegistry，新增命令只需在实现末尾添加 REGISTER_CLI_COMMAND 宏
-    REGISTER_CLI_COMMAND(InstallCommand)
-    REGISTER_CLI_COMMAND(StartCommand)
-    REGISTER_CLI_COMMAND(StopCommand)
-    REGISTER_CLI_COMMAND(RestartCommand)
-    REGISTER_CLI_COMMAND(UpgradeCommand)
-    REGISTER_CLI_COMMAND(UpgradesCommand)
-    REGISTER_CLI_COMMAND(ListCommand)
-    REGISTER_CLI_COMMAND(InfoCommand)
-    REGISTER_CLI_COMMAND(LogCommand)
-    REGISTER_CLI_COMMAND(UninstallCommand)
-    REGISTER_CLI_COMMAND(ReloadCommand)
-    REGISTER_CLI_COMMAND(KillCommand)
-    REGISTER_CLI_COMMAND(SlogCommand)
-    REGISTER_CLI_COMMAND(CheckCommand)
-    REGISTER_CLI_COMMAND(InitNginxCommand)
-    REGISTER_CLI_COMMAND(ResetNginxCommand)
-    REGISTER_CLI_COMMAND(AddModelCommand)
-    REGISTER_CLI_COMMAND(ClearModelCommand)
 
 }  // namespace qifeng::scm

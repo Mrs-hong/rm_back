@@ -4,29 +4,7 @@
 #pragma once
 #include "CLI/CLI.hpp"
 #include "common/types.h"
-#include "ipc/protocol.h"
-#include "scmd/handlers/add_model_handler.h"
-#include "scmd/handlers/check_handler.h"
-#include "scmd/handlers/clear_model_handler.h"
-#include "scmd/handlers/info_handler.h"
-#include "scmd/handlers/init_nginx_handler.h"
-#include "scmd/handlers/install_handler.h"
-#include "scmd/handlers/kill_handler.h"
-#include "scmd/handlers/list_handler.h"
-#include "scmd/handlers/log_handler.h"
-#include "scmd/handlers/reload_all_handler.h"
-#include "scmd/handlers/reload_handler.h"
-#include "scmd/handlers/restart_all_handler.h"
-#include "scmd/handlers/restart_handler.h"
-#include "scmd/handlers/reset_nginx_handler.h"
-#include "scmd/handlers/slog_handler.h"
-#include "scmd/handlers/start_handler.h"
-#include "scmd/handlers/stop_all_handler.h"
-#include "scmd/handlers/stop_handler.h"
-#include "scmd/handlers/uninstall_all_handler.h"
-#include "scmd/handlers/uninstall_handler.h"
-#include "scmd/handlers/upgrade_handler.h"
-#include "scmd/handlers/upgrades_handler.h"
+#include "ipc/data_def.h"
 
 #include <string>
 
@@ -108,7 +86,6 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
-        bool mAll {false};  // -a 停止全部服务
     };
 
     class RestartCommand : public CliCommand {
@@ -195,7 +172,6 @@ namespace qifeng::scm {
 
     private:
         std::string mServiceName;
-        bool mAll {false};  // -a 卸载全部已装服务
     };
 
     class ReloadCommand : public CliCommand {
@@ -303,8 +279,9 @@ namespace qifeng::scm {
     };
 
     /**
-     * @brief clear_model 子命令：清除模型
-     * @details 将 model_dir 下指定模型删除并验证依赖服务无影响。
+     * @brief clear_model 子命令：停用并备份模型
+     * @details 将 model_dir 下指定模型重命名为 <name>.back，
+     *          验证依赖服务无影响后完成，否则回退。
      */
     class ClearModelCommand : public CliCommand {
     public:

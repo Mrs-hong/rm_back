@@ -5,8 +5,7 @@
 #include "common/config.h"
 #include "common/version.hpp"
 #include "scmd/scmd_server.h"
-#include "scmd/self_check_service.h"
-#include "scmd/service_container.h"
+#include "scmd/service_ctl.h"
 
 #include <atomic>
 #include <csignal>
@@ -53,10 +52,10 @@ int main() {
     std::cout << "qf_scmd version " << versionInfo.version << " (build: " << versionInfo.buildTime
               << ", commit: " << versionInfo.gitCommit << ")" << std::endl;
 
-    // 1. 创建ServiceContainer并初始化
-    auto serviceControl = std::make_shared<qifeng::scm::ServiceContainer>();
+    // 1. 创建ServiceControl并初始化
+    auto serviceControl = std::make_shared<qifeng::scm::ServiceControl>();
     auto result = serviceControl->Init();
-    if (!result.IsDefaultSuccess()) {
+    if (!result.IsDefalutSuccess()) {
         std::cerr << "[scmd] 初始化失败: " << result.msg << std::endl;
         return 1;
     }
@@ -73,13 +72,12 @@ int main() {
     qifeng::scm::ScmServer server(serviceControl);
     gServer = &server;
 
-    // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
-    qifeng::scm::SelfCheckService selfCheck(serviceControl->GetConfigLoader());
-    if (!selfCheck.Run()) {
-        std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
-        gServer = nullptr;
-        return 1;
-    }
+    // // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
+    // if (!server.RunSelfCheck()) {
+    //     std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
+    //     gServer = nullptr;
+    //     return 1;
+    // }
 
     // 6. 启动服务（进入UDS事件循环）
     result = server.Start(socketPath);
@@ -87,7 +85,7 @@ int main() {
     // 7. 清理
     gServer = nullptr;
 
-    if (!result.IsDefaultSuccess()) {
+    if (!result.IsDefalutSuccess()) {
         std::cerr << "[scmd] 服务异常退出: " << result.msg << std::endl;
         return 1;
     }

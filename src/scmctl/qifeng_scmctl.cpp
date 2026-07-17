@@ -6,6 +6,7 @@
 #include "scmctl/scmctl_client.h"
 
 #include "common/scmd_def.h"
+#include "ipc/data_def.h"
 
 #include <cstdlib>
 #include <filesystem>
@@ -51,7 +52,7 @@ int main(int argc, char* argv[]) {
     // 1. 解析命令行参数
     qifeng::scm::CliPaser parser;
     qifeng::scm::ResultMsg result = parser.Parse(argc, argv);
-    if (!result.IsDefaultSuccess()) {
+    if (!result.IsDefalutSuccess()) {
         if (result.code == 1) {
             std::cout << result.msg;
             return 0;
@@ -69,7 +70,7 @@ int main(int argc, char* argv[]) {
 
     // 4. 输出响应
     // SLOG 命令的日志原文直接打印，不做多余格式化（不加 [OK] 前缀、不格式化 data）
-    if (parser.GetRequest().command == qifeng::scm::ScmCommand::SLOG) {
+    if (parser.GetRequest().Command() == qifeng::scm::ScmCommand::SLOG) {
         if (response.code == 0) {
             std::cout << response.message;
             return 0;

@@ -1,265 +1,417 @@
 # qifeng-scm 服务管理系统
 
-qifeng-scm 是面向边缘设备（Sophon BM1684X）的服务管理系统，提供服务的安装、卸载、升级、启停、自检等全生命周期管理能力。
+qifeng-scm（Qifeng Service Control Manager）是面向 Linux 平台的服务管理系统，通过 systemd 统一管理第三方服务的生命周期，支持服务安装、启动、停止、监控、卸载、更新及数据库自动初始化。
 
-## 系统组成
+## 1. 项目简介
 
-| 程序 | 说明 |
-|------|------|
-| `qf_scmd` | 守护进程，以 systemd 服务运行，监听 UDS 接收命令 |
-| `qf_scmc` | CLI 客户端，通过 UDS 与 `qf_scmd` 通信 |
+系统由两个主程序组成：
 
-两者通过 Unix Domain Socket + JSON 行协议通信。
+| 程序              | 运行身份 | 职责                                            |
+| --------------- | ---- | --------------------------------------------- |
+| `qf_scmd`   | root | 守护进程，通过 systemd 管理服务生命周期，监听 UDS socket 接收控制指令 |
+| `qf_scmc` | 任意用户 | CLI 客户端，通过 UDS 与 `qf_scmd` 通信，执行服务管理命令    |
 
-## 目录结构
+**核心能力：**
+
+- 基于 systemd 的服务托管（自动启停、故障恢复、开机自启）
+- 支持数据库服务（MariaDB、OpenGauss）的自动初始化和 SQL 脚本执行
+- 服务依赖管理（自动按依赖顺序启动服务）
+- 基于 UDS（Unix Domain Socket）的本地安全通信
+
+## 2. 代码目录结构
 
 ```
-rm_back/
-├── CMakeLists.txt          # 顶层 CMake 配置
-├── build.sh                # 编译打包脚本
-├── .config/                # 参考配置文件（scmd.yaml、selftest.json）
-├── debian/                 # Debian 打包脚本（postinst/prerm/postrm/preinst/conffiles）
-├── doc/                    # 设计文档
-│   ├── checker-design.md   # 自检模块设计
-│   ├── checker-usage.md    # 自检模块使用
-│   ├── upgrade.md          # 升级流程说明
-│   └── command-flow-analysis.md  # 命令流程分析
-├── include/                # 头文件
-│   ├── common/             # 公共类型、配置、工具
-│   ├── ipc/                # IPC 协议定义
-│   ├── scmd/               # 服务端核心（dispatcher、handlers、service_ctl）
-│   ├── service_manger/     # 领域管理器（service/nginx/model/upgrade/database）
-│   ├── checker/            # 设备自检框架
-│   └── scmctl/             # CLI 客户端
-├── src/                    # 源文件（与 include 结构对应）
-├── test/                   # 单元测试
-├── third_part/             # 第三方库（qifeng_framework 等）
-├── script/                 # 脚本与前端资源
-└── model/                  # 自检模型文件
+qifeng-scm/
+├── src/                          # 源码目录
+│   ├── scmd/                     # 守护进程（qf_scmd）
+│   │   ├── qifeng_scmd.cpp       # 主入口
+│   │   ├── service_ctl.cpp       # 服务控制逻辑（安装、启动、停止等）
+│   │   └── scmd_server.cpp       # UDS 服务端，接收并处理客户端命令
+│   ├── scmctl/                   # CLI 客户端（qf_scmc）
+│   │   ├── qifeng_scmctl.cpp     # 主入口
+│   │   ├── cli_paser.cpp         # 命令行参数解析
+│   │   ├── cli_commands.cpp      # 命令注册与分发
+│   │   └── scmctl_client.cpp     # UDS 客户端，与 scmd 通信
+│   ├── service_manger/           # 服务管理核心模块
+│   │   ├── service_manager.cpp   # 服务安装、卸载、启停、状态查询
+│   │   ├── service_generator.cpp # 生成 systemd 服务单元文件
+│   │   ├── file_manager.cpp      # 服务目录、配置文件、符号链接管理
+│   │   └── key_recoder.cpp       # 记录最后一次关键操作，用于异常恢复
+│   ├── dbinit/                   # 数据库初始化后端（暂未使用）
+│   │   ├── database_init.cpp     # 数据库初始化统一入口
+│   │   ├── mysql_backend.cpp     # MariaDB/MySQL 初始化与 SQL 执行
+│   │   └── opengauss_backend.cpp # OpenGauss 初始化与 SQL 执行
+│   ├── service_tool/             # 服务工具模块
+│   │   └── tool_mariadb.cpp      # MariaDB 交互工具（用户管理、SQL 执行、版本查询等）
+│   ├── ipc/                      # 进程间通信
+│   │   ├── uds.cpp               # Unix Domain Socket 通信实现
+│   │   ├── protocil.cpp          # 通信协议序列化/反序列化
+│   │   └── dbus_manager.cpp      # DBus 接口，调用 systemd 管理服务等
+│   └── common/                   # 公共模块
+│       ├── config.cpp            # 配置加载（scmd.yaml 解析）
+│       ├── utils.cpp             # 工具函数
+│       └── types.cpp             # 类型定义与转换
+├── include/                      # 头文件目录（与 src 结构对应）
+│   ├── scmd/
+│   ├── scmctl/
+│   ├── service_manger/
+│   ├── dbinit/
+│   ├── service_tool/
+│   ├── ipc/
+│   └── common/
+├── .config/
+│   └── scmd.yaml                 # 参考配置文件（安装时复制到 /etc/qifeng-scm/）
+├── debian/                       # deb 打包相关文件
+│   ├── qifeng-scmd.service       # systemd 服务单元
+│   ├── ld.so.conf.d/
+│   │   └── qifeng-scm.conf       # 私有库搜索路径配置
+│   ├── postinst                  # 安装后脚本（创建目录、enable+start 服务）
+│   ├── prerm                     # 卸载前脚本（停止服务）
+│   └── postrm                    # 卸载后脚本（清理数据）
+├── third_part/                   # 第三方依赖
+│   └── qifeng_framework/         # 内部框架（提供日志、HTTP、yaml-cpp、CLI11 等）
+├── CMakeLists.txt                # 顶层 CMake 配置
+├── build.sh                      # 编译脚本
+└── README.md                     # 本文档
 ```
 
-## 依赖
+## 3. 编译说明
 
-### 必需依赖
-- **qifeng_framework**：自研基础框架（日志、网络、工具），位于 `third_part/qifeng_framework`
-- **systemd**：服务管理与 journal 日志（libsystemd）
-- **libmysqlclient**：MariaDB/MySQL 数据库操作
-- **yaml-cpp**：YAML 配置解析
-- **jsoncpp**：JSON 序列化
-- **CLI11**：命令行解析（header-only，随 qifeng_framework 提供）
+### 3.1 环境要求
 
-### 可选依赖（自检模块）
-- **Sophon SDK (libsophon)**：TPU 模型推理（BM1684X）
-- **libdrm**：显示器检测
-- **ALSA (libasound)**：麦克风检测
-- **libgpiod**：GPIO 指示灯检测
+- 操作系统：Linux（Debian / Ubuntu 系列）
+- 编译器：GCC >= 9 或 Clang >= 10
+- CMake：>= 3.15
+- 依赖库：
+  - `libsystemd-dev`（systemd 开发库，提供 `sd-bus.h`）
+  - `qifeng_framework（yaml.cpp、spdlog、cppjson）`
 
-可选依赖通过 CMake 选项控制，WSL2 交叉编译时可关闭。
+**安装系统依赖（Debian / Ubuntu）：**
+```bash
+sudo apt update
+sudo apt install -y libsystemd-dev
+```
 
-## 编译
+**其他发行版：**
+- CentOS / RHEL / Fedora：`sudo dnf install systemd-devel`
+- openSUSE：`sudo zypper install systemd-devel`
+- Arch Linux：`sudo pacman -S systemd`
+
+### 3.2 使用 build.sh 编译（推荐）
 
 ```bash
-# Release 编译（默认）
+# Release 编译主项目（默认）
 ./build.sh
 
 # Debug 编译
 ./build.sh -d
 
+# 编译所有目标（含测试）
+./build.sh all -r
+
+# 仅编译测试目标
+./build.sh test -r
+
 # 编译并安装到指定目录
 ./build.sh -r -i /opt/qifeng
-
-# 编译测试目标
-./build.sh test -d
-
-# 打包部署产物到 dist/
-./build.sh pack
 
 # 清除 build 目录
 ./build.sh clean
 ```
 
-### 可选库开关
+### 3.3 直接使用 CMake 编译
 
 ```bash
-# 全部关闭（WSL2 交叉编译场景）
-./build.sh --with-all=OFF
+# 配置（Release）
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 
-# 单独控制
-./build.sh --with-bm-sdk=OFF --with-alsa=OFF --with-drm=OFF --with-gpiod=OFF
+# 编译
+cmake --build build -j$(nproc)
+
+# 如需编译测试，添加 -DBUILD_TESTING=ON
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
 ```
 
-### 交叉编译注意事项
-- ARM 目标（BM1684X）需使用对应架构的交叉编译工具链
-- x86 开发环境编译时 libsophon 相关库不会打包安装，运行时需目标系统已安装
+### 3.4 编译产物
 
-## 安装
+- `build/bin/qf_scmd` — 守护进程可执行文件
+- `build/bin/qf_scmc` — CLI 客户端可执行文件
 
-```bash
-# 安装 deb 包
-sudo dpkg -i qifeng-scm_<version>_<arch>.deb
+## 4. 配置参数说明
+### 4.1 scm服务配置
+#### 4.1.1 配置文件路径
 
-# 安装后自动完成：
-# 1. 创建 /var/lib/qifeng-scm/{services,data,backup} 目录
-# 2. 复制配置到 /etc/qifeng-scm/
-# 3. 注册 systemd 服务 qifeng-scmd.service
-# 4. 设置开机自启并启动
+- **系统配置文件**：`/etc/qifeng-scm/scmd.yaml`
+- **参考配置文件**：`.config/scmd.yaml`（源码仓库中，安装时复制到系统路径）
+
+#### 4.1.2 核心配置项
+
+```yaml
+scmd:
+  log:
+    level: info              # 日志级别：debug / info / warn / error
+    max_file_size: 52428800  # 单个日志文件最大字节数（50MB）
+    max_files: 7             # 日志文件滚动保留数量
+  uds:
+    socket_path: /run/qifeng-scm/scmd.sock  # UDS socket 路径
+    socket_mode: "0666"                       # socket 权限（任意用户可连接）
+  opt_timeout_sec: 10         # 操作超时时间（秒） (未完全实现、下一步实现)
+  root_dir: /var/lib/qifeng-scm  # 根目录，子目录自动派生
 ```
 
-### 关键路径
-| 路径 | 说明 |
-|------|------|
-| `/usr/bin/qf_scmd` | 守护进程 |
-| `/usr/bin/qf_scmc` | CLI 客户端 |
-| `/etc/qifeng-scm/scmd.yaml` | 主配置文件 |
-| `/etc/qifeng-scm/selftest.json` | 自检配置 |
-| `/var/lib/qifeng-scm/services/` | 已装服务目录 |
-| `/var/lib/qifeng-scm/data/` | 数据目录 |
-| `/var/lib/qifeng-scm/backup/` | 备份目录 |
-| `/var/lib/qifeng-scm/log/scmd.log` | 运行日志 |
-| `/run/qifeng-scm/scmd.sock` | UDS 套接字 |
+**子目录自动派生规则：** 由 `root_dir` 自动派生，无需单独配置：
 
-## 命令使用
+| 子目录       | 派生规则                  | 说明           |
+|------------|------------------------|--------------|
+| `services` | `root_dir + "/services"` | 服务安装目录       |
+| `data`     | `root_dir + "/data"`     | 数据目录         |
+| `backup`   | `root_dir + "/backup"`   | 备份目录         |
+| `log`      | `root_dir + "/log"`      | 日志目录         |
+| `tmp`      | `root_dir + "/tmp"`      | 临时目录         |
 
-所有命令通过 `qf_scmc` 执行，需 root 权限。
+> 如需单独覆盖某个子目录路径，可在配置文件中添加对应的 `service_dir`、`back_dir`、`data_dir`、`temp_dir` 字段，优先级高于 `root_dir` 派生值。日志路径也可通过 `log.path` 单独指定。
 
-### 服务生命周期
+#### 4.1.3 配置优先级
 
-```bash
-# 安装服务（从 tar 包或目录）
-qf_scmc install -n <服务名> -d <tar包路径>
+代码内置了与 `.config/scmd.yaml` 一致的系统路径默认值。启动时：
 
-# 启动服务（不指定 -n 时操作 scmd 自身）
-qf_scmc start -n <服务名>
+1. 优先读取 `/etc/qifeng-scm/scmd.yaml` 中的配置；
+2. 若配置文件不存在或解析失败，使用代码中的默认值。
 
-# 停止服务
-qf_scmc stop -n <服务名>        # 停止单个服务
-qf_scmc stop -a                 # 停止所有已装服务
+**生产环境建议**：保持 `/etc/qifeng-scm/scmd.yaml` 中的路径与默认值一致，确保 `FileManager` 与 `ConfigLoader` 路径完全同步。
 
-# 重启服务
-qf_scmc restart -n <服务名>     # 重启单个服务
-qf_scmc restart -a              # 重启所有服务
+### 4.2 安装的服务配置
 
-# 卸载服务
-qf_scmc uninstall -n <服务名>   # 卸载单个服务
-qf_scmc uninstall -a            # 卸载所有已装服务（保留 scmd 自身）
+每个服务通过一个 YAML 文件定义其元信息、执行方式、资源限制和依赖关系，安装时由 `scmd` 解析并管理。
 
-# 重载服务配置
-qf_scmc reload -n <服务名>      # 重载单个服务
-qf_scmc reload -a               # 重载所有服务
+#### 4.2.1 配置示例
+
+```yaml
+# Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
+
+serviceName: test_service_a   # 必要字段，且必须唯一
+version: 1.0.0                # 必要字段，格式必须为 x.x.x
+autoStart: false              # 是否随 scmd 自动启动
+
+execution:                    # 必要字段，路径须相对软件包根目录，不能包含 ".."
+  command: ./bin/test_service_a  # 必要字段
+  workDir: ./bin
+  dataDir: ./data
+  exitSignal: 15
+  timeoutStopSec: 10
+  args: ["18002"]
+
+initDB_sql_dir: ./sql         # 初始化数据库脚本目录
+db_output_dir: ./db_output    # 存放创建用户和密码的文件目录
+
+resources:
+  ports: [8080, 8443]
+  Mem: "500M"
+  CPU: 200
+  requires:
+    - serviceName: test_service_c
+      version: "1.0.0"
 ```
 
-### 升级
+#### 4.2.2 字段说明
+
+| 字段 | 是否必填 | 类型 | 默认值 | 说明 |
+|------|---------|------|--------|------|
+| `serviceName` | **必填** | string | — | 服务名称，必须唯一且非空 |
+| `version` | **必填** | string | — | 版本号，格式必须为 `x.x.x` |
+| `execution` | **必填** | object | — | 执行配置，路径必须为相对路径且不能包含 `..` |
+| `execution.command` | **必填** | string | — | 启动命令，非空相对路径 |
+| `execution.workDir` | 可选 | string | — | 工作目录，相对路径 |
+| `execution.dataDir` | 可选 | string | — | 数据目录，相对路径 |
+| `execution.args` | 可选 | string[] | — | 启动参数列表 |
+| `execution.exitSignal` | 可选 | int | `15` (SIGTERM) | 优雅停止信号 |
+| `execution.timeoutStopSec` | 可选 | uint32 | `5` | 停止超时时间（秒），超时后强制终止 |
+| `autoStart` | 可选 | bool | `false` | 是否随 scmd 自动启动 |
+| `initDB_sql_dir` | 可选 | string | — | 数据库初始化 SQL 脚本目录，相对路径 |
+| `db_output_dir` | 可选 | string | — | 数据库用户/密码输出目录（仅在 `initDB_sql_dir` 存在时生效） |
+| `resources` | 可选 | object | — | 资源限制与依赖配置 |
+| `resources.ports` | 可选 | int[] | — | 需要开放的端口列表，范围 1–65535 |
+| `resources.Mem` | 可选 | string | — | 内存限制，格式为 `"xM"`（如 `"500M"`），对应 systemd 的 `MemoryMax` |
+| `resources.CPU` | 可选 | int | — | CPU 限制百分比，可大于 100 表示多核（如 `200` = 2 核），范围 0–100000 |
+| `resources.requires` | 可选 | object[] | — | 服务依赖列表，不允许重复依赖，不能依赖自身 |
+| `resources.requires[].serviceName` | 可选 | string | — | 依赖的服务名称 |
+| `resources.requires[].version` | 可选 | string | `""` | 依赖的服务版本 |
+
+#### 4.2.3 约束与校验规则
+
+1. **路径安全**：`execution.command`、`execution.workDir`、`execution.dataDir`、`initDB_sql_dir` 必须为相对路径，不允许包含 `..` 以防止目录穿越。
+2. **版本格式**：`version` 必须符合 `x.x.x` 语义化版本格式。
+3. **依赖去重**：`resources.requires` 中同一 `serviceName` 不允许重复声明，且不能依赖自身。
+4. **数据库自动识别**：系统根据 `serviceName` 自动判断是否为数据库服务；若非数据库服务，会进一步检查其依赖中是否包含数据库服务，并自动关联数据库配置。
+
+
+
+## 5. 打包流程
+
+### 5.1 编译并打包
 
 ```bash
-# 从 tar 包升级服务
-qf_scmc upgrade -n <服务名> -d <新版本tar包>
+# 1. 编译
+./build.sh -r
 
-# 一体化升级（服务+模型+Nginx，从服务内部 soft_dir 查找素材）
-qf_scmc upgrades -n <服务名>
-
-# 一体化升级（指定外部素材目录）
-qf_scmc upgrades -n <服务名> -d <素材目录>
+# 2. 进入 build 目录并打包
+cd build
+cpack -G DEB
 ```
 
-### 查询
+### 5.2 生成的包
+
+- **包名**：`qifeng_scm-0.0.1-Linux.deb`
+- **位置**：`build/qifeng_scm-0.0.1-Linux.deb`
+
+### 5.3 包内主要内容
+
+| 路径                                        | 说明           |
+| ----------------------------------------- | ------------ |
+| `/usr/bin/qf_scmd`                    | 守护进程可执行文件    |
+| `/usr/bin/qf_scmc`                  | CLI 客户端可执行文件 |
+| `/usr/lib/qifeng-scm/*.so*`               | 第三方依赖动态库     |
+| `/lib/systemd/system/qifeng-scmd.service` | systemd 服务单元 |
+| `/etc/qifeng-scm/scmd.yaml`               | 参考配置文件       |
+| `/etc/ld.so.conf.d/qifeng-scm.conf`       | 私有库搜索路径配置    |
+| `postinst` / `prerm` / `postrm`           | deb 维护脚本     |
+
+
+## 6. 安装与使用示例
+
+### 6.1 安装 deb 包
 
 ```bash
-# 查看所有已装服务
+sudo dpkg -i qifeng_scm-0.0.1-Linux.deb
+
+# 如提示依赖缺失，自动修复
+sudo apt-get install -f
+```
+
+### 6.2 安装后自动行为
+
+安装完成后，`postinst` 脚本会自动执行以下操作：
+
+1. **创建系统目录**
+   - `/var/lib/qifeng-scm/` — 根目录，子目录自动派生：
+     - `services/` — 服务安装目录
+     - `data/` — 数据目录
+     - `backup/` — 备份目录
+     - `log/` — 日志目录
+     - `tmp/` — 临时目录
+   - `/run/qifeng-scm` — 运行时目录（由 systemd RuntimeDirectory 管理）
+
+2. **配置动态链接库**
+   - 安装第三方依赖库到 `/usr/lib/qifeng-scm/`
+   - 创建正确的符号链接结构
+   - 更新动态链接器缓存（`ldconfig`）
+
+3. **设置 systemd 服务**
+   - `systemctl enable qifeng-scmd.service` — **设置开机自启**
+   - `systemctl start qifeng-scmd.service` — **立即启动服务**
+
+> **注意**：安装完成后无需手动启动，`qf_scmd` 守护进程会自动运行，并设置为开机自启。
+
+### 6.3 验证安装
+
+```bash
+# 查看守护进程状态
+systemctl status qifeng-scmd.service
+
+# 确认 socket 已创建
+ls -la /run/qifeng-scm/scmd.sock
+
+# 测试客户端（任意用户均可执行）
+qf_scmc version
+```
+
+### 6.4 常用命令
+
+```bash
+# 列出已安装服务
 qf_scmc list
 
-# 查看服务详情（含 CPU、内存、运行时间）
-qf_scmc info -n <服务名>
+# 安装服务（以 mariadb 为例）
+qf_scmc install -n mariadb --tar_dir ./t_mariadb.tar.gz
 
-# 查看服务详情（含错误诊断）
-qf_scmc info -n <服务名> --error
+# 启动服务
+qf_scmc start -n mariadb
 
-# 查看操作日志（最近 N 条）
-qf_scmc log -n 50
+# 查看服务状态
+qf_scmc info -n mariadb
 
-# 查看服务 journal 日志
-qf_scmc slog -n <服务名> --count 20
+# 停止服务
+qf_scmc stop -n mariadb
+
+# 卸载服务
+qf_scmc uninstall -n mariadb
 ```
 
-### Nginx 与模型管理
+### 6.5 卸载
 
 ```bash
-# 独立配置 nginx
-qf_scmc init_nginx -d <配置目录>
-
-# 重置 nginx 配置
-qf_scmc reset_nginx -wait   # 等待状态（所有路由 404）
-qf_scmc reset_nginx -now    # 恢复正常
-qf_scmc reset_nginx -back   # 全部无效（仅欢迎页）
-
-# 模型管理
-qf_scmc add_model <模型路径>       # 安装/升级模型
-qf_scmc clear_model -n <模型名>    # 停用并备份模型
-```
-
-### 其他
-
-```bash
-# 设备自检
-qf_scmc check
-
-# 查看版本
-qf_scmc --version
-
-# 使 scmd 优雅退出
-qf_scmc kill
-```
-
-## 卸载
-
-```bash
-# 卸载所有已装服务（保留 scmd 自身）
-qf_scmc uninstall -a
-
-# 卸载 deb 包（保留配置和数据）
+# 普通卸载（保留数据目录和日志）
 sudo dpkg -r qifeng-scm
 
-# 彻底卸载（清除配置和数据）
+# 完全卸载（清理所有数据和日志）
 sudo dpkg --purge qifeng-scm
-# purge 会删除 /var/lib/qifeng-scm 和 /var/log/qifeng-scm
+
+# 强制卸载（当包损坏或无法正常卸载时使用）
+sudo dpkg --purge --force-all qifeng-scm
 ```
 
-## 升级
-
-### Deb 包升级
+**卸载后清理残留文件（如有需要）：**
 
 ```bash
-sudo dpkg -i qifeng-scm_<new_version>_<arch>.deb
+# 手动清理可执行文件
+sudo rm -f /usr/bin/qf_scmd /usr/bin/qf_scmc
+
+# 手动清理库文件
+sudo rm -rf /usr/lib/qifeng-scm
+
+# 手动清理配置文件
+sudo rm -f /etc/qifeng-scm/symlinks.txt
+
+# 手动清理动态链接器配置
+sudo rm -f /etc/ld.so.conf.d/qifeng-scm.conf
+sudo ldconfig
+
+# 手动清理 systemd 服务文件
+sudo rm -f /lib/systemd/system/qifeng-scmd.service
+sudo systemctl daemon-reload
 ```
 
-升级流程：
-1. **preinst**：备份 `/etc/qifeng-scm/scmd.yaml` 和 `selftest.json` 到 `.bak`
-2. **prerm**：`qf_scmc stop -a` 停止所有服务，停止 scmd
-3. 解包新版本文件
-4. **postinst**：恢复 `.bak` 配置，保留 `/var/lib/qifeng-scm/services` 数据，重启 scmd
+**说明：**
+- 包名为 `qifeng_scm`（下划线），不是 `qifeng-scm`（连字符）
+- `dpkg -r` 仅卸载程序文件，保留以下数据目录：
+  - `/var/lib/qifeng-scm/` — 根目录（含 services/、data/、backup/、log/、tmp/ 等子目录）
+- `dpkg --purge` 完全卸载，会删除 `/var/lib/qifeng-scm` 整个根目录
+- 如遇到卸载后文件残留（容器环境或权限问题），可执行上述手动清理步骤
 
-`scmd.yaml` 和 `selftest.json` 声明为 conffiles，dpkg 升级时提供配置保留策略。
+## 7. 开发与调试
 
-### 服务升级
+### 7.1 开发模式运行
 
-服务升级支持两种模式：
+开发阶段可直接运行编译产物，无需安装：
 
-- **全量升级**：无 `up_detail.yaml` 时，备份旧版本后全量覆盖
-- **细粒度升级**：有 `up_detail.yaml` 时，按 replace/add/clear 列表精确替换
+```bash
+# 以 root 运行守护进程（开发时可指定环境变量覆盖 socket 路径）
+sudo ./build/bin/qf_scmd
 
-升级前自动备份数据库（若服务依赖 mariadb），升级失败自动回滚文件和数据库。
+# 在另一个终端执行客户端命令
+./build/bin/qf_scmc list
+```
 
-## 注意事项
+### 7.2 查看日志
 
-1. **权限要求**：所有 `qf_scmc` 命令需以 root 执行（UDS 套接字权限 0666，但服务管理操作需 root）
-2. **数据库服务依赖**：若服务依赖 MariaDB，需先安装并运行 MariaDB
-3. **模型文件管理**：模型文件统一存放在 `/var/lib/qifeng-scm/models`，通过 `QIFENG_MODEL_DIR` 环境变量注入给服务
-4. **开机自检**：`scmd.yaml` 中 `selftest.enabled=true` 时，scmd 启动前执行设备自检；`fail_action=halt` 时自检失败会中止启动
-5. **日志轮转**：默认 50MB/文件、7 个文件，可通过 `scmd.yaml` 的 `log` 段配置
-6. **CPU 使用率**：`info` 命令显示的 CPU 使用率已按核心数归一化（0%~100%），1.0 表示占满所有核心
+```bash
+# 守护进程日志
+sudo journalctl -u qifeng-scmd.service -f
 
-## 更多文档
+# 服务日志（以 mariadb 为例）
+sudo journalctl -u scmd_mariadb.service -f
+```
 
-- [自检模块设计](doc/checker-design.md)
-- [自检模块使用](doc/checker-usage.md)
-- [升级流程说明](doc/upgrade.md)
-- [命令流程分析](doc/command-flow-analysis.md)
+## 8. 许可证
+
+Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.

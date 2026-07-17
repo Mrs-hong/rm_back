@@ -28,6 +28,6 @@ namespace qifeng::scm {
         ResultMsg() = default;
         ResultMsg(int c, const std::string &m) : code(c), msg(m) {}
 
-        bool IsDefaultSuccess() const { return code == 0; }
+        bool IsDefalutSuccess() const { return code == 0; }
     };
 }  // namespace qifeng::scm

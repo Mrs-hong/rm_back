@@ -58,43 +58,43 @@ namespace qifeng::scm {
     ResultMsg FileManager::InitFileDir() {
         // 创建 .config 目录
         auto ret = utils::CreateDirectory(mCurDirConfig.configDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create config dir: " + ret.msg);
         }
 
         // 创建 .service 目录
         ret = utils::CreateDirectory(mCurDirConfig.serviceDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create service dir: " + ret.msg);
         }
 
         // 创建 .service/.init 子目录
         ret = utils::CreateDirectory(GetServiceInitDir());
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create service init dir: " + ret.msg);
         }
 
         // 创建 .data 目录
         ret = utils::CreateDirectory(mCurDirConfig.dataDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create data dir: " + ret.msg);
         }
 
         // 创建 .backup 目录
         ret = utils::CreateDirectory(mCurDirConfig.backupDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create backup dir: " + ret.msg);
         }
 
         // 创建 .logs 目录
         ret = utils::CreateDirectory(mCurDirConfig.logsDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create logs dir: " + ret.msg);
         }
 
         // 创建 .temp 目录
         ret = utils::CreateDirectory(mCurDirConfig.tempDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create temp dir: " + ret.msg);
         }
 
@@ -111,35 +111,35 @@ namespace qifeng::scm {
         // 移动各目录到新位置
         if (fs::exists(mCurDirConfig.configDir)) {
             auto ret = utils::MoveDirectory(mCurDirConfig.configDir, newDirConfig.configDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to migrate config dir: " + ret.msg);
             }
         }
 
         if (fs::exists(mCurDirConfig.serviceDir)) {
             auto ret = utils::MoveDirectory(mCurDirConfig.serviceDir, newDirConfig.serviceDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to migrate service dir: " + ret.msg);
             }
         }
 
         if (fs::exists(mCurDirConfig.dataDir)) {
             auto ret = utils::MoveDirectory(mCurDirConfig.dataDir, newDirConfig.dataDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to migrate data dir: " + ret.msg);
             }
         }
 
         if (fs::exists(mCurDirConfig.backupDir)) {
             auto ret = utils::MoveDirectory(mCurDirConfig.backupDir, newDirConfig.backupDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to migrate backup dir: " + ret.msg);
             }
         }
 
         if (fs::exists(mCurDirConfig.logsDir)) {
             auto ret = utils::MoveDirectory(mCurDirConfig.logsDir, newDirConfig.logsDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to migrate logs dir: " + ret.msg);
             }
         }
@@ -149,7 +149,7 @@ namespace qifeng::scm {
 
         // 确保 .init 子目录存在
         auto ret = utils::CreateDirectory(GetServiceInitDir());
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create init dir after migration: " + ret.msg);
         }
 
@@ -185,15 +185,15 @@ namespace qifeng::scm {
         // 验证软件包完整性
         std::string softwarePath = utils::JoinPath(softwareDir, serviceName);
         auto ret = VerifySoftwarePackage(softwarePath);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Software package verification failed: " + ret.msg);
         }
 
         // 解包路径和目标服务路径不相同则复制软件包到服务目录
         // 使用拷贝而非移动：避免安装/升级失败回退时临时目录中的源（可能来自用户目录）被链式丢失
-        if (!utils::IsSamePath(softwarePath, serviceDir).IsDefaultSuccess()) {
+        if (!utils::IsSamePath(softwarePath, serviceDir).IsDefalutSuccess()) {
             auto copyRet = utils::CopyDirectory(softwarePath, serviceDir);
-            if (!copyRet.IsDefaultSuccess()) {
+            if (!copyRet.IsDefalutSuccess()) {
                 // 失败时清理已创建的目录
                 utils::ForceDeleteDirectory(serviceDir);
                 return MakeError("Failed to install software package: " + copyRet.msg);
@@ -202,7 +202,7 @@ namespace qifeng::scm {
 
         // 设置服务目录权限
         ret = utils::SetFilePermission(serviceDir, utils::GetCurrentUserName());
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             utils::ForceDeleteDirectory(serviceDir);
             return MakeError("Failed to set service directory permission: " + ret.msg);
         }
@@ -266,13 +266,13 @@ namespace qifeng::scm {
 
         // 备份旧版本（排除数据目录）
         auto ret = BackupOldVersion(serviceName);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to backup old version: " + ret.msg);
         }
 
         // 验证新软件包
         ret = VerifySoftwarePackage(actualSoftwareDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("New software package verification failed: " + ret.msg);
         }
 
@@ -289,20 +289,20 @@ namespace qifeng::scm {
                 utils::ForceDeleteDirectory(oldDataBackup);
             }
             auto backupRet = utils::CopyDirectory(oldDataDir, oldDataBackup);
-            if (!backupRet.IsDefaultSuccess()) {
+            if (!backupRet.IsDefalutSuccess()) {
                 return MakeError("Failed to backup old data directory: " + backupRet.msg);
             }
         }
 
         // 删除旧服务文件（保留数据目录）
         ret = ClearDirectoryContentsExclude(serviceDir, dataDirName);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to clear old service files: " + ret.msg);
         }
 
         // 复制新软件包到服务目录
         auto copyRet = utils::CopyDirectory(actualSoftwareDir, serviceDir);
-        if (!copyRet.IsDefaultSuccess()) {
+        if (!copyRet.IsDefalutSuccess()) {
             // 复制失败，尝试回滚
             RollbackSoftwarePackage(serviceName);
             return MakeError("Failed to copy new software package: " + copyRet.msg);
@@ -315,7 +315,7 @@ namespace qifeng::scm {
                 utils::ForceDeleteDirectory(newDataDir);
             }
             auto restoreRet = utils::CopyDirectory(oldDataBackup, newDataDir);
-            if (!restoreRet.IsDefaultSuccess()) {
+            if (!restoreRet.IsDefalutSuccess()) {
                 SLOG_ERROR << "Failed to restore old data directory: " << restoreRet.msg;
             }
             utils::ForceDeleteDirectory(oldDataBackup);
@@ -347,7 +347,7 @@ namespace qifeng::scm {
 
         // 删除服务目录
         auto ret = utils::ForceDeleteDirectory(serviceDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to remove service directory: " + ret.msg);
         }
 
@@ -368,13 +368,13 @@ namespace qifeng::scm {
 
         // 删除当前服务文件（保留数据目录）
         auto ret = ClearDirectoryContentsExclude(serviceDir, dataDirName);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to clear current service files during rollback: " + ret.msg);
         }
 
         // 将备份内容复制回服务目录
         auto copyRet = utils::CopyDirectory(backupDir, serviceDir);
-        if (!copyRet.IsDefaultSuccess()) {
+        if (!copyRet.IsDefalutSuccess()) {
             return MakeError("Failed to restore from backup: " + copyRet.msg);
         }
 
@@ -396,7 +396,7 @@ namespace qifeng::scm {
     ResultMsg FileManager::CreateServiceFile(const std::string &fileData, const std::string &serviceName) {
         // 确保 .init 目录存在
         auto ret = utils::CreateDirectory(GetServiceInitDir());
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create init directory: " + ret.msg);
         }
 
@@ -417,7 +417,7 @@ namespace qifeng::scm {
 
         // 设置服务文件权限
         ret = utils::SetFilePermission(filePath, utils::GetCurrentUserName());
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to set service file permission: " + ret.msg);
         }
 
@@ -531,11 +531,11 @@ namespace qifeng::scm {
         if (fs::exists(linkPath)) {
             ret = DeleteServiceSymlink(serviceName);
         }
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return ret;
         }
         ret = CreateServiceSymlink(serviceName);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return ret;
         }
         return ret;
@@ -555,7 +555,7 @@ namespace qifeng::scm {
         // 创建 .data/xxxx/ 目标目录
         std::string dataDir = GetDataDir(serviceName);
         auto ret = utils::CreateDirectory(dataDir);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create data directory: " + ret.msg);
         }
 
@@ -566,20 +566,20 @@ namespace qifeng::scm {
         fs::path dstParentPath = fs::path(dstDataPath).parent_path();
         if (!dstParentPath.empty()) {
             ret = utils::CreateDirectory(dstParentPath.string());
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to create data subdirectory: " + ret.msg);
             }
         }
 
         ret = utils::MoveDirectory(srcDataPath, dstDataPath);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to migrate data directory: " + ret.msg);
         }
 
         // 在原位置创建软链接指向新位置，保持兼容性
         std::string absDstPath = utils::GetAbsolutePath(dstDataPath);
         ret = utils::CreateSymbolicLink(absDstPath, srcDataPath);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             // 软链接创建失败，尝试将数据移回
             utils::MoveDirectory(dstDataPath, srcDataPath);
             return MakeError("Failed to create symlink after migration: " + ret.msg);
@@ -663,7 +663,7 @@ namespace qifeng::scm {
         // 如果备份已存在，先清理
         if (fs::exists(backupDir)) {
             auto ret = utils::ForceDeleteDirectory(backupDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to clean existing backup: " + ret.msg);
             }
         }
@@ -714,7 +714,7 @@ namespace qifeng::scm {
 
         // 创建目标目录
         auto ret = utils::CreateDirectory(dst);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create destination directory: " + dst);
         }
 
@@ -733,7 +733,7 @@ namespace qifeng::scm {
 
             if (entry.is_directory()) {
                 ret = utils::CopyDirectory(path.string(), destPath.string());
-                if (!ret.IsDefaultSuccess()) {
+                if (!ret.IsDefalutSuccess()) {
                     return ret;
                 }
             } else {
@@ -825,18 +825,18 @@ namespace qifeng::scm {
         std::string nginxDst = utils::JoinPath(serviceDir, "nginx");
         if (fs::exists(nginxDst)) {
             auto ret = utils::ForceDeleteDirectory(nginxDst);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to clean existing nginx directory: " + ret.msg);
             }
         }
         auto ret = utils::CreateDirectory(nginxDst);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create nginx directory: " + ret.msg);
         }
 
         // 拷贝 frontend/nginx 内容到服务 nginx 目录
         ret = utils::CopyDirectory(frontendSrc, nginxDst);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             utils::ForceDeleteDirectory(nginxDst);
             return MakeError("Failed to copy frontend files: " + ret.msg);
         }
@@ -1064,7 +1064,7 @@ namespace qifeng::scm {
 
         // 清理旧的系统 conf 软链/文件（使用 scm_ 前缀），避免后续创建软链时冲突
         auto uninstallResult = UninstallFrontend("scm");
-        if (!uninstallResult.IsDefaultSuccess()) {
+        if (!uninstallResult.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to uninstall old nginx conf: " << uninstallResult.msg;
         }
 
@@ -1077,19 +1077,19 @@ namespace qifeng::scm {
                 utils::ForceDeleteDirectory(nginxBackup);
             }
             auto backupRet = utils::CopyDirectory(nginxDst, nginxBackup);
-            if (!backupRet.IsDefaultSuccess()) {
+            if (!backupRet.IsDefalutSuccess()) {
                 SLOG_WARN << "Failed to backup existing nginx directory: " << backupRet.msg;
             }
             // 清除当前 nginx 目录
             auto delRet = utils::ForceDeleteDirectory(nginxDst);
-            if (!delRet.IsDefaultSuccess()) {
+            if (!delRet.IsDefalutSuccess()) {
                 return MakeError("Failed to clean existing nginx directory: " + delRet.msg);
             }
         }
 
         // 创建 nginx 目录
         auto ret = utils::CreateDirectory(nginxDst);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create nginx directory: " + ret.msg);
         }
 
@@ -1116,7 +1116,7 @@ namespace qifeng::scm {
                 }
             }
 
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 // 拷贝失败，回退
                 utils::ForceDeleteDirectory(nginxDst);
                 if (hadExistingNginx && fs::exists(nginxBackup)) {
@@ -1226,7 +1226,7 @@ namespace qifeng::scm {
 
         // 禁用系统默认站点，避免与 scm 默认站点产生 duplicate default server 冲突
         auto disableRet = DisableSystemDefaultSite();
-        if (!disableRet.IsDefaultSuccess()) {
+        if (!disableRet.IsDefalutSuccess()) {
             SLOG_ERROR << "Failed to disable system default site, rolling back: " << disableRet.msg;
             UninstallFrontend("scm");
             RestoreSystemDefaultSite();
@@ -1249,7 +1249,7 @@ namespace qifeng::scm {
     ResultMsg FileManager::ResetNginx() {
         // 1. 卸载系统 nginx conf 软链（使用 scm_ 前缀）
         auto uninstallResult = UninstallFrontend("scm");
-        if (!uninstallResult.IsDefaultSuccess()) {
+        if (!uninstallResult.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to uninstall nginx conf: " << uninstallResult.msg;
         }
 
@@ -1274,7 +1274,7 @@ namespace qifeng::scm {
 
         // 4. 恢复系统默认站点
         auto restoreRet = RestoreSystemDefaultSite();
-        if (!restoreRet.IsDefaultSuccess()) {
+        if (!restoreRet.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to restore system default site: " << restoreRet.msg;
         }
 
@@ -1282,7 +1282,7 @@ namespace qifeng::scm {
         std::string nginxDst = GetNginxDir();
         if (fs::exists(nginxDst)) {
             auto delRet = utils::ForceDeleteDirectory(nginxDst);
-            if (!delRet.IsDefaultSuccess()) {
+            if (!delRet.IsDefalutSuccess()) {
                 return MakeError("Failed to delete nginx directory: " + delRet.msg);
             }
             SLOG_INFO << "Deleted nginx directory: " << nginxDst;
@@ -1305,7 +1305,7 @@ namespace qifeng::scm {
 
         // 2. 移除现有的 scm_*.conf 软链（conf.d 和 snippets），避免 default_server 冲突
         auto uninstallResult = UninstallFrontend("scm");
-        if (!uninstallResult.IsDefaultSuccess()) {
+        if (!uninstallResult.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to uninstall nginx conf: " << uninstallResult.msg;
         }
 
@@ -1352,7 +1352,7 @@ namespace qifeng::scm {
 
         // 5. 禁用系统默认站点（避免 default_server 冲突）
         auto disableRet = DisableSystemDefaultSite();
-        if (!disableRet.IsDefaultSuccess()) {
+        if (!disableRet.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to disable system default site: " << disableRet.msg;
         }
 
@@ -1457,7 +1457,7 @@ namespace qifeng::scm {
 
         // 4. 禁用系统默认站点（避免 default_server 冲突）
         auto disableRet = DisableSystemDefaultSite();
-        if (!disableRet.IsDefaultSuccess()) {
+        if (!disableRet.IsDefalutSuccess()) {
             SLOG_WARN << "Failed to disable system default site: " << disableRet.msg;
         }
 
@@ -1471,7 +1471,7 @@ namespace qifeng::scm {
         }
 
         auto dirRet = utils::CreateDirectory(mCurDirConfig.backupDir);
-        if (!dirRet.IsDefaultSuccess()) {
+        if (!dirRet.IsDefalutSuccess()) {
             return MakeError("Failed to create backup directory: " + dirRet.msg);
         }
 
@@ -1598,7 +1598,7 @@ namespace qifeng::scm {
 
         // 确保备份根目录存在
         auto ret = utils::CreateDirectory(backupRoot);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create backup root: " + ret.msg);
         }
         // 若已有 files_backup 先清理
@@ -1606,7 +1606,7 @@ namespace qifeng::scm {
             utils::ForceDeleteDirectory(filesBackup);
         }
         ret = utils::CreateDirectory(filesBackup);
-        if (!ret.IsDefaultSuccess()) {
+        if (!ret.IsDefalutSuccess()) {
             return MakeError("Failed to create files_backup: " + ret.msg);
         }
 
@@ -1617,7 +1617,7 @@ namespace qifeng::scm {
             if (fs::exists(yamlSrc)) {
                 std::string yamlDst = utils::JoinPath(filesBackup, DefaultServiceName);
                 auto yamlRet = CopyEntry(yamlSrc, yamlDst);
-                if (!yamlRet.IsDefaultSuccess()) {
+                if (!yamlRet.IsDefalutSuccess()) {
                     return MakeError("Failed to backup service.yaml: " + yamlRet.msg);
                 }
             }
@@ -1636,13 +1636,13 @@ namespace qifeng::scm {
 
         for (const auto &dir : detail.replaceDirs) {
             auto r = backupEntry(dir);
-            if (!r.IsDefaultSuccess()) {
+            if (!r.IsDefalutSuccess()) {
                 return MakeError("Failed to backup replace entry " + dir + ": " + r.msg);
             }
         }
         for (const auto &dir : detail.removeDirs) {
             auto r = backupEntry(dir);
-            if (!r.IsDefaultSuccess()) {
+            if (!r.IsDefalutSuccess()) {
                 return MakeError("Failed to backup remove entry " + dir + ": " + r.msg);
             }
         }
@@ -1660,7 +1660,7 @@ namespace qifeng::scm {
             std::string nginxBackup = utils::JoinPath(backupRoot, "nginx_backup");
             // 备份整个 nginx 目录（含 conf.d 和 frontend）
             auto backupRet = utils::CopyDirectory(frontendDir, nginxBackup);
-            if (!backupRet.IsDefaultSuccess()) {
+            if (!backupRet.IsDefalutSuccess()) {
                 SLOG_WARN << "Failed to backup nginx directory: " << backupRet.msg;
             }
         }
@@ -1680,7 +1680,7 @@ namespace qifeng::scm {
         std::string dstYaml = utils::JoinPath(serviceDir, DefaultServiceName);
         if (fs::exists(srcYaml)) {
             auto yamlRet = CopyEntry(srcYaml, dstYaml);
-            if (!yamlRet.IsDefaultSuccess()) {
+            if (!yamlRet.IsDefalutSuccess()) {
                 return MakeError("Failed to replace service.yaml: " + yamlRet.msg);
             }
             SLOG_INFO << "Replaced service.yaml for service: " << serviceName;
@@ -1699,12 +1699,12 @@ namespace qifeng::scm {
             }
             if (fs::exists(dstDir)) {
                 auto ret = utils::ForceDeleteDirectory(dstDir);
-                if (!ret.IsDefaultSuccess()) {
+                if (!ret.IsDefalutSuccess()) {
                     return MakeError("Failed to delete existing entry " + dir + ": " + ret.msg);
                 }
             }
             auto ret = CopyEntry(srcDir, dstDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to copy replace entry " + dir + ": " + ret.msg);
             }
             SLOG_INFO << "Replaced entry: " << dir;
@@ -1715,7 +1715,7 @@ namespace qifeng::scm {
             std::string dstDir = utils::JoinPath(serviceDir, dir);
             if (fs::exists(dstDir)) {
                 auto ret = utils::ForceDeleteDirectory(dstDir);
-                if (!ret.IsDefaultSuccess()) {
+                if (!ret.IsDefalutSuccess()) {
                     return MakeError("Failed to remove entry " + dir + ": " + ret.msg);
                 }
                 SLOG_INFO << "Removed entry: " << dir;
@@ -1734,7 +1734,7 @@ namespace qifeng::scm {
                 return MakeError("Add target already exists: " + dir);
             }
             auto ret = CopyEntry(srcDir, dstDir);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to copy add entry " + dir + ": " + ret.msg);
             }
             SLOG_INFO << "Added entry: " << dir;
@@ -1762,12 +1762,12 @@ namespace qifeng::scm {
             std::string dst = utils::JoinPath(serviceDir, name);
             if (fs::exists(dst)) {
                 auto ret = utils::ForceDeleteDirectory(dst);
-                if (!ret.IsDefaultSuccess()) {
+                if (!ret.IsDefalutSuccess()) {
                     SLOG_WARN << "Failed to delete entry during rollback: " << name;
                 }
             }
             auto ret = CopyEntry(entry.path().string(), dst);
-            if (!ret.IsDefaultSuccess()) {
+            if (!ret.IsDefalutSuccess()) {
                 return MakeError("Failed to restore entry " + name + ": " + ret.msg);
             }
             SLOG_INFO << "Restored entry: " << name;
@@ -1782,7 +1782,7 @@ namespace qifeng::scm {
                 utils::ForceDeleteDirectory(frontendDir);
             }
             auto restoreRet = utils::CopyDirectory(nginxBackup, frontendDir);
-            if (!restoreRet.IsDefaultSuccess()) {
+            if (!restoreRet.IsDefalutSuccess()) {
                 SLOG_WARN << "Failed to restore nginx directory: " << restoreRet.msg;
             }
         }

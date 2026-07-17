@@ -157,7 +157,7 @@ namespace qifeng::scm {
         try {
             // 参数校验
             auto validateRet = ValidateParams(serviceDef);
-            if (!validateRet.IsDefaultSuccess()) {
+            if (!validateRet.IsDefalutSuccess()) {
                 return validateRet;
             }
 

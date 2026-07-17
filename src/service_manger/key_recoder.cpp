@@ -31,6 +31,7 @@ namespace qifeng::scm {
             root["service_name"] = record.serviceName;
             root["result"] = record.result;
             root["tar_dir"] = record.tarDir;
+            root["sql_dir"] = record.sqlDir;
 
             std::ofstream ofs(mFilePath);
             if (!ofs.is_open()) {
@@ -93,6 +94,7 @@ namespace qifeng::scm {
             record.serviceName = root["service_name"].as<std::string>("");
             record.result = root["result"].as<int>(0);
             record.tarDir = root["tar_dir"] ? root["tar_dir"].as<std::string>("") : "";
+            record.sqlDir = root["sql_dir"] ? root["sql_dir"].as<std::string>("") : "";
 
             return record.IsValid();
         } catch (const std::exception &e) {
@@ -116,6 +118,7 @@ namespace qifeng::scm {
             root["service_name"] = "";
             root["result"] = 0;
             root["tar_dir"] = "";
+            root["sql_dir"] = "";
 
             std::ofstream ofs(mFilePath);
             if (ofs.is_open()) {

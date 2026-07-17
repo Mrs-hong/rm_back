@@ -8,26 +8,15 @@
 
 namespace qifeng::scm {
 
-    struct VersionRequest {};
-
-    template <>
-    struct RequestCommand<VersionRequest> { static constexpr ScmCommand value = ScmCommand::VERSION; };
-
-    inline Json::Value ToJson(const VersionRequest& /*req*/) {
-        return Json::Value(Json::objectValue);
-    }
-
     /**
      * @brief VERSION 命令处理器
-     * @details 返回 qifeng_scm 的版本、构建时间和 Git commit
+     * @details 返回 qifeng_scm 的版本、构建时间和 Git commit 信息。
      */
     class VersionHandler : public ICommandHandler {
     public:
-        explicit VersionHandler(const HandlerContext&) {}
-
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           const ServiceContext& ctx,
+                           ServiceControl& serviceControl,
                            KeyOperationRecorder& recorder) override;
     };
 

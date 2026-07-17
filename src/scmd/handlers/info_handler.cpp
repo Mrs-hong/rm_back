@@ -7,11 +7,10 @@
 #include "common/scmd_types.h"
 #include "common/service_error_info.h"
 #include "common/types.h"
+#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/handler_registry.h"
+#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
-#include "service_manger/service_manager.h"
 
 #include <iomanip>
 #include <sstream>
@@ -19,26 +18,15 @@
 
 namespace qifeng::scm {
 
-    static std::optional<InfoRequest> FromJson(const Json::Value& params) {
-        InfoRequest req;
-        if (params.isMember("serviceName") && params["serviceName"].isString()) {
-            req.serviceName = params["serviceName"].asString();
-        }
-        if (params.isMember("infoDetail") && params["infoDetail"].isBool()) {
-            req.infoDetail = params["infoDetail"].asBool();
-        }
-        return req;
-    }
-
     ScmCommand InfoHandler::GetCommand() const {
         return ScmCommand::INFO;
     }
 
     ScmResponse InfoHandler::Handle(const ScmRequest& request,
-                                    const ServiceContext& ctx,
+                                    ServiceControl& serviceControl,
                                     KeyOperationRecorder& /*recorder*/) {
-        const auto params = FromJson(request.params);
-        if (!params.has_value() || params->serviceName.empty()) {
+        const auto* params = std::get_if<InfoRequest>(&request.data);
+        if (params == nullptr || params->serviceName.empty()) {
             SLOG_WARN << "Info command missing service name";
             ScmResponse response;
             response.code = -1;
@@ -47,10 +35,10 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = ctx.serviceManager->GetServiceStatus(params->serviceName);
+        auto result = serviceControl.GetServiceStatus(params->serviceName);
         response.code = result.code;
-        if (result.IsDefaultSuccess()) {
-            auto info = ctx.serviceManager->GetServiceRuntimeInfo(params->serviceName);
+        if (result.IsDefalutSuccess()) {
+            auto info = serviceControl.GetServiceRuntimeInfo(params->serviceName);
             if (info.pid > 0 || params->infoDetail) {
                 response.message = "success";
                 Json::Value root;
@@ -67,10 +55,10 @@ namespace qifeng::scm {
                     memStream << std::fixed << std::setprecision(2) << memMB << " MB";
                     root["memoryUsage"] = memStream.str();
                 }
-                // CPU 使用率：info.cpuUsage 为 0.0~1.0 比率，展示为百分比并标注核心数
+                // CPU 使用率：格式化百分比并标注核心数
                 {
                     unsigned int numCores = std::thread::hardware_concurrency();
-                    double cpuPercent = info.cpuUsage * 100.0;
+                    double cpuPercent = static_cast<double>(info.cpuUsage);
                     std::ostringstream cpuStream;
                     cpuStream << std::fixed << std::setprecision(2) << cpuPercent << "%";
                     if (numCores > 0) {
@@ -78,7 +66,9 @@ namespace qifeng::scm {
                     }
                     root["cpuUsage"] = cpuStream.str();
                 }
+                root["configFilePath"] = info.configFilePath;
                 root["rootPath"] = info.rootPath;
+                root["dbFilePath"] = info.dbFilePath;
                 root["recoveryCount"] = info.recoveryCount;
 
                 // --error 参数：附加错误诊断信息到响应末尾
@@ -103,7 +93,5 @@ namespace qifeng::scm {
         }
         return response;
     }
-
-    REGISTER_COMMAND_HANDLER(ScmCommand::INFO, InfoHandler)
 
 }  // namespace qifeng::scm

@@ -9,16 +9,15 @@ namespace qifeng::scm {
 
     /**
      * @brief 关键操作记录结构体
-     * @details 记录最后一次命令级别操作的完整上下文信息，用于scmd异常终止后的操作恢复
+     * @details 记录最后一次操作的完整上下文信息，用于scmd异常终止后的操作恢复
      * result语义：0成功 1失败 2进行中（被异常终止）
-     * @note 只记录命令级别操作（install/upgrade/uninstall/start/stop），
-     *       不支持内部环节（如initDb/initSql），内部环节由命令本身负责保证幂等性
      */
     struct KeyOperationRecord {
-        std::string optName;      // 操作名称: install/upgrade/uninstall/start/stop
+        std::string optName;      // 操作名称: install/upgrade/uninstall/start/stop/initDb/initSql
         std::string serviceName;  // 服务名称
         int result {0};           // 操作结果: 0成功 1失败 2进行中
         std::string tarDir;       // install/upgrade时的软件包路径
+        std::string sqlDir;       // initDb/initSql时的SQL脚本目录
 
         bool IsValid() const { return !optName.empty(); }
     };

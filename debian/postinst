@@ -1,38 +1,62 @@
 #!/bin/bash
 set -e
 
+# 升级备份目录（与 preinst 保持一致）
+BACKUP_DIR="/var/lib/qifeng-scm/backup/pre-upgrade"
+CONFIG_BACKUP_DIR="${BACKUP_DIR}/config"
+OLD_PATHS_FILE="${BACKUP_DIR}/old_paths"
+
+# 从 YAML 配置文件中提取 scmd 下二级键的值
+# 仅匹配顶层缩进的键（如 "  root_dir: /path"），不依赖 python/yq
+# 参数: $1 = 配置文件路径, $2 = 键名
+get_yaml_value() {
+    local file="$1"
+    local key="$2"
+    sed -n "s/^[[:space:]]*${key}:[[:space:]]*//p" "$file" \
+        | head -1 \
+        | sed 's/#.*//' \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | sed "s/^\"\(.*\)\"$/\1/;s/^'\(.*\)'$/\1/"
+}
+
+# 拷贝旧路径数据到新路径（若路径不一致且旧路径存在）
+# 参数: $1 = 旧路径, $2 = 新路径, $3 = 描述（用于日志）
+migrate_data() {
+    local old_path="$1"
+    local new_path="$2"
+    local desc="$3"
+
+    # 路径为空或相同则跳过
+    if [ -z "${old_path}" ] || [ -z "${new_path}" ]; then
+        return 0
+    fi
+    if [ "${old_path}" = "${new_path}" ]; then
+        echo "postinst: ${desc} 路径未变更 (${new_path})，跳过迁移"
+        return 0
+    fi
+
+    # 旧路径不存在则跳过（无数据可迁移）
+    if [ ! -d "${old_path}" ]; then
+        echo "postinst: ${desc} 旧路径 ${old_path} 不存在，跳过迁移"
+        return 0
+    fi
+
+    echo "postinst: 迁移 ${desc}: ${old_path} -> ${new_path}"
+    mkdir -p "${new_path}"
+    # cp -a 保留权限属性，旧路径/. 表示包含隐藏文件并合并到目标目录
+    cp -a "${old_path}/." "${new_path}/" || echo "postinst: WARN: ${desc} 迁移失败，请手动检查" >&2
+}
+
 case "$1" in
     configure)
-        # 创建数据/日志目录（systemd RuntimeDirectory 已自动管理 /run/qifeng-scm）
+        # $2 为旧版本号：空 = 全新安装，非空 = 升级
+        OLD_VERSION="$2"
+
+        # --- 公共步骤：创建固定目录（systemd RuntimeDirectory 已自动管理 /run/qifeng-scm）---
         mkdir -p /var/lib/qifeng-scm/services
         mkdir -p /var/lib/qifeng-scm/data
         mkdir -p /var/lib/qifeng-scm/backup
         mkdir -p /var/log/qifeng-scm
-
-        # 设置权限（全部 root）
-        chown -R root:root /var/lib/qifeng-scm
-        chown -R root:root /var/log/qifeng-scm
-        chmod 755 /var/lib/qifeng-scm
-        chmod 755 /var/lib/qifeng-scm/services
-        chmod 755 /var/lib/qifeng-scm/data
-        chmod 755 /var/lib/qifeng-scm/backup
-        chmod 755 /var/log/qifeng-scm
-
-        # 升级场景（$2 为旧版本号，非空）：保留用户自定义的配置文件
-        # conffiles 机制已对 scmd.yaml/selftest.json 提供交互式保留，此处做兜底：
-        # 若 dpkg 采用了新包配置（用户选择覆盖或非交互模式），且存在 .bak 备份，
-        # 则恢复用户旧配置，避免升级导致配置丢失。
-        if [ -n "$2" ]; then
-            if [ -f /etc/qifeng-scm/scmd.yaml.bak ]; then
-                cp -a /etc/qifeng-scm/scmd.yaml.bak /etc/qifeng-scm/scmd.yaml
-                rm -f /etc/qifeng-scm/scmd.yaml.bak
-            fi
-            if [ -f /etc/qifeng-scm/selftest.json.bak ]; then
-                cp -a /etc/qifeng-scm/selftest.json.bak /etc/qifeng-scm/selftest.json
-                rm -f /etc/qifeng-scm/selftest.json.bak
-            fi
-            # 升级场景：保留 /var/lib/qifeng-scm/services 下的已装服务数据，不清理
-        fi
 
         # 更新动态链接器缓存
         ldconfig
@@ -40,12 +64,67 @@ case "$1" in
         # 重载 systemd 配置
         systemctl daemon-reload
 
-        # 设置开机自启并立即启动（升级和新装均执行）
-        systemctl enable qifeng-scmd.service
-        systemctl restart qifeng-scmd.service
+        if [ -z "${OLD_VERSION}" ]; then
+            # --- 全新安装 ---
+            # 设置权限（全部 root）
+            chown -R root:root /var/lib/qifeng-scm
+            chown -R root:root /var/log/qifeng-scm
+            chmod 755 /var/lib/qifeng-scm
+            chmod 755 /var/lib/qifeng-scm/services
+            chmod 755 /var/lib/qifeng-scm/data
+            chmod 755 /var/lib/qifeng-scm/backup
+            chmod 755 /var/log/qifeng-scm
+
+            # 设置开机自启并立即启动
+            systemctl enable qifeng-scmd.service
+            systemctl start qifeng-scmd.service
+        else
+            # --- 升级 ---
+            echo "postinst: 升级 from ${OLD_VERSION}"
+
+            # 读取新配置的 root_dir 和 model_dir
+            NEW_ROOT_DIR=""
+            NEW_MODEL_DIR=""
+            if [ -f /etc/qifeng-scm/scmd.yaml ]; then
+                NEW_ROOT_DIR=$(get_yaml_value /etc/qifeng-scm/scmd.yaml root_dir)
+                NEW_MODEL_DIR=$(get_yaml_value /etc/qifeng-scm/scmd.yaml model_dir)
+            fi
+            echo "postinst: 新 root_dir=${NEW_ROOT_DIR}, 新 model_dir=${NEW_MODEL_DIR}"
+
+            # 读取旧路径标记（由 preinst 写入）
+            OLD_ROOT_DIR=""
+            OLD_MODEL_DIR=""
+            if [ -f "${OLD_PATHS_FILE}" ]; then
+                # 加载旧路径变量（文件由 preinst 生成，可信）
+                . "${OLD_PATHS_FILE}"
+            fi
+            echo "postinst: 旧 root_dir=${OLD_ROOT_DIR}, 旧 model_dir=${OLD_MODEL_DIR}"
+
+            # 执行路径迁移：若新旧路径不一致且旧路径存在数据，则拷贝到新路径
+            migrate_data "${OLD_ROOT_DIR}" "${NEW_ROOT_DIR}" "root_dir"
+            migrate_data "${OLD_MODEL_DIR}" "${NEW_MODEL_DIR}" "model_dir"
+
+            # 确保新 root_dir 子目录存在（services/data/backup/log/tmp）
+            if [ -n "${NEW_ROOT_DIR}" ]; then
+                mkdir -p "${NEW_ROOT_DIR}/services"
+                mkdir -p "${NEW_ROOT_DIR}/data"
+                mkdir -p "${NEW_ROOT_DIR}/backup"
+                mkdir -p "${NEW_ROOT_DIR}/log"
+                mkdir -p "${NEW_ROOT_DIR}/tmp"
+            fi
+
+            # 设置开机自启并立即启动
+            systemctl enable qifeng-scmd.service
+            systemctl start qifeng-scmd.service
+        fi
         ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
+        # 升级中止：从备份恢复 /etc/qifeng-scm 配置
+        if [ -d "${CONFIG_BACKUP_DIR}" ]; then
+            echo "postinst: 从 ${CONFIG_BACKUP_DIR} 恢复 /etc/qifeng-scm"
+            cp -a "${CONFIG_BACKUP_DIR}/." /etc/qifeng-scm/
+        fi
         ;;
 
     *)

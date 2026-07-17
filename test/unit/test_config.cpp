@@ -24,7 +24,7 @@ TEST(TestBase, Pwd) {
 TEST(ConfigLoaderTest, GetAllServices) {
     ConfigLoader loader;
     auto result = loader.Initialize();
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Initialize failed: code=" << result.code << " msg=" << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Initialize failed: code=" << result.code << " msg=" << result.msg;
 
     auto services = loader.GetAllServices();
     // 由用户设置输入验证
@@ -52,7 +52,7 @@ TEST(ConfigLoaderTest, AddService) {
     // 添加服务
     auto result = loader.AddService("./addServices");
     // 由用户设置输入验证
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "AddService failed: code=" << result.code << " msg=" << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "AddService failed: code=" << result.code << " msg=" << result.msg;
 }
 
 // ---------- ReloadService() ----------
@@ -64,7 +64,7 @@ TEST(ConfigLoaderTest, ReloadService) {
     // 重新加载服务
     auto result = loader.ReloadService("test_service_a");
     // 由用户设置输入验证
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "ReloadService failed: code=" << result.code << " msg=" << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "ReloadService failed: code=" << result.code << " msg=" << result.msg;
 }
 
 // ---------- RemoveService() ----------
@@ -76,7 +76,7 @@ TEST(ConfigLoaderTest, RemoveService) {
     // 移除服务
     auto result = loader.RemoveService("test_service_a");
     // 由用户设置输入验证
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "RemoveService failed: code=" << result.code << " msg=" << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "RemoveService failed: code=" << result.code << " msg=" << result.msg;
 }
 
 // ---------- UpgradeService() ----------
@@ -88,7 +88,7 @@ TEST(ConfigLoaderTest, UpgradeService) {
     // 升级服务
     auto result = loader.UpgradeService("./addServices");
     // 由用户设置输入验证
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "UpgradeService failed: code=" << result.code << " msg=" << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "UpgradeService failed: code=" << result.code << " msg=" << result.msg;
 }
 
 // ---------- WriteSelfConfigFile() ----------
@@ -96,6 +96,6 @@ TEST(ConfigLoaderTest, WriteSelfConfigFile) {
     ConfigLoader loader;
     auto result = loader.WriteSelfConfigFile();
     // 由用户设置输入验证
-    EXPECT_TRUE(result.IsDefaultSuccess())
+    EXPECT_TRUE(result.IsDefalutSuccess())
         << "WriteSelfConfigFile failed: code=" << result.code << " msg=" << result.msg;
 }

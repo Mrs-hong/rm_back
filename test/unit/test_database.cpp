@@ -140,7 +140,7 @@ TEST_F(MySQLBackendTest, Initialize_EmptyBinDir) {
     cfg_.rootDir.clear();
     MySQLBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
     EXPECT_NE(result.msg.find("rootDir"), std::string::npos);
 }
 
@@ -148,80 +148,80 @@ TEST_F(MySQLBackendTest, Initialize_EmptyDataDir) {
     cfg_.dataDir.clear();
     MySQLBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
     EXPECT_NE(result.msg.find("dataDir"), std::string::npos);
 }
 
 TEST_F(MySQLBackendTest, ExecuteSQL_EmptySQL) {
     MySQLBackend backend;
     auto result = backend.ExecuteSQL(cfg_, "", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, CreateUser_EmptyUsername) {
     MySQLBackend backend;
     auto result = backend.CreateUser(cfg_, "", "password");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, DeleteUser_EmptyUsername) {
     MySQLBackend backend;
     auto result = backend.DeleteUser(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, CreateDatabase_EmptyName) {
     MySQLBackend backend;
     auto result = backend.CreateDatabase(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, DeleteDatabase_EmptyName) {
     MySQLBackend backend;
     auto result = backend.DeleteDatabase(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, CreateTable_EmptyDbName) {
     MySQLBackend backend;
     auto result = backend.CreateTable(cfg_, "", "t", "id INT");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, CreateTable_EmptyTableName) {
     MySQLBackend backend;
     auto result = backend.CreateTable(cfg_, "db", "", "id INT");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, CreateTable_EmptyColumns) {
     MySQLBackend backend;
     auto result = backend.CreateTable(cfg_, "db", "t", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, DropTable_EmptyDbName) {
     MySQLBackend backend;
     auto result = backend.DropTable(cfg_, "", "t");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, DropTable_EmptyTableName) {
     MySQLBackend backend;
     auto result = backend.DropTable(cfg_, "db", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, SetDataDir_EmptyPath) {
     MySQLBackend backend;
     auto result = backend.SetDataDir(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, SetDataDir_NonExistentPath) {
     MySQLBackend backend;
     auto result = backend.SetDataDir(cfg_, "/nonexistent/path/12345");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, IsRunning_NotRunning) {
@@ -241,7 +241,7 @@ TEST_F(MySQLBackendTest, SetDataDir_Success) {
 
     MySQLBackend backend;
     auto result = backend.SetDataDir(cfg_, newDataDir);
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
     EXPECT_FALSE(cfg_.dataDir.empty());
 }
 
@@ -258,7 +258,7 @@ TEST_F(MySQLBackendTest, SetDataDir_AlreadyInitialized) {
 
     MySQLBackend backend;
     auto result = backend.SetDataDir(cfg_, newDataDir);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
     EXPECT_NE(result.msg.find("initialized"), std::string::npos);
 }
 
@@ -270,7 +270,7 @@ TEST_F(MySQLBackendTest, ExecuteInitScripts_EmptySqlDir) {
     cfg_.dbInfo.sqlDir.clear();
     MySQLBackend backend;
     auto result = backend.ExecuteInitScripts(cfg_);
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
 }
 
 TEST_F(MySQLBackendTest, ExecuteInitScripts_SqlDirNotExist) {
@@ -310,7 +310,7 @@ TEST_F(MySQLBackendTest, ExecuteInitScripts_WithSqlFiles) {
     MySQLBackend backend;
     auto result = backend.ExecuteInitScripts(cfg_);
     // 由于数据库未运行，ExecuteSQL 会失败
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(MySQLBackendTest, ExecuteInitScripts_EmptySqlFile) {
@@ -326,7 +326,7 @@ TEST_F(MySQLBackendTest, ExecuteInitScripts_EmptySqlFile) {
     MySQLBackend backend;
     auto result = backend.ExecuteInitScripts(cfg_);
     // 空文件被跳过，所有文件处理完毕后返回成功（无错误发生）
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
 }
 
 TEST_F(MySQLBackendTest, ExecuteInitScripts_RelativeSqlDir) {
@@ -365,100 +365,100 @@ TEST_F(OpenGaussBackendTest, Initialize_EmptyBinDir) {
     cfg_.rootDir.clear();
     OpenGaussBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, Initialize_EmptyDataDir) {
     cfg_.dataDir.clear();
     OpenGaussBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, Initialize_EmptyOsUser) {
     cfg_.osUser.clear();
     OpenGaussBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, Initialize_EmptyAdminPwd) {
     cfg_.adminPwd.clear();
     OpenGaussBackend backend;
     auto result = backend.Initialize(cfg_);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, ExecuteSQL_EmptySQL) {
     OpenGaussBackend backend;
     auto result = backend.ExecuteSQL(cfg_, "", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, CreateUser_EmptyUsername) {
     OpenGaussBackend backend;
     auto result = backend.CreateUser(cfg_, "", "password");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, DeleteUser_EmptyUsername) {
     OpenGaussBackend backend;
     auto result = backend.DeleteUser(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, CreateDatabase_EmptyName) {
     OpenGaussBackend backend;
     auto result = backend.CreateDatabase(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, DeleteDatabase_EmptyName) {
     OpenGaussBackend backend;
     auto result = backend.DeleteDatabase(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, CreateTable_EmptyDbName) {
     OpenGaussBackend backend;
     auto result = backend.CreateTable(cfg_, "", "t", "id INT");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, CreateTable_EmptyTableName) {
     OpenGaussBackend backend;
     auto result = backend.CreateTable(cfg_, "db", "", "id INT");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, CreateTable_EmptyColumns) {
     OpenGaussBackend backend;
     auto result = backend.CreateTable(cfg_, "db", "t", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, DropTable_EmptyDbName) {
     OpenGaussBackend backend;
     auto result = backend.DropTable(cfg_, "", "t");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, DropTable_EmptyTableName) {
     OpenGaussBackend backend;
     auto result = backend.DropTable(cfg_, "db", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, SetDataDir_EmptyPath) {
     OpenGaussBackend backend;
     auto result = backend.SetDataDir(cfg_, "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, SetDataDir_RelativePath) {
     OpenGaussBackend backend;
     auto result = backend.SetDataDir(cfg_, "relative/path");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, IsRunning_NotRunning) {
@@ -478,7 +478,7 @@ TEST_F(OpenGaussBackendTest, SetDataDir_Success) {
 
     OpenGaussBackend backend;
     auto result = backend.SetDataDir(cfg_, newDataDir);
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
     EXPECT_EQ(cfg_.dataDir, newDataDir);
 }
 
@@ -493,7 +493,7 @@ TEST_F(OpenGaussBackendTest, SetDataDir_AlreadyInitialized) {
 
     OpenGaussBackend backend;
     auto result = backend.SetDataDir(cfg_, newDataDir);
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST_F(OpenGaussBackendTest, SetDataDir_CreatesDirectoryAndSetsPermissions) {
@@ -503,7 +503,7 @@ TEST_F(OpenGaussBackendTest, SetDataDir_CreatesDirectoryAndSetsPermissions) {
 
     OpenGaussBackend backend;
     auto result = backend.SetDataDir(cfg_, newDataDir);
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
     EXPECT_TRUE(fs::exists(newDataDir));
 }
 
@@ -515,7 +515,7 @@ TEST_F(OpenGaussBackendTest, ExecuteInitScripts_EmptySqlDir) {
     cfg_.dbInfo.sqlDir.clear();
     OpenGaussBackend backend;
     auto result = backend.ExecuteInitScripts(cfg_);
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
 }
 
 TEST_F(OpenGaussBackendTest, ExecuteInitScripts_SqlDirNotExist) {
@@ -545,7 +545,7 @@ TEST(DatabaseInitInterfaceTest, Initialize_EmptyBinDir) {
     cfg.rootDir.clear();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.Initialize();
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, Initialize_EmptyDataDir) {
@@ -553,63 +553,63 @@ TEST(DatabaseInitInterfaceTest, Initialize_EmptyDataDir) {
     cfg.dataDir.clear();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.Initialize();
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, CreateUser_EmptyUsername) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.CreateUser("", "password");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, DeleteUser_EmptyUsername) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.DeleteUser("");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, CreateDatabase_EmptyName) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.CreateDatabase("");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, DeleteDatabase_EmptyName) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.DeleteDatabase("");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, CreateTable_EmptyDbName) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.CreateTable("", "t", "id INT");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, DropTable_EmptyTableName) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.DropTable("db", "");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, ExecuteSQL_EmptySQL) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.ExecuteSQL("");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, SetDataDir_EmptyPath) {
     auto cfg = MakeMySQLConfig();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.SetDataDir("");
-    EXPECT_FALSE(result.IsDefaultSuccess());
+    EXPECT_FALSE(result.IsDefalutSuccess());
 }
 
 TEST(DatabaseInitInterfaceTest, IsRunning_NotRunning) {
@@ -624,7 +624,7 @@ TEST(DatabaseInitInterfaceTest, ExecuteInitScripts_EmptySqlDir) {
     cfg.dbInfo.sqlDir.clear();
     DatabaseInit dbInit(cfg);
     auto result = dbInit.ExecuteInitScripts();
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "msg: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "msg: " << result.msg;
 }
 
 // ============================================================================
@@ -776,60 +776,60 @@ TEST_F(MariaDBIntegrationTest, DISABLED_FullWorkflow) {
 
     // 1. 初始化数据库
     auto result = dbInit.Initialize();
-    ASSERT_TRUE(result.IsDefaultSuccess()) << "Initialize: " << result.msg;
+    ASSERT_TRUE(result.IsDefalutSuccess()) << "Initialize: " << result.msg;
 
     // 2. 启动数据库
     result = dbInit.Start();
-    ASSERT_TRUE(result.IsDefaultSuccess()) << "Start: " << result.msg;
+    ASSERT_TRUE(result.IsDefalutSuccess()) << "Start: " << result.msg;
     EXPECT_TRUE(dbInit.IsRunning());
 
     // 3. 执行 SQL 初始化脚本
     result = dbInit.ExecuteInitScripts();
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "ExecuteInitScripts: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "ExecuteInitScripts: " << result.msg;
 
     // 4. 验证数据库已创建
     result = dbInit.ExecuteSQL("USE test_app; SELECT COUNT(*) FROM users;", "");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Verify database: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Verify database: " << result.msg;
 
     // 5. 验证初始数据
     result = dbInit.ExecuteSQL("SELECT name FROM test_app.users WHERE name='admin';", "");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Verify data: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Verify data: " << result.msg;
 
     // 6. 运行时动态操作：创建用户
     result = dbInit.CreateUser("app_user", "App@2024!");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "CreateUser: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "CreateUser: " << result.msg;
 
     // 7. 运行时动态操作：创建数据库
     result = dbInit.CreateDatabase("dynamic_db");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "CreateDatabase: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "CreateDatabase: " << result.msg;
 
     // 8. 关闭数据库
     result = dbInit.Stop();
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Stop: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Stop: " << result.msg;
     EXPECT_FALSE(dbInit.IsRunning());
 }
 
 TEST_F(MariaDBIntegrationTest, DISABLED_ExecuteInitScripts_VerifyDatabaseAndTable) {
     DatabaseInit dbInit(cfg_);
 
-    ASSERT_TRUE(dbInit.Initialize().IsDefaultSuccess()) << "Initialize failed";
-    ASSERT_TRUE(dbInit.Start().IsDefaultSuccess()) << "Start failed";
+    ASSERT_TRUE(dbInit.Initialize().IsDefalutSuccess()) << "Initialize failed";
+    ASSERT_TRUE(dbInit.Start().IsDefalutSuccess()) << "Start failed";
 
     // 执行初始化脚本
     auto result = dbInit.ExecuteInitScripts();
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "ExecuteInitScripts: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "ExecuteInitScripts: " << result.msg;
 
     // 验证数据库存在
     result = dbInit.ExecuteSQL("SHOW DATABASES LIKE 'test_app';", "");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Verify database exists: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Verify database exists: " << result.msg;
 
     // 验证表存在
     result = dbInit.ExecuteSQL("SHOW TABLES FROM test_app LIKE 'users';", "");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Verify table exists: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Verify table exists: " << result.msg;
 
     // 验证初始数据
     result = dbInit.ExecuteSQL("SELECT COUNT(*) FROM test_app.users;", "");
-    EXPECT_TRUE(result.IsDefaultSuccess()) << "Verify data: " << result.msg;
+    EXPECT_TRUE(result.IsDefalutSuccess()) << "Verify data: " << result.msg;
 
     dbInit.Stop();
 }
@@ -838,7 +838,7 @@ TEST_F(MariaDBIntegrationTest, DISABLED_Initialize_AlreadyInitialized) {
     DatabaseInit dbInit(cfg_);
 
     auto result = dbInit.Initialize();
-    ASSERT_TRUE(result.IsDefaultSuccess()) << "First init: " << result.msg;
+    ASSERT_TRUE(result.IsDefalutSuccess()) << "First init: " << result.msg;
 
     // 重复初始化应返回警告（幂等）
     result = dbInit.Initialize();
@@ -850,8 +850,8 @@ TEST_F(MariaDBIntegrationTest, DISABLED_Initialize_AlreadyInitialized) {
 TEST_F(MariaDBIntegrationTest, DISABLED_Start_AlreadyRunning) {
     DatabaseInit dbInit(cfg_);
 
-    ASSERT_TRUE(dbInit.Initialize().IsDefaultSuccess());
-    ASSERT_TRUE(dbInit.Start().IsDefaultSuccess());
+    ASSERT_TRUE(dbInit.Initialize().IsDefalutSuccess());
+    ASSERT_TRUE(dbInit.Start().IsDefalutSuccess());
 
     auto result = dbInit.Start();
     EXPECT_EQ(result.code, 1);  // warning: already running

@@ -4,7 +4,7 @@
 #pragma once
 
 #include "common/types.h"
-#include "ipc/protocol.h"
+#include "ipc/data_def.h"
 
 namespace qifeng::scm {
 

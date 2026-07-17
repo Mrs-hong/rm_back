@@ -250,7 +250,7 @@ namespace qifeng::scm::tool {
         for (const auto &dbName : databasesToDrop) {
             std::string dropSql = "DROP DATABASE IF EXISTS `" + dbName + "`;\n";
             auto dropResult = ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), dropSql);
-            if (!dropResult.IsDefaultSuccess()) {
+            if (!dropResult.IsDefalutSuccess()) {
                 return MakeError("Failed to delete database '" + dbName + "': " + dropResult.msg);
             }
         }
@@ -390,7 +390,7 @@ namespace qifeng::scm::tool {
         // 自动创建目标数据库（若不存在）
         std::string createSql = "CREATE DATABASE IF NOT EXISTS `" + dbName + "`;\n";
         auto createResult = ExecuteSQLViaTempFile(BuildAdminClientCmd(mDef), createSql);
-        if (!createResult.IsDefaultSuccess()) {
+        if (!createResult.IsDefalutSuccess()) {
             return MakeError("Failed to create database '" + dbName + "': " + createResult.msg);
         }
 
@@ -472,7 +472,7 @@ namespace qifeng::scm::tool {
 
                 std::string backupFile = backupDir + "/" + dbName + ".sql";
                 auto backupResult = BackupDatabase(dbName, backupFile);
-                if (!backupResult.IsDefaultSuccess()) {
+                if (!backupResult.IsDefalutSuccess()) {
                     return MakeError("Failed to backup database '" + dbName + "': " + backupResult.msg);
                 }
                 backedUpDbs.push_back(dbName);
@@ -517,7 +517,7 @@ namespace qifeng::scm::tool {
             std::string filePath = entry.path().string();
 
             auto restoreResult = RestoreDatabase(dbName, filePath);
-            if (!restoreResult.IsDefaultSuccess()) {
+            if (!restoreResult.IsDefalutSuccess()) {
                 return MakeError("Failed to restore database '" + dbName + "': " + restoreResult.msg);
             }
         }

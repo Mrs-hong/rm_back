@@ -1,23 +1,68 @@
 #!/bin/bash
-# preinst: 安装新包前执行，升级场景下备份用户配置
+# preinst: 升级前备份旧配置并提取旧的 root_dir / model_dir 路径
+#
+# dpkg 升级时序中，preinst 在解包新文件之前执行，此时旧的
+# /etc/qifeng-scm/scmd.yaml 仍然存在。由于该文件是 conffile，
+# 解包阶段可能被 dpkg 替换，因此必须在此阶段完成备份与路径提取。
 set -e
+
+# 备份根目录（固定路径，独立于配置中的 root_dir，升级时不会被删除）
+BACKUP_DIR="/var/lib/qifeng-scm/backup/pre-upgrade"
+CONFIG_BACKUP_DIR="${BACKUP_DIR}/config"
+OLD_PATHS_FILE="${BACKUP_DIR}/old_paths"
+
+# 从 YAML 配置文件中提取 scmd 下二级键的值
+# 仅匹配顶层缩进的键（如 "  root_dir: /path"），不依赖 python/yq
+# 参数: $1 = 配置文件路径, $2 = 键名
+get_yaml_value() {
+    local file="$1"
+    local key="$2"
+    sed -n "s/^[[:space:]]*${key}:[[:space:]]*//p" "$file" \
+        | head -1 \
+        | sed 's/#.*//' \
+        | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' \
+        | sed "s/^\"\(.*\)\"$/\1/;s/^'\(.*\)'$/\1/"
+}
 
 case "$1" in
     install)
-        # 全新安装，无需备份
+        # 全新安装，无需备份旧配置
         ;;
+
     upgrade)
-        # 升级前备份用户配置文件（postinst 会根据 .bak 恢复用户自定义内容）
-        if [ -f /etc/qifeng-scm/scmd.yaml ]; then
-            cp -a /etc/qifeng-scm/scmd.yaml /etc/qifeng-scm/scmd.yaml.bak
+        # 仅当旧配置文件存在时才备份
+        if [ -d /etc/qifeng-scm ]; then
+            # 确保备份目录存在
+            mkdir -p "${CONFIG_BACKUP_DIR}"
+
+            # 拷贝 /etc/qifeng-scm 全部内容到备份目录
+            cp -a /etc/qifeng-scm/. "${CONFIG_BACKUP_DIR}/"
+
+            # 从旧 scmd.yaml 提取 root_dir 和 model_dir
+            OLD_ROOT_DIR=""
+            OLD_MODEL_DIR=""
+            if [ -f /etc/qifeng-scm/scmd.yaml ]; then
+                OLD_ROOT_DIR=$(get_yaml_value /etc/qifeng-scm/scmd.yaml root_dir)
+                OLD_MODEL_DIR=$(get_yaml_value /etc/qifeng-scm/scmd.yaml model_dir)
+            fi
+
+            # 将旧路径写入标记文件，供 postinst 读取
+            cat > "${OLD_PATHS_FILE}" <<EOF
+OLD_ROOT_DIR=${OLD_ROOT_DIR}
+OLD_MODEL_DIR=${OLD_MODEL_DIR}
+EOF
+
+            echo "preinst: 已备份旧配置到 ${CONFIG_BACKUP_DIR}"
+            echo "preinst: 旧 root_dir=${OLD_ROOT_DIR}, 旧 model_dir=${OLD_MODEL_DIR}"
+        else
+            echo "preinst: /etc/qifeng-scm 不存在，跳过备份"
         fi
-        if [ -f /etc/qifeng-scm/selftest.json ]; then
-            cp -a /etc/qifeng-scm/selftest.json /etc/qifeng-scm/selftest.json.bak
-        fi
-        # /var/lib/qifeng-scm/services 下的已装服务数据由 postinst 保留，此处不做清理
         ;;
+
     abort-upgrade)
+        # 升级中止，无需在此处理（postinst abort-upgrade 负责恢复）
         ;;
+
     *)
         echo "preinst called with unknown argument: $1" >&2
         exit 1

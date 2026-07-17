@@ -1,0 +1,16 @@
+scmd:
+  log:
+    level: info
+    max_file_size: 52428800
+    max_files: 7
+  uds:
+    socket_path: /run/qifeng-scm/scmd.sock
+    socket_mode: "0666"
+  opt_timeout_sec: 10
+  root_dir: /data/var/lib/qifeng-scm
+  model_dir: /data2/models
+  model_env_var: QIFENG_MODEL_DIR      #约定不能修改
+  selftest:
+    enabled: false                      # 是否开机自检
+    config_path: /etc/qifeng-scm/selftest.json  # 默认自检配置文件路径
+    fail_action: warn                  # 自检失败动作: warn(仅告警) / halt(阻止启动)

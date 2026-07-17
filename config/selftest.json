@@ -1,0 +1,63 @@
+{
+  "per_item_timeout_sec": 5,
+  "parallel": true,
+  "report_path": "/var/log/qifeng-scm/selftest-report.json",
+  "disk": {
+    "mounts": [
+      "/",
+      "/data",
+      "/opt/sophon"
+    ],
+    "min_free_pct": 5
+  },
+  "memory": {
+    "min_available_mb": 128
+  },
+  "display": {
+    "type": "serial",
+    "device": "/dev/ttyS2",
+    "baud": 115200,
+    "timeout_ms": 500
+  },
+  "tpu": {
+    "min_mem_mb": 512
+  },
+  "fan": {
+    "max_temp_threshold": 85,
+    "hwmon_max_index": 16,
+    "fan_max_index": 8,
+    "thermal_zone_max_index": 16
+  },
+  "fingerprint": {
+    "device": "/dev/ttyS3",
+    "baud": 57600,
+    "timeout_ms": 1500
+  },
+  "microphone": {
+    "device": "default",
+    "duration_ms": 400,
+    "min_rms": 50,
+    "sample_rate": 16000,
+    "channels": 1
+  },
+  "light": {
+    "gpio": "488"
+  },
+  "network": {
+    "gateway": "192.168.1.1",
+    "ping_count": 3,
+    "ping_timeout_sec": 1
+  },
+  "model_inference": {
+    "path": "/etc/qifeng-scm/fsmn_fp32_.bmodel"
+  },
+  "pcba": {
+    "exe_command": "/usr/lib/qifeng-scm/pcba-selftest.sh",
+    "args": [],
+    "severity": "warning",
+    "timeout_sec": 120,
+    "parse_output": false,
+    "pass_keyword": "PASS",
+    "fail_keyword": "FAIL"
+  }
+}

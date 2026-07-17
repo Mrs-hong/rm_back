@@ -16,7 +16,7 @@ namespace qifeng::scm {
      * @details 与 selftest.json 的 "model_inference" 段一一对应
      */
     struct ModelInferenceConfig {
-        std::string path = "/opt/sophon/selftest/fsmn_fp32_.bmodel";
+        std::string path = "/etc/qifeng-scm/fsmn_fp32_.bmodel";
     };
 
     /**

@@ -5,31 +5,22 @@
 #include "scmd/handlers/clear_model_handler.h"
 
 #include "common/types.h"
+#include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/handler_registry.h"
+#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
-#include "service_manger/model_manager.h"
-#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
-
-    static std::optional<ClearModelRequest> FromJson(const Json::Value& params) {
-        ClearModelRequest req;
-        if (params.isMember("modelName") && params["modelName"].isString()) {
-            req.modelName = params["modelName"].asString();
-        }
-        return req;
-    }
 
     ScmCommand ClearModelHandler::GetCommand() const {
         return ScmCommand::CLEAR_MODEL;
     }
 
     ScmResponse ClearModelHandler::Handle(const ScmRequest& request,
-                                          const ServiceContext& ctx,
-                                          KeyOperationRecorder& /*recorder*/) {
-        auto paramsOpt = FromJson(request.params);
-        if (!paramsOpt.has_value() || paramsOpt->modelName.empty()) {
+                                            ServiceControl& serviceControl,
+                                            KeyOperationRecorder& /*recorder*/) {
+        const auto* params = std::get_if<ClearModelRequest>(&request.data);
+        if (params == nullptr || params->modelName.empty()) {
             SLOG_WARN << "clear_model command missing model name";
             ScmResponse response;
             response.code = -1;
@@ -41,12 +32,10 @@ namespace qifeng::scm {
         // 这里仅做基础非空检查，避免重复逻辑。
 
         ScmResponse response;
-        auto result = ctx.modelManager->ClearModel(paramsOpt->modelName);
+        auto result = serviceControl.ClearModel(params->modelName);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
-
-    REGISTER_COMMAND_HANDLER(ScmCommand::CLEAR_MODEL, ClearModelHandler)
 
 }  // namespace qifeng::scm

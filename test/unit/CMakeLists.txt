@@ -14,12 +14,8 @@ if(NOT GTEST_INCLUDE_DIR)
 endif()
 message(STATUS "GTest include dir: ${GTEST_INCLUDE_DIR}")
 
-set(GTEST_LIB_DIR "${CMAKE_SOURCE_DIR}/third_part/qifeng_framework/install/lib")
+set(GTEST_LIB_DIR "${CMAKE_SOURCE_DIR}/third_part/qifeng_framework/install/lib/gtest")
 
-# utils 实现已按头文件模块拆分到 src/common/utils/*.cpp
-file(GLOB UTILS_SOURCES ${CMAKE_SOURCE_DIR}/src/common/utils/*.cpp)
-
-# 导入 GTest 静态库
 add_library(gtest STATIC IMPORTED)
 set_target_properties(gtest PROPERTIES
     IMPORTED_LOCATION "${GTEST_LIB_DIR}/libgtest.a"
@@ -40,7 +36,7 @@ set(TEST_SOURCES
 # 被测试的源文件
 set(SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/common/config.cpp
-    ${UTILS_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
 
@@ -152,7 +148,7 @@ set(UDS_IPC_TEST_SOURCES test_uds_coc.cpp)
 set(UDS_IPC_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/ipc/protocol.cpp
     ${CMAKE_SOURCE_DIR}/src/ipc/uds.cpp
-    ${UTILS_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
 
@@ -166,7 +162,6 @@ set(COMMAND_DISPATCHER_TEST_SOURCES test_command_dispatcher.cpp)
 
 set(COMMAND_DISPATCHER_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/scmd/command_dispatcher.cpp
-    ${CMAKE_SOURCE_DIR}/src/scmd/handler_registry.cpp
     ${CMAKE_SOURCE_DIR}/src/ipc/protocol.cpp
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
@@ -229,7 +224,7 @@ set(DATABASE_TEST_SOURCES
 
 set(DATABASE_SOURCES_UNDER_TEST
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
-    ${UTILS_SOURCES}
+    ${CMAKE_SOURCE_DIR}/src/common/utils.cpp
 )
 
 

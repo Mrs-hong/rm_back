@@ -4,8 +4,8 @@
 
 #include "common/json_load.h"
 
+#include "jsoncpp/json/json.h"
 #include <fstream>
-#include <json/json.h>
 #include <memory>
 #include <sstream>
 
