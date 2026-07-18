@@ -191,6 +191,14 @@ namespace qifeng::scm {
         ResultMsg StartAllAutoStartServices();
 
         /**
+         * @brief 重新生成所有已注册服务的 systemd service 文件
+         * @details 用于 scmd 启动时将新增的 systemd 配置（如 StandardOutput、LimitCORE）
+         *          应用到已安装服务，保证升级兼容性。单个服务失败不影响其它服务。
+         * @return ResultMsg 操作结果（部分失败时返回警告，包含失败服务名列表）
+         */
+        ResultMsg RegenerateAllServiceFiles();
+
+        /**
          * @brief 按依赖逆序停止所有运行中的服务
          * @return ResultMsg 操作结果
          */

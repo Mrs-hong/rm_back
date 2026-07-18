@@ -95,6 +95,26 @@ namespace {  // 工具函数拆分、降低单函数复杂度
         }
     }
 
+    // 写入 [Service] 段：日志重定向（新需求 3.1）
+    // 将 stdout/stderr 追加到服务日志文件，并设置 SyslogIdentifier 以便 journal 检索
+    void WriteServiceLoggingConfig(std::ostringstream &oss, const ServiceDefinition &def,
+                                   const ConfigInfo &configInfo) {
+        // 日志文件路径：<logsDir>/<serviceName>/<serviceName>.log
+        std::string logDir = qifeng::scm::utils::JoinPath(configInfo.logsDir, def.serviceName);
+        std::string logFile = qifeng::scm::utils::JoinPath(logDir, def.serviceName + ".log");
+        // append: 模式确保重启时日志追加而非覆盖
+        oss << "StandardOutput=append:" << logFile << "\n";
+        oss << "StandardError=append:" << logFile << "\n";
+        // SyslogIdentifier 让 journal 中以服务名作为标识，便于 slog 检索
+        oss << "SyslogIdentifier=" << def.serviceName << "\n";
+    }
+
+    // 写入 [Service] 段：core dump 配置（新需求 3.2）
+    // 允许服务崩溃时生成 core 文件，配合 systemd-coredump 记录崩溃信息
+    void WriteServiceCoreDumpConfig(std::ostringstream &oss) {
+        oss << "LimitCORE=infinity\n";
+    }
+
     // 写入 [Service] 段：进程控制与资源限制（KillSignal, TimeoutStopSec, Restart, MemoryMax, CPUQuota）
     void WriteServiceResourceConfig(std::ostringstream &oss, const ServiceDefinition &def) {
         // KillSignal: 优雅停止信号（默认 SIGTERM=15）
@@ -166,6 +186,8 @@ namespace qifeng::scm {
             WriteUnitSection(oss, serviceDef, unitPrefix);
             WriteServiceExecConfig(oss, serviceDef);
             WriteServiceEnvironment(oss, serviceDef, configInfo);
+            WriteServiceLoggingConfig(oss, serviceDef, configInfo);  // 新需求3.1：日志重定向
+            WriteServiceCoreDumpConfig(oss);                        // 新需求3.2：core dump
             WriteServiceResourceConfig(oss, serviceDef);
             WriteInstallSection(oss);
             return ResultMsg {0, oss.str()};

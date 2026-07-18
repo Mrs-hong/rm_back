@@ -57,6 +57,10 @@ case "$1" in
         mkdir -p /var/lib/qifeng-scm/data
         mkdir -p /var/lib/qifeng-scm/backup
         mkdir -p /var/log/qifeng-scm
+        # 新需求3.1：预创建 scmd 自身日志目录，确保 qifeng-scmd.service 的
+        # StandardOutput=append: 能成功写入（systemd 不会自动创建父目录）
+        # 路径需与 qifeng-scmd.service 中 StandardOutput 保持一致
+        mkdir -p /data/var/lib/qifeng-scm/log/qifeng-scm
 
         # 更新动态链接器缓存
         ldconfig
@@ -111,6 +115,8 @@ case "$1" in
                 mkdir -p "${NEW_ROOT_DIR}/backup"
                 mkdir -p "${NEW_ROOT_DIR}/log"
                 mkdir -p "${NEW_ROOT_DIR}/tmp"
+                # 新需求3.1：预创建 scmd 自身日志目录（运行时 freopen 写入路径）
+                mkdir -p "${NEW_ROOT_DIR}/log/qifeng-scm"
             fi
 
             # 设置开机自启并立即启动

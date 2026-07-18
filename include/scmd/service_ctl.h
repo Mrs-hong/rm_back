@@ -210,6 +210,18 @@ namespace qifeng::scm {
          */
         ResultMsg GetServiceJournal(const std::string &serviceName, int logCount);
 
+        /**
+         * @brief 获取服务日志（新需求3.1：优先读日志文件，回退 journal）
+         * @details 读取顺序：
+         *   1. 优先读取服务日志文件 <logsDir>/<serviceName>/<serviceName>.log 的最后 logCount 行
+         *   2. 文件不存在或为空时，回退读取 systemd journal
+         * @param serviceName 服务名称（空表示 scmd 自身，读取 <logsDir>/qifeng-scm/qifeng-scm.log，
+         *                     journal 回退时使用 unit "qifeng-scmd"）
+         * @param logCount 日志行数（<=0 时使用默认 10）
+         * @return ResultMsg 成功时 msg 为日志内容
+         */
+        ResultMsg GetServiceLog(const std::string &serviceName, int logCount);
+
         // === Nginx 配置管理 ===
 
         /**
@@ -350,6 +362,22 @@ namespace qifeng::scm {
          * @return ResultMsg 操作结果
          */
         ResultMsg ClearDatabaseData(const ServiceDefinition &svc);
+
+        /**
+         * @brief 预创建服务日志目录（新需求3.1）
+         * @details 创建 <logsDir>/qifeng-scm/ 和每个已注册服务的 <logsDir>/<serviceName>/ 目录，
+         *          确保 systemd StandardOutput=append: 能正常写入。systemd 不会自动创建父目录。
+         */
+        void CreateServiceLogDirs();
+
+        /**
+         * @brief 将服务最近 journal 记录同步追加到服务日志文件（新需求3.1）
+         * @details 在 Start/Stop/Restart 后调用，将 systemd 自身的操作记录
+         *          （如 "Started xxx"、"Stopped xxx"）追加到 <logsDir>/<serviceName>/<serviceName>.log，
+         *          与 StandardOutput 重定向的服务进程输出汇聚在同一文件。
+         * @param serviceName 服务名称（空或未注册时直接返回）
+         */
+        void SyncJournalToServiceLog(const std::string &serviceName);
 
     private:
         bool mIsInit {false};                             // 是否初始化

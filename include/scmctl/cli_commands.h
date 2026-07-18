@@ -195,9 +195,10 @@ namespace qifeng::scm {
     };
 
     /**
-     * @brief slog 子命令：查看服务的 journal 日志
-     * @details 通过 scmd 调用 sd-journal API 读取指定服务最近 N 条日志，
-     *          等价于 journalctl -u <unit>.service -n <count>
+     * @brief slog 子命令：查看服务日志
+     * @details 优先读取服务日志文件（<logsDir>/<serviceName>/<serviceName>.log），
+     *          文件不存在时回退读取 systemd journal。--name 省略时查 scmd 自身日志
+     *          （<logsDir>/qifeng-scm/qifeng-scm.log，与 scmd.log 隔离）。
      */
     class SlogCommand : public CliCommand {
     public:
@@ -207,8 +208,8 @@ namespace qifeng::scm {
         ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) override;
 
     private:
-        std::string mServiceName;
-        int mLogCount {10};  // 日志行数，默认 10 行
+        std::string mServiceName;  // 服务名称（空表示 scmd 自身）
+        int mLogCount {10};        // 日志行数，默认 10 行
     };
 
     /**

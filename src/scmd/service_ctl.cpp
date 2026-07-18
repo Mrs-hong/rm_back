@@ -8,6 +8,7 @@
 
 #include "common/config.h"
 #include "common/utils.h"
+#include "common/utils/journal.h"
 #include "qifeng_framework/common/logger.h"
 #include "service_manger/file_manager.h"
 #include "service_manger/service_manager.h"
@@ -15,6 +16,7 @@
 #include "service_tool/tools_def.h"
 
 #include <algorithm>
+#include <filesystem>
 #include <fstream>
 #include <systemd/sd-journal.h>
 
@@ -32,7 +34,19 @@ namespace qifeng::scm {
         Logger::GetInstance().Initialize(configInfo.logsDir, "scmd.log", logFileSizeBytes, configInfo.logFileCount);
         SLOG_INFO << "ServiceControl initializing...";
 
+        // 新需求3.1：预创建日志目录，确保 systemd StandardOutput=append: 能写入
+        // - qifeng-scm/：scmd 自身的 systemd 日志（与 scmd.log 隔离）
+        // - <serviceName>/：每个服务的 stdout/stderr 及 systemd 操作记录
+        CreateServiceLogDirs();
+
         mServiceManager = std::make_shared<ServiceManager>(mConfigLoader);
+
+        // 升级兼容：启动时重新生成已安装服务的 .service 文件，
+        // 应用新增的 StandardOutput/StandardError/SyslogIdentifier/LimitCORE 配置
+        auto regenResult = mServiceManager->RegenerateAllServiceFiles();
+        if (!regenResult.IsDefalutSuccess()) {
+            SLOG_WARN << "Some service files failed to regenerate: " << regenResult.msg;
+        }
 
         auto allServices = mConfigLoader->GetAllServices();
         if (allServices.empty()) {
@@ -344,7 +358,10 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "Starting service: " << serviceName;
-        return mServiceManager->StartService(serviceName);
+        auto result = mServiceManager->StartService(serviceName);
+        // 新需求3.1：将 systemd 启动操作记录同步到服务日志文件
+        SyncJournalToServiceLog(serviceName);
+        return result;
     }
 
     ResultMsg ServiceControl::StopService(const std::string &serviceName) {
@@ -352,7 +369,10 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "Stopping service: " << serviceName;
-        return mServiceManager->StopService(serviceName);
+        auto result = mServiceManager->StopService(serviceName);
+        // 新需求3.1：将 systemd 停止操作记录同步到服务日志文件
+        SyncJournalToServiceLog(serviceName);
+        return result;
     }
 
     ResultMsg ServiceControl::RestartService(const std::string &serviceName) {
@@ -360,7 +380,10 @@ namespace qifeng::scm {
             return MakeError("ServiceControl is not initialized");
         }
         SLOG_INFO << "Restarting service: " << serviceName;
-        return mServiceManager->RestartService(serviceName);
+        auto result = mServiceManager->RestartService(serviceName);
+        // 新需求3.1：将 systemd 重启操作记录同步到服务日志文件
+        SyncJournalToServiceLog(serviceName);
+        return result;
     }
 
     ResultMsg ServiceControl::StartScmdSelf() {
@@ -768,6 +791,43 @@ namespace qifeng::scm {
         return result;
     }
 
+    ResultMsg ServiceControl::GetServiceLog(const std::string &serviceName, int logCount) {
+        // 新需求3.1：slog 命令读取服务日志，优先读文件，回退 journal
+        if (!mIsInit) {
+            return MakeError("ServiceControl is not initialized");
+        }
+        int count = logCount > 0 ? logCount : 10;
+        const auto &configInfo = mConfigLoader->GetConfigInfo();
+
+        // 确定日志文件路径和 journal unit 名
+        std::string logFile;
+        std::string unitName;
+        if (serviceName.empty()) {
+            // scmd 自身：日志文件 <logsDir>/qifeng-scm/qifeng-scm.log，unit 名 qifeng-scmd
+            logFile = utils::JoinPath(utils::JoinPath(configInfo.logsDir, "qifeng-scm"), "qifeng-scm.log");
+            unitName = "qifeng-scmd";
+        } else {
+            // 校验服务已注册，避免查询任意系统服务
+            if (mConfigLoader->GetServiceByName(serviceName) == nullptr) {
+                return MakeError("Service not found: " + serviceName);
+            }
+            logFile = utils::JoinPath(utils::JoinPath(configInfo.logsDir, serviceName), serviceName + ".log");
+            unitName = std::string(FileManager::GetServiceFilePrefix()) + serviceName;
+        }
+
+        // 1. 优先读取服务日志文件（StandardOutput 重定向 + journal 同步的内容）
+        auto lines = qifeng::scm::utils::ReadFileLastNLines(logFile, count);
+        if (!lines.empty()) {
+            return ResultMsg {0, qifeng::scm::utils::JoinJournalLines(lines)};
+        }
+
+        // 2. 文件不存在或为空，回退读取 systemd journal
+        SLOG_INFO << "Service log file empty or missing: " << logFile << ", fall back to journal for unit: "
+                  << unitName;
+        auto journalLines = qifeng::scm::utils::ReadJournalLastN(unitName, count);
+        return ResultMsg {0, qifeng::scm::utils::JoinJournalLines(journalLines)};
+    }
+
     // NOLINTNEXTLINE(readability-function-cognitive-complexity)
     ResultMsg ServiceControl::ExecuteDbInitScripts(const DatabaseType &dbType, const std::string &sqlDir,
                                                    const std::string &dbUserName, const std::string &dbPassword) {
@@ -863,6 +923,59 @@ namespace qifeng::scm {
         }
         SLOG_INFO << "ClearModel name=" << modelName;
         return mServiceManager->ClearModel(modelName);
+    }
+
+    void ServiceControl::CreateServiceLogDirs() {
+        // 新需求3.1：预创建日志目录，systemd 的 StandardOutput=append: 不会自动创建父目录
+        const auto &configInfo = mConfigLoader->GetConfigInfo();
+        namespace fs = std::filesystem;
+
+        // 1. scmd 自身日志目录：<logsDir>/qifeng-scm/（与 scmd.log 隔离，存放 systemd 操作记录）
+        std::string scmdLogDir = utils::JoinPath(configInfo.logsDir, "qifeng-scm");
+        std::error_code ec;
+        fs::create_directories(scmdLogDir, ec);
+        if (ec) {
+            SLOG_WARN << "Failed to create scmd log dir " << scmdLogDir << ": " << ec.message();
+        }
+
+        // 2. 每个已注册服务的日志目录：<logsDir>/<serviceName>/
+        auto allServices = mConfigLoader->GetAllServices();
+        for (const auto &svc : allServices) {
+            std::string svcLogDir = utils::JoinPath(configInfo.logsDir, svc.serviceName);
+            fs::create_directories(svcLogDir, ec);
+            if (ec) {
+                SLOG_WARN << "Failed to create service log dir " << svcLogDir << ": " << ec.message();
+            }
+        }
+    }
+
+    void ServiceControl::SyncJournalToServiceLog(const std::string &serviceName) {
+        // 新需求3.1：将 systemd 启停操作的 journal 记录追加到服务日志文件
+        // 服务日志文件路径：<logsDir>/<serviceName>/<serviceName>.log
+        // 与 ServiceGenerator::WriteServiceLoggingConfig 中的 StandardOutput 路径保持一致
+        if (serviceName.empty()) {
+            return;
+        }
+        const auto *svc = mConfigLoader->GetServiceByName(serviceName);
+        if (svc == nullptr) {
+            return;
+        }
+
+        const auto &configInfo = mConfigLoader->GetConfigInfo();
+        std::string logFile = utils::JoinPath(utils::JoinPath(configInfo.logsDir, serviceName), serviceName + ".log");
+
+        // 构造 systemd 单元名（scmd_ + serviceName），与 ServiceManager::ToSystemdUnitName 一致
+        std::string unitName = std::string(FileManager::GetServiceFilePrefix()) + serviceName;
+        // 读取最近 20 条 journal 记录，覆盖一次启停操作的完整日志（含 systemd 自身消息）
+        auto lines = qifeng::scm::utils::ReadJournalLastN(unitName, 20);
+        if (lines.empty()) {
+            return;
+        }
+
+        std::string content = qifeng::scm::utils::JoinJournalLines(lines);
+        if (!qifeng::scm::utils::AppendToFile(logFile, content)) {
+            SLOG_WARN << "Failed to append journal to service log: " << logFile;
+        }
     }
 
 }  // namespace qifeng::scm

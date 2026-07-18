@@ -12,7 +12,7 @@
 #   ./build test -r      - 编译测试目标 (Release)
 #   ./build clean        - 清除 build 目录
 #   ./build -r -i /opt/qifeng  - 编译并安装到指定目录
-#   ./build download-deps - 下载预编译依赖
+#   ./build pack         - 打包部署产物到 dist/ 目录
 #
 # checker 可选库参数（默认全部 ON，WSL2 交叉编译时可关闭）:
 #   --with-all=ON|OFF      全部开启或关闭（快捷方式，可被单项覆盖）
@@ -24,16 +24,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BUILD_DIR="${SCRIPT_DIR}/build"
-JOBS=$(nproc 2>/dev/null || echo 4)
-
-# 颜色常量（与 script/download_dependency.sh 保持一致）
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'
-BLUE='\033[0;34m'; NC='\033[0m'
-
-log_info()    { echo -e "${BLUE}[INFO]${NC}    $*"; }
-log_success() { echo -e "${GREEN}[SUCCESS]${NC} $*"; }
-log_warn()    { echo -e "${YELLOW}[WARN]${NC}    $*"; }
-log_error()   { echo -e "${RED}[ERROR]${NC}   $*"; exit 1; }
+JOBS=5
 
 # 解析全局参数
 INSTALL_PREFIX=""
@@ -42,8 +33,6 @@ WITH_BM_SDK=""
 WITH_ALSA=""
 WITH_DRM=""
 WITH_GPIOD=""
-VERBOSE=false
-FORCE=false
 
 i=1
 while [ $i -le $# ]; do
@@ -54,15 +43,9 @@ while [ $i -le $# ]; do
             if [ $i -le $# ]; then
                 INSTALL_PREFIX="${!i}"
             else
-                log_error "-i 参数需要指定安装目录"
+                echo "错误: -i 参数需要指定安装目录"
+                exit 1
             fi
-            ;;
-        -v|--verbose)
-            VERBOSE=true
-            set -x
-            ;;
-        -f|--force)
-            FORCE=true
             ;;
         --with-all=*)
             all_val="${arg#--with-all=}"
@@ -99,41 +82,11 @@ parse_build_type() {
     esac
 }
 
-# 检测 framework 是否就绪，缺失则自动下载
-ensure_framework() {
-    local fw_dir="${SCRIPT_DIR}/third_part/qifeng_framework/install"
-    local fw_config="${fw_dir}/lib/cmake/qifeng_framework/qifeng_framework-config.cmake"
-    if [ ! -f "$fw_config" ]; then
-        log_info "qifeng_framework 未安装，尝试自动下载..."
-        if [ -f "${SCRIPT_DIR}/script/build_script/download_dependency.sh" ]; then
-            local version="${QIFENG_FRAMEWORK_VERSION:-2.0.2}"
-            local arch=""
-            case "$(uname -m)" in
-                x86_64|amd64) arch="x86" ;;
-                aarch64|arm64) arch="arm" ;;
-                *) arch="x86" ;;
-            esac
-            if ! bash "${SCRIPT_DIR}/script/build_script/download_dependency.sh" \
-                --component qifeng_framework \
-                --version "$version" \
-                --arch "$arch"; then
-                log_error "qifeng_framework 依赖下载失败"
-                exit 1
-            fi
-        else
-            log_error "依赖下载脚本不存在: script/build_script/download_dependency.sh"
-            log_info "请先执行: GITLAB_TOKEN=xxx ./build download-deps"
-            exit 1
-        fi
-    fi
-}
-
 # 执行 cmake 配置
 run_cmake() {
     local build_type="$1"
     local testing="$2"
 
-    ensure_framework
     mkdir -p "${BUILD_DIR}"
     local cmake_args=(
         -DCMAKE_BUILD_TYPE="${build_type}"
@@ -167,6 +120,137 @@ run_install() {
     fi
 }
 
+# 打包部署产物
+run_pack() {
+    local dist_dir="${SCRIPT_DIR}/dist"
+
+    echo "=== 打包部署产物 ==="
+
+    # 检查构建产物是否存在
+    if [ ! -f "${BUILD_DIR}/bin/qf_scmd" ]; then
+        echo "错误: 未找到构建产物，请先执行编译"
+        exit 1
+    fi
+
+    # 清理旧的打包目录
+    rm -rf "${dist_dir}"
+
+    # --- bin/ ---
+    echo "  收集 bin/"
+    mkdir -p "${dist_dir}/bin"
+    cp -p "${BUILD_DIR}/bin/qf_scmd"  "${dist_dir}/bin/"
+    cp -p "${BUILD_DIR}/bin/qf_scmc"  "${dist_dir}/bin/"
+
+    # --- lib/ ---
+    echo "  收集 lib/"
+    mkdir -p "${dist_dir}/lib"
+    # 第三方库（qifeng_framework 等，平铺安装到 lib/）
+    # libsophon 系列库：ARM 架构使用 qifeng_framework 自带的版本；x86 使用运行系统安装的版本
+    local arch
+    arch=$(uname -m)
+    local include_bundled_sophon=false
+    if [ "${arch}" = "aarch64" ] || [ "${arch}" = "arm64" ]; then
+        include_bundled_sophon=true
+    fi
+
+    local tp_dir="${SCRIPT_DIR}/third_part"
+    local sophon_libs=(
+        libbmlib.so
+        libbmrt.so
+        libbmcv.so
+        libbmcv_cpu_func.so
+        libbmvpuapi.so
+        libbmvpulite.so
+        libbmvideo.so
+        libbmjpuapi.so
+        libbmjpulite.so
+        libbmion.so
+        libbmvppapi.so
+    )
+    if [ -d "${tp_dir}" ]; then
+        for lib in $(find "${tp_dir}" -path "*/install/lib/*.so*" 2>/dev/null); do
+            local basename_lib
+            basename_lib=$(basename "${lib}")
+            # 如果 basename 以任意 libsophon 库名开头，则默认跳过
+            local skip=false
+            for prefix in "${sophon_libs[@]}"; do
+                if [[ "${basename_lib}" == "${prefix}"* ]]; then
+                    skip=true
+                    break
+                fi
+            done
+            if [ "${skip}" = true ] && [ "${include_bundled_sophon}" != true ]; then
+                echo "  跳过 libsophon 库: ${basename_lib}"
+                continue
+            fi
+            if [ "${skip}" = true ]; then
+                echo "  包含 qifeng_framework 携带的 libsophon 库: ${basename_lib}"
+            fi
+            cp -a "${lib}" "${dist_dir}/lib/"
+        done
+    fi
+
+    # --- .config/ ---
+    echo "  收集 .config/"
+    mkdir -p "${dist_dir}/.config"
+    cp -p "${SCRIPT_DIR}/.config/scmd.yaml"     "${dist_dir}/.config/"
+    cp -p "${SCRIPT_DIR}/.config/selftest.json"  "${dist_dir}/.config/"
+
+    # --- model/ (推理模型) ---
+    echo "  收集 model/"
+    mkdir -p "${dist_dir}/model"
+    if [ -f "${SCRIPT_DIR}/model/fsmn_fp32_.bmodel" ]; then
+        cp -p "${SCRIPT_DIR}/model/fsmn_fp32_.bmodel" "${dist_dir}/model/"
+    fi
+
+    # --- systemd/ ---
+    echo "  收集 systemd/"
+    mkdir -p "${dist_dir}/systemd"
+    if [ -f "${SCRIPT_DIR}/debian/qifeng-scmd.service" ]; then
+        cp -p "${SCRIPT_DIR}/debian/qifeng-scmd.service" "${dist_dir}/systemd/"
+    fi
+
+    # --- ld.so.conf.d/ ---
+    echo "  收集 ld.so.conf.d/"
+    mkdir -p "${dist_dir}/ld.so.conf.d"
+    if [ -f "${SCRIPT_DIR}/debian/ld.so.conf.d/qifeng-scm.conf" ]; then
+        cp -p "${SCRIPT_DIR}/debian/ld.so.conf.d/qifeng-scm.conf" "${dist_dir}/ld.so.conf.d/"
+    fi
+
+    # --- debian/ (deb 包维护脚本) ---
+    echo "  收集 debian/"
+    mkdir -p "${dist_dir}/debian"
+    for f in postinst prerm postrm; do
+        if [ -f "${SCRIPT_DIR}/debian/${f}" ]; then
+            cp -p "${SCRIPT_DIR}/debian/${f}" "${dist_dir}/debian/"
+        fi
+    done
+
+    # --- 部署脚本 ---
+    echo "  收集 dist_depoly.sh"
+    if [ -f "${SCRIPT_DIR}/dist_depoly.sh" ]; then
+        cp -p "${SCRIPT_DIR}/dist_depoly.sh" "${dist_dir}/"
+        chmod +x "${dist_dir}/dist_depoly.sh"
+    fi
+
+    # 输出汇总
+    echo ""
+    echo "=== 打包完成 ==="
+    echo "  目录: ${dist_dir}/"
+    echo ""
+    echo "  目录结构:"
+    find "${dist_dir}" -type f | sort | sed "s|${dist_dir}/|    |"
+    echo ""
+    echo "  对应系统路径:"
+    echo "    bin/              → /usr/bin/"
+    echo "    lib/              → /usr/lib/qifeng-scm/"
+    echo "    .config/          → /etc/qifeng-scm/"
+    echo "    scripts/          → /usr/lib/qifeng-scm/"
+    echo "    model/            → /opt/sophon/selftest/"
+    echo "    systemd/          → /lib/systemd/system/"
+    echo "    ld.so.conf.d/     → /etc/ld.so.conf.d/"
+    echo "    debian/           → (deb 包维护脚本)"
+}
 
 # 主逻辑
 set -- "${PARSED_ARGS[@]}"
@@ -175,58 +259,38 @@ case "$1" in
     clean|-clean)
         if [ -d "${BUILD_DIR}" ]; then
             rm -rf "${BUILD_DIR}"
-            log_success "已完全清除 build 目录"
+            echo "已完全清除 build 目录"
         else
-            log_info "build 目录不存在，无需清除"
+            echo "build 目录不存在，无需清除"
         fi
         exit 0
         ;;
     all)
         BUILD_TYPE=$(parse_build_type "$2")
-        log_info "编译所有目标 | ${BUILD_TYPE} | -j${JOBS}"
+        echo "=== 编译所有目标 | ${BUILD_TYPE} | -j${JOBS} ==="
         run_cmake "${BUILD_TYPE}" ON
         run_make
         run_install
         ;;
     test)
         BUILD_TYPE=$(parse_build_type "$2")
-        log_info "编译测试目标 | ${BUILD_TYPE} | -j${JOBS}"
+        echo "=== 编译测试目标 | ${BUILD_TYPE} | -j${JOBS} ==="
         run_cmake "${BUILD_TYPE}" ON
         run_make test_config
         run_install
         ;;
     -d|-r|"")
         BUILD_TYPE=$(parse_build_type "$1")
-        log_info "编译主项目 | ${BUILD_TYPE} | -j${JOBS}"
+        echo "=== 编译主项目 | ${BUILD_TYPE} | -j${JOBS} ==="
         run_cmake "${BUILD_TYPE}" OFF
         run_make
         run_install
         ;;
-    download-deps)
-        if [ -f "${SCRIPT_DIR}/script/build_script/download_dependency.sh" ]; then
-            log_info "开始下载预编译依赖..."
-            local version="${QIFENG_FRAMEWORK_VERSION:-2.0.2}"
-            local arch=""
-            case "$(uname -m)" in
-                x86_64|amd64) arch="x86" ;;
-                aarch64|arm64) arch="arm" ;;
-                *) arch="x86" ;;
-            esac
-            if ! bash "${SCRIPT_DIR}/script/build_script/download_dependency.sh" \
-                --component qifeng_framework \
-                --version "$version" \
-                --arch "$arch" ${FORCE:+--force}; then
-                log_error "依赖下载失败"
-                exit 1
-            fi
-        else
-            log_error "依赖下载脚本不存在: script/build_script/download_dependency.sh"
-        fi
+    pack)
+        run_pack
         ;;
     *)
-        echo "用法: $0 [all|test|clean|download-deps] [-d|-r] [-i <install_prefix>] [-v|--verbose] [-f|--force] [--with-*=ON|OFF]"
-        echo ""
-        echo "构建命令:"
+        echo "用法: $0 [all|test|clean|pack] [-d|-r] [-i <install_prefix>] [--with-*=ON|OFF]"
         echo "  $0                          编译主项目 (Release)"
         echo "  $0 -d                       编译主项目 (Debug)"
         echo "  $0 -r                       编译主项目 (Release)"
@@ -236,13 +300,9 @@ case "$1" in
         echo "  $0 test -r                  编译测试目标 (Release)"
         echo "  $0 -r -i /opt/qifeng        编译并安装到指定目录"
         echo "  $0 clean                    清除 build 目录"
-        echo "  $0 download-deps            下载预编译依赖(需设置 GITLAB_TOKEN)"
+        echo "  $0 pack                     打包部署产物到 dist/ 目录"
         echo ""
-        echo "通用选项:"
-        echo "  -v, --verbose               显示详细日志"
-        echo "  -f, --force                 强制重新下载依赖"
-        echo ""
-        echo "checker 可选库参数（默认全部 ON，WSL2 交叉编译时可关闭）:"
+        echo "checker 可选库参数:"
         echo "  --with-all=ON|OFF           全部开启或关闭（快捷方式，可被单项覆盖）"
         echo "  --with-bm-sdk=ON|OFF        Sophon SDK (TPU/模型推理, 默认ON)"
         echo "  --with-alsa=ON|OFF          ALSA (麦克风, 默认ON)"
@@ -252,8 +312,6 @@ case "$1" in
         echo "示例:"
         echo "  $0 -r --with-all=OFF                    WSL2交叉编译(关闭全部可选库)"
         echo "  $0 -r --with-all=OFF --with-gpiod=ON    关闭全部但仅启用GPIO"
-        echo "  $0 download-deps -f                     强制重新下载依赖"
-        echo "  GITLAB_TOKEN=glpat-xxx $0 download-deps 指定 Token 下载依赖"
         exit 1
         ;;
 esac

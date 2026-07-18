@@ -11,6 +11,14 @@ Restart=on-failure
 RestartSec=5
 RuntimeDirectory=qifeng-scm
 RuntimeDirectoryMode=0755
+# 新需求3.1：scmd 自身的 stdout/stderr 重定向到独立日志文件（与 scmd.log 隔离）
+# 路径基于默认 root_dir=/data/var/lib/qifeng-scm 派生；若修改 root_dir 需同步更新此处
+# 或依赖程序内 freopen（qifeng_scmd.cpp）按运行时配置重定向
+StandardOutput=append:/data/var/lib/qifeng-scm/log/qifeng-scm/qifeng-scm.log
+StandardError=append:/data/var/lib/qifeng-scm/log/qifeng-scm/qifeng-scm.log
+SyslogIdentifier=qifeng-scmd
+# 新需求3.2：允许 core dump，配合 systemd-coredump 记录崩溃信息
+LimitCORE=infinity
 
 [Install]
 WantedBy=multi-user.target

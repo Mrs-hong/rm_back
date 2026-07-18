@@ -33,7 +33,7 @@ namespace qifeng::scm {
         RELOAD,       // reload --name 重载服务配置
         RELOAD_ALL,   // reload -a 重载全部服务配置
         KILL,         // kill 使scmd优雅退出
-        SLOG,         // slog --name [--count] 查看服务 journal 日志
+        SLOG,         // slog [--name] [--count] 查看服务日志（--name 省略时查 scmd 自身）
         CHECK,        // check 设备自检
         INIT_NGINX,   // init_nginx -n <name> -d <path> 独立配置服务的 nginx
         RESET_NGINX,  // reset_nginx -n <name> 重置服务的 nginx 配置
@@ -109,7 +109,7 @@ namespace qifeng::scm {
     struct KillRequest {};
 
     struct SlogRequest {
-        std::string serviceName;  // 服务名称
+        std::string serviceName;  // 服务名称（空表示 scmd 自身，读取 qifeng-scm.log）
         int logCount {0};         // 日志行数
     };
 

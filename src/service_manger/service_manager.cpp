@@ -2278,6 +2278,46 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
+    ResultMsg ServiceManager::RegenerateAllServiceFiles() {
+        SLOG_INFO << "Regenerating systemd service files for all installed services";
+
+        if (!mInitialized) {
+            return MakeError("ServiceManager is not initialized");
+        }
+
+        // GetAllServices 返回值拷贝，遍历中重新生成 .service 文件，应用新增的 systemd 配置
+        auto allServices = mConfigLoader->GetAllServices();
+        if (allServices.empty()) {
+            SLOG_INFO << "No installed services, skip regenerating service files";
+            return MakeSuccess();
+        }
+
+        std::string failedNames;
+        int successCount = 0;
+        for (const auto &svc : allServices) {
+            // GenerateAndCreateServiceFile 会重新生成 .service 文件并 reload daemon
+            auto result = GenerateAndCreateServiceFile(svc.serviceName);
+            if (!result.IsDefalutSuccess()) {
+                SLOG_WARN << "Failed to regenerate service file for " << svc.serviceName << ": " << result.msg;
+                failedNames += svc.serviceName + ", ";
+            } else {
+                ++successCount;
+            }
+        }
+
+        if (!failedNames.empty()) {
+            // 去掉末尾的 ", "
+            if (failedNames.size() >= 2 && failedNames.substr(failedNames.size() - 2) == ", ") {
+                failedNames.erase(failedNames.size() - 2);
+            }
+            return MakeWarning("Regenerated " + std::to_string(successCount) +
+                               " service files, but failed for: " + failedNames);
+        }
+
+        SLOG_INFO << "Regenerated " << successCount << " service file(s) successfully";
+        return MakeSuccess();
+    }
+
     ResultMsg ServiceManager::StopAllServices() {
         SLOG_INFO << "Stopping all running services in reverse dependency order";
 

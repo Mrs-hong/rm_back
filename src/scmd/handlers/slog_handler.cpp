@@ -20,16 +20,17 @@ namespace qifeng::scm {
                                     ServiceControl& serviceControl,
                                     KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<SlogRequest>(&request.data);
-        if (params == nullptr || params->serviceName.empty()) {
-            SLOG_WARN << "Slog command missing service name";
+        if (params == nullptr) {
+            SLOG_WARN << "Slog command missing request params";
             ScmResponse response;
             response.code = -1;
-            response.message = "Slog command requires service name";
+            response.message = "Slog command missing request params";
             return response;
         }
 
+        // serviceName 为空时查 scmd 自身日志（qifeng-scm.log），由 GetServiceLog 处理
         ScmResponse response;
-        auto result = serviceControl.GetServiceJournal(params->serviceName, params->logCount);
+        auto result = serviceControl.GetServiceLog(params->serviceName, params->logCount);
         response.code = result.code;
         response.message = result.msg;
         return response;

@@ -1,0 +1,30 @@
+# Qifeng SCM 日志轮转配置（新需求3.1）
+#
+# 覆盖范围：
+#   - scmd 自身日志：<logsDir>/qifeng-scm/qifeng-scm.log
+#   - 每个受管服务日志：<logsDir>/<serviceName>/<serviceName>.log
+#
+# 轮转策略（用户确认）：
+#   - maxsize 5M：单文件达到 5M 时触发轮转
+#   - rotate 1：保留 1 份轮转备份（当前文件 + 1 备份，各最大 5M）
+#   - copytruncate：拷贝后清空原文件，避免需要通知服务重开文件描述符
+#     （服务进程通过 StandardOutput=append: 持有 fd，copytruncate 不影响）
+#   - compress + delaycompress：备份压缩；delaycompress 延后一个周期压缩，
+#     保证最近一份备份可读（便于排查刚发生的故障）
+#
+# 注意：scmd.log（SLOG 内部日志）由 qifeng_framework Logger 自身按
+#       logFileSizeMB/logFileCount 轮转，不在此处管理。
+#
+# 通配模式 /*/*.log 仅匹配 logsDir 子目录下的 .log 文件，
+# 不影响 logsDir 根目录下的 scmd.log。
+
+/data/var/lib/qifeng-scm/log/*/*.log {
+    maxsize 5M
+    rotate 1
+    copytruncate
+    compress
+    delaycompress
+    missingok
+    notifempty
+    nocreate
+}

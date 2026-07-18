@@ -288,12 +288,13 @@ namespace qifeng::scm {
         return "slog";
     }
     const char* SlogCommand::Description() const {
-        return "查看服务 journal 日志";
+        return "查看服务日志（--name 省略时查 scmd 自身）";
     }
 
     void SlogCommand::Setup(CLI::App &app) {
         auto* cmd = app.add_subcommand(Name(), Description());
-        cmd->add_option("--name,-n", mServiceName, "服务名称")->required();
+        // --name/-n 可选：省略时查 scmd 自身日志（qifeng-scm.log）
+        cmd->add_option("--name,-n", mServiceName, "服务名称（省略时查 scmd 自身）");
         cmd->add_option("--count", mLogCount, "日志行数（默认10）");
     }
 
@@ -301,6 +302,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
+        // mServiceName 为空时表示查 scmd 自身，由 scmd 端 SlogHandler 处理
         req.data = SlogRequest{mServiceName, mLogCount};
         return MakeSuccess();
     }

@@ -3,12 +3,14 @@
  */
 
 #include "common/config.h"
+#include "common/utils.h"
 #include "common/version.hpp"
 #include "scmd/scmd_server.h"
 #include "scmd/service_ctl.h"
 
 #include <atomic>
 #include <csignal>
+#include <cstdio>
 #include <iostream>
 #include <memory>
 
@@ -64,6 +66,22 @@ int main() {
     const auto &configLoader = serviceControl->GetConfigLoader();
     const auto &configInfo = configLoader.GetConfigInfo();
     std::string socketPath = configInfo.udsSocketPath;
+
+    // 新需求3.1：将 scmd 自身的 stdout/stderr 重定向到 <logsDir>/qifeng-scm/qifeng-scm.log
+    // 与 scmd.log（SLOG 内部日志）隔离，专门存放 scmd 进程的 stdout/stderr 输出。
+    // Init() 中 CreateServiceLogDirs() 已创建 qifeng-scm/ 目录；systemd 的
+    // StandardOutput=append: 配置（见 qifeng-scmd.service）也会写入同一文件，
+    // 此处 freopen 保证手动启动 scmd 时输出也能被记录。
+    std::string scmdSelfLogFile =
+        qifeng::scm::utils::JoinPath(qifeng::scm::utils::JoinPath(configInfo.logsDir, "qifeng-scm"), "qifeng-scm.log");
+    if (freopen(scmdSelfLogFile.c_str(), "a", stdout) != nullptr) {
+        setvbuf(stdout, nullptr, _IOLBF, 0);  // 行缓冲，确保输出及时落盘
+    } else {
+        std::cerr << "[scmd] Warning: failed to redirect stdout to " << scmdSelfLogFile << std::endl;
+    }
+    if (freopen(scmdSelfLogFile.c_str(), "a", stderr) != nullptr) {
+        setvbuf(stderr, nullptr, _IOLBF, 0);
+    }
 
     // 3. 注册信号处理器
     RegisterSignalHandlers();

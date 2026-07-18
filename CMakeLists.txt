@@ -382,6 +382,11 @@ install(FILES ${CMAKE_SOURCE_DIR}/debian/qifeng-scmd.service
     DESTINATION /lib/systemd/system
 )
 
+# 新需求3.1：安装 logrotate 轮转配置（5M 截断 + rotate 1 + copytruncate）
+install(FILES ${CMAKE_SOURCE_DIR}/debian/logrotate.d/qifeng-scm
+    DESTINATION /etc/logrotate.d
+)
+
 # 安装 ld.so.conf.d 配置
 install(FILES ${CMAKE_SOURCE_DIR}/debian/ld.so.conf.d/qifeng-scm.conf
     DESTINATION /etc/ld.so.conf.d
