@@ -1,0 +1,21 @@
+{
+  "per_item_timeout_sec": 5,
+  "parallel": true,
+  "report_path": "/var/log/qifeng-scm/selftest-report.json",
+  "memory": {
+    "min_available_mb": 128
+  },
+  "tpu": {
+    "min_mem_mb": 512
+  },
+  "microphone": {
+    "device": "default",
+    "duration_ms": 400,
+    "min_rms": 50,
+    "sample_rate": 16000,
+    "channels": 1
+  },
+  "model_inference": {
+    "path": "/etc/qifeng-scm/fsmn_fp32_.bmodel"
+  }
+}

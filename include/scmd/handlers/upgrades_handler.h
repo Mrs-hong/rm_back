@@ -15,10 +15,12 @@ namespace qifeng::scm {
      */
     class UpgradesHandler : public ICommandHandler {
     public:
+        explicit UpgradesHandler(const HandlerContext&) {}
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
+        ResultMsg Recover(const KeyOperationRecord& record, const ServiceContext& ctx) override;
     };
 
 }  // namespace qifeng::scm

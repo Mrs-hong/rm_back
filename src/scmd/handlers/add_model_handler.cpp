@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/add_model_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/model_manager.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +19,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse AddModelHandler::Handle(const ScmRequest& request,
-                                          ServiceControl& serviceControl,
+                                          const ServiceContext& ctx,
                                           KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<AddModelRequest>(&request.data);
         if (params == nullptr || params->srcPath.empty()) {
@@ -29,10 +31,12 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.AddModel(params->srcPath);
+        auto result = ctx.modelManager->AddModel(params->srcPath);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::ADD_MODEL, AddModelHandler)
 
 }  // namespace qifeng::scm

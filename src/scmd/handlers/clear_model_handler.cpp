@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/clear_model_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/model_manager.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +19,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse ClearModelHandler::Handle(const ScmRequest& request,
-                                            ServiceControl& serviceControl,
+                                            const ServiceContext& ctx,
                                             KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<ClearModelRequest>(&request.data);
         if (params == nullptr || params->modelName.empty()) {
@@ -32,10 +34,12 @@ namespace qifeng::scm {
         // 这里仅做基础非空检查，避免重复逻辑。
 
         ScmResponse response;
-        auto result = serviceControl.ClearModel(params->modelName);
+        auto result = ctx.modelManager->ClearModel(params->modelName);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::CLEAR_MODEL, ClearModelHandler)
 
 }  // namespace qifeng::scm

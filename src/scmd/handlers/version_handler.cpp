@@ -3,11 +3,12 @@
  */
 
 #include "scmd/handlers/version_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/version.hpp"
 #include "ipc/data_def.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -16,7 +17,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse VersionHandler::Handle(const ScmRequest& /*request*/,
-                                       ServiceControl& /*serviceControl*/,
+                                       const ServiceContext& /*ctx*/,
                                        KeyOperationRecorder& /*recorder*/) {
         ScmResponse response;
         const auto& versionInfo = GetVersionInfo();
@@ -27,5 +28,7 @@ namespace qifeng::scm {
         response.data["gitCommit"] = versionInfo.gitCommit;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::VERSION, VersionHandler)
 
 }  // namespace qifeng::scm

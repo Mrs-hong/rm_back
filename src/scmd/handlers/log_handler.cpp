@@ -3,11 +3,13 @@
  */
 
 #include "scmd/handlers/log_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_operations.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -16,7 +18,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse LogHandler::Handle(const ScmRequest& request,
-                                   ServiceControl& serviceControl,
+                                   const ServiceContext& ctx,
                                    KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<LogRequest>(&request.data);
         if (params == nullptr) {
@@ -27,10 +29,12 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.GetOperationLog(params->logLevel, params->logCount);
+        auto result = service_operations::GetOperationLog(ctx, params->logLevel, params->logCount);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::LOG, LogHandler)
 
 }  // namespace qifeng::scm

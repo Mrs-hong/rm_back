@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/slog_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_operations.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +19,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse SlogHandler::Handle(const ScmRequest& request,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<SlogRequest>(&request.data);
         if (params == nullptr) {
@@ -30,10 +32,12 @@ namespace qifeng::scm {
 
         // serviceName 为空时查 scmd 自身日志（qifeng-scm.log），由 GetServiceLog 处理
         ScmResponse response;
-        auto result = serviceControl.GetServiceLog(params->serviceName, params->logCount);
+        auto result = service_operations::GetServiceLog(ctx, params->serviceName, params->logCount);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::SLOG, SlogHandler)
 
 }  // namespace qifeng::scm

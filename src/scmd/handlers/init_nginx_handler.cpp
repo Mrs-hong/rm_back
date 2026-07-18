@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/init_nginx_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/nginx_manager.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +19,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse InitNginxHandler::Handle(const ScmRequest& request,
-                                          ServiceControl& serviceControl,
+                                          const ServiceContext& ctx,
                                           KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<InitNginxRequest>(&request.data);
         if (params == nullptr || params->dirPath.empty()) {
@@ -29,10 +31,12 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.InitNginx(params->dirPath);
+        auto result = ctx.nginxManager->InitNginx(params->dirPath);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::INIT_NGINX, InitNginxHandler)
 
 }  // namespace qifeng::scm

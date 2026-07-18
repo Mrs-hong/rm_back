@@ -3,11 +3,13 @@
  */
 
 #include "scmd/handlers/list_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/config.h"
 #include "ipc/data_def.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
 
@@ -16,17 +18,17 @@ namespace qifeng::scm {
     }
 
     ScmResponse ListHandler::Handle(const ScmRequest& /*request*/,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& /*recorder*/) {
         ScmResponse response;
-        auto allServices = serviceControl.GetConfigLoader().GetAllServices();
+        auto allServices = ctx.configLoader->GetAllServices();
         Json::Value servicesArray(Json::arrayValue);
         for (const auto& svc : allServices) {
             Json::Value svcJson;
             svcJson["serviceName"] = svc.serviceName;
             svcJson["version"] = svc.version;
             svcJson["isAutoStart"] = svc.isAutoStart;
-            svcJson["active"] = serviceControl.IsServiceActive(svc.serviceName);
+            svcJson["active"] = ctx.serviceManager->IsServiceActive(svc.serviceName);
             servicesArray.append(svcJson);
         }
         response.code = 0;
@@ -34,5 +36,7 @@ namespace qifeng::scm {
         response.data = servicesArray;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::LIST, ListHandler)
 
 }  // namespace qifeng::scm

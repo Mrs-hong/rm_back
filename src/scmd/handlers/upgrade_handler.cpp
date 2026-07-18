@@ -3,12 +3,15 @@
  */
 
 #include "scmd/handlers/upgrade_handler.h"
+#include "scmd/handler_registry.h"
 
+#include "common/config.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/upgrade_service.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +20,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse UpgradeHandler::Handle(const ScmRequest& request,
-                                       ServiceControl& serviceControl,
+                                       const ServiceContext& ctx,
                                        KeyOperationRecorder& recorder) {
         const auto* params = std::get_if<UpgradeRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
@@ -30,7 +33,7 @@ namespace qifeng::scm {
 
         ScmResponse response;
         recorder.RecordOperation({"upgrade", params->serviceName, 2, params->tarDir, ""});
-        auto result = serviceControl.UpgradeService(params->serviceName, params->tarDir);
+        auto result = ctx.upgradeService->UpdateService(params->serviceName, params->tarDir);
         response.code = result.code;
         response.message = result.msg;
         recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
@@ -39,5 +42,19 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg UpgradeHandler::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) {
+        // 升级未完成，检查服务状态
+        auto* svc = ctx.configLoader->GetServiceByName(record.serviceName);
+        if (svc && !record.tarDir.empty()) {
+            // 服务存在且有新版本路径，尝试重新升级
+            SLOG_INFO << "Retrying upgrade with tarDir: " << record.tarDir;
+            return ctx.upgradeService->UpdateService(record.serviceName, record.tarDir);
+        }
+        SLOG_INFO << "Upgrade was interrupted, manual check recommended for: " << record.serviceName;
+        return MakeWarning("Upgrade was interrupted, manual check recommended for: " + record.serviceName);
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::UPGRADE, UpgradeHandler)
 
 }  // namespace qifeng::scm

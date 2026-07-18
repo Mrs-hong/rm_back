@@ -6,6 +6,7 @@
 #include "common/utils.h"
 #include "common/version.hpp"
 #include "scmd/scmd_server.h"
+#include "scmd/self_check_service.h"
 #include "scmd/service_ctl.h"
 
 #include <atomic>
@@ -90,12 +91,14 @@ int main() {
     qifeng::scm::ScmServer server(serviceControl);
     gServer = &server;
 
-    // // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
-    // if (!server.RunSelfCheck()) {
-    //     std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
-    //     gServer = nullptr;
-    //     return 1;
-    // }
+    // 5. 执行开机自检（在 Start 之前，确保设备就绪后再进入服务循环）
+    // 自检逻辑由独立的 SelfCheckService 承担，ScmServer 不再承担该职责
+    qifeng::scm::SelfCheckService selfCheckService(configLoader);
+    if (!selfCheckService.Run()) {
+        std::cerr << "[scmd] 开机自检失败且 fail_action=halt，服务中止启动" << std::endl;
+        gServer = nullptr;
+        return 1;
+    }
 
     // 6. 启动服务（进入UDS事件循环）
     result = server.Start(socketPath);

@@ -3,14 +3,16 @@
  */
 
 #include "scmd/handlers/info_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/scmd_types.h"
 #include "common/service_error_info.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 #include <iomanip>
 #include <sstream>
@@ -23,7 +25,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse InfoHandler::Handle(const ScmRequest& request,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& /*recorder*/) {
         const auto* params = std::get_if<InfoRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
@@ -35,10 +37,10 @@ namespace qifeng::scm {
         }
 
         ScmResponse response;
-        auto result = serviceControl.GetServiceStatus(params->serviceName);
+        auto result = ctx.serviceManager->GetServiceStatus(params->serviceName);
         response.code = result.code;
         if (result.IsDefalutSuccess()) {
-            auto info = serviceControl.GetServiceRuntimeInfo(params->serviceName);
+            auto info = ctx.serviceManager->GetServiceRuntimeInfo(params->serviceName);
             if (info.pid > 0 || params->infoDetail) {
                 response.message = "success";
                 Json::Value root;
@@ -93,5 +95,7 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::INFO, InfoHandler)
 
 }  // namespace qifeng::scm

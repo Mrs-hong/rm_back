@@ -18,9 +18,10 @@ namespace qifeng::scm {
      */
     class SlogHandler : public ICommandHandler {
     public:
+        explicit SlogHandler(const HandlerContext&) {}
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

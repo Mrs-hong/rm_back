@@ -14,9 +14,10 @@ namespace qifeng::scm {
      */
     class ResetNginxHandler : public ICommandHandler {
     public:
+        explicit ResetNginxHandler(const HandlerContext&) {}
         ScmCommand GetCommand() const override;
         ScmResponse Handle(const ScmRequest& request,
-                           ServiceControl& serviceControl,
+                           const ServiceContext& ctx,
                            KeyOperationRecorder& recorder) override;
     };
 

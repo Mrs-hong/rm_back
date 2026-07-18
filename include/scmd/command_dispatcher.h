@@ -11,13 +11,16 @@
 
 namespace qifeng::scm {
 
-    class ServiceControl;
+    struct ServiceContext;
     class KeyOperationRecorder;
+    struct KeyOperationRecord;
+    struct HandlerContext;
 
     /**
      * @brief 命令分发器
      * @details 维护 ScmCommand 到 ICommandHandler 的映射，根据请求类型分发给对应处理器。
      *          新增命令时只需注册新的处理器，无需修改 ScmServer 核心逻辑。
+     *          命令分发与操作恢复共用同一注册表，DRY。
      */
     class CommandDispatcher {
     public:
@@ -37,15 +40,33 @@ namespace qifeng::scm {
         void Register(std::unique_ptr<ICommandHandler> handler);
 
         /**
+         * @brief 从 HandlerRegistry 加载所有已注册的 handler
+         * @param ctx 构造 handler 所需的运行期依赖上下文
+         * @details 调用 HandlerRegistry::Instance().BuildAll(ctx) 构造所有 handler 并逐个注册。
+         *          替代 ScmServer 中手工列举所有 handler 的脚手架代码。
+         */
+        void LoadFromRegistry(const HandlerContext& ctx);
+
+        /**
          * @brief 分发请求到对应处理器
          * @param request 已解析的请求对象
-         * @param serviceControl 服务控制门面
+         * @param ctx 共享依赖上下文，透传给 handler
          * @param recorder 关键操作记录器
          * @return 命令执行结果响应；若命令未注册则返回 Unknown command 错误。
          */
         ScmResponse Dispatch(const ScmRequest& request,
-                             ServiceControl& serviceControl,
+                             const ServiceContext& ctx,
                              KeyOperationRecorder& recorder) const;
+
+        /**
+         * @brief 分发操作恢复到对应处理器
+         * @param record 上次未完成的关键操作记录
+         * @param ctx 共享依赖上下文，透传给 handler
+         * @return 恢复结果；若操作类型未知或无对应处理器则返回警告
+         * @details 根据 record.optName 解析命令类型，查表调用对应 handler 的 Recover()。
+         *          替代 ScmServer 中手工 switch-case 的恢复逻辑。
+         */
+        ResultMsg Recover(const KeyOperationRecord& record, const ServiceContext& ctx) const;
 
     private:
         std::unordered_map<ScmCommand, std::unique_ptr<ICommandHandler>> mHandlers;

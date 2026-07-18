@@ -6,7 +6,7 @@
 
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
+#include "scmd/handler_registry.h"
 #include "service_manger/key_recoder.h"
 
 namespace qifeng::scm {
@@ -27,7 +27,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse CommandDispatcher::Dispatch(const ScmRequest& request,
-                                            ServiceControl& serviceControl,
+                                            const ServiceContext& ctx,
                                             KeyOperationRecorder& recorder) const {
         ScmCommand cmd = request.Command();
         auto it = mHandlers.find(cmd);
@@ -39,7 +39,33 @@ namespace qifeng::scm {
             return response;
         }
 
-        return it->second->Handle(request, serviceControl, recorder);
+        return it->second->Handle(request, ctx, recorder);
+    }
+
+    void CommandDispatcher::LoadFromRegistry(const HandlerContext& ctx) {
+        auto handlers = HandlerRegistry::Instance().BuildAll(ctx);
+        for (auto& handler : handlers) {
+            Register(std::move(handler));
+        }
+        SLOG_INFO << "Loaded " << mHandlers.size() << " command handlers from registry";
+    }
+
+    ResultMsg CommandDispatcher::Recover(const KeyOperationRecord& record,
+                                         const ServiceContext& ctx) const {
+        // 将操作名字符串映射为命令枚举，统一查表调用对应 handler 的 Recover()
+        auto cmdOpt = StringToScmCommand(record.optName);
+        if (!cmdOpt.has_value()) {
+            SLOG_WARN << "Unknown operation to recover: " << record.optName;
+            return MakeWarning("Unknown operation: " + record.optName);
+        }
+
+        auto it = mHandlers.find(cmdOpt.value());
+        if (it == mHandlers.end()) {
+            SLOG_WARN << "No handler registered for operation: " << record.optName;
+            return MakeWarning("No handler for operation: " + record.optName);
+        }
+
+        return it->second->Recover(record, ctx);
     }
 
 }  // namespace qifeng::scm

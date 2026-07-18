@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/start_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
 
@@ -17,13 +19,13 @@ namespace qifeng::scm {
     }
 
     ScmResponse StartHandler::Handle(const ScmRequest& request,
-                                     ServiceControl& serviceControl,
+                                     const ServiceContext& ctx,
                                      KeyOperationRecorder& recorder) {
         const auto* params = std::get_if<StartRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
             // 未指定服务名时，操作 scmd 自身
             SLOG_INFO << "Start command without service name, operating on scmd self";
-            auto result = serviceControl.StartScmdSelf();
+            auto result = ctx.serviceManager->StartScmdSelf();
             ScmResponse response;
             response.code = result.code;
             response.message = result.msg;
@@ -32,7 +34,7 @@ namespace qifeng::scm {
 
         ScmResponse response;
         recorder.RecordOperation({"start", params->serviceName, 2, "", ""});
-        auto result = serviceControl.StartService(params->serviceName);
+        auto result = ctx.serviceManager->StartService(params->serviceName);
         response.code = result.code;
         response.message = result.msg;
         recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
@@ -41,5 +43,12 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg StartHandler::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) {
+        SLOG_INFO << "Start was interrupted, retrying: " << record.serviceName;
+        return ctx.serviceManager->StartService(record.serviceName);
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::START, StartHandler)
 
 }  // namespace qifeng::scm

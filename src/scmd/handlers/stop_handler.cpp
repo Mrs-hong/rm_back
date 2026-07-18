@@ -3,12 +3,14 @@
  */
 
 #include "scmd/handlers/stop_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
+#include "service_manger/service_manager.h"
 
 namespace qifeng::scm {
 
@@ -17,14 +19,14 @@ namespace qifeng::scm {
     }
 
     ScmResponse StopHandler::Handle(const ScmRequest& request,
-                                    ServiceControl& serviceControl,
+                                    const ServiceContext& ctx,
                                     KeyOperationRecorder& recorder) {
         const auto* params = std::get_if<StopRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
             // 未指定服务名时，操作 scmd 自身
             SLOG_INFO << "Stop command without service name, operating on scmd self";
             ScmResponse response;
-            auto result = serviceControl.StopScmdSelf();
+            auto result = ctx.serviceManager->StopScmdSelf();
             response.code = result.code;
             response.message = result.msg;
             return response;
@@ -32,7 +34,7 @@ namespace qifeng::scm {
 
         ScmResponse response;
         recorder.RecordOperation({"stop", params->serviceName, 2, "", ""});
-        auto result = serviceControl.StopService(params->serviceName);
+        auto result = ctx.serviceManager->StopService(params->serviceName);
         response.code = result.code;
         response.message = result.msg;
         recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
@@ -41,5 +43,12 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg StopHandler::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) {
+        SLOG_INFO << "Stop was interrupted, retrying: " << record.serviceName;
+        return ctx.serviceManager->StopService(record.serviceName);
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::STOP, StopHandler)
 
 }  // namespace qifeng::scm

@@ -3,11 +3,13 @@
  */
 
 #include "scmd/handlers/restart_all_handler.h"
+#include "scmd/handler_registry.h"
 
 #include "common/types.h"
 #include "ipc/data_def.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_operations.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -16,13 +18,15 @@ namespace qifeng::scm {
     }
 
     ScmResponse RestartAllHandler::Handle(const ScmRequest& /*request*/,
-                                          ServiceControl& serviceControl,
+                                          const ServiceContext& ctx,
                                           KeyOperationRecorder& /*recorder*/) {
         ScmResponse response;
-        auto result = serviceControl.RestartAllServices();
+        auto result = service_operations::RestartAllServices(ctx);
         response.code = result.code;
         response.message = result.msg;
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::RESTART_ALL, RestartAllHandler)
 
 }  // namespace qifeng::scm

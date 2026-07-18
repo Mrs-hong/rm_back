@@ -6,21 +6,18 @@
 
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
+#include "scmd/handler_registry.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
-
-    KillHandler::KillHandler(std::function<void()> shutdownCallback)
-        : mShutdownCallback(std::move(shutdownCallback)) {
-    }
 
     ScmCommand KillHandler::GetCommand() const {
         return ScmCommand::KILL;
     }
 
     ScmResponse KillHandler::Handle(const ScmRequest& /*request*/,
-                                    ServiceControl& /*serviceControl*/,
+                                    const ServiceContext& /*ctx*/,
                                     KeyOperationRecorder& /*recorder*/) {
         SLOG_INFO << "Received KILL command, initiating graceful shutdown";
         ScmResponse response;
@@ -32,5 +29,7 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::KILL, KillHandler)
 
 }  // namespace qifeng::scm

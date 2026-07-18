@@ -3,12 +3,15 @@
  */
 
 #include "scmd/handlers/uninstall_handler.h"
+#include "scmd/handler_registry.h"
 
+#include "common/config.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "scmd/service_ctl.h"
+#include "scmd/service_operations.h"
 #include "service_manger/key_recoder.h"
+#include "service_manger/service_context.h"
 
 namespace qifeng::scm {
 
@@ -17,7 +20,7 @@ namespace qifeng::scm {
     }
 
     ScmResponse UninstallHandler::Handle(const ScmRequest& request,
-                                         ServiceControl& serviceControl,
+                                         const ServiceContext& ctx,
                                          KeyOperationRecorder& recorder) {
         const auto* params = std::get_if<UninstallRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
@@ -30,7 +33,7 @@ namespace qifeng::scm {
 
         ScmResponse response;
         recorder.RecordOperation({"uninstall", params->serviceName, 2, "", ""});
-        auto result = serviceControl.UninstallService(params->serviceName);
+        auto result = service_operations::UninstallServiceWithCleanup(ctx, params->serviceName);
         response.code = result.code;
         response.message = result.msg;
         recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
@@ -39,5 +42,18 @@ namespace qifeng::scm {
         }
         return response;
     }
+
+    ResultMsg UninstallHandler::Recover(const KeyOperationRecord& record, const ServiceContext& ctx) {
+        // 卸载未完成，检查服务是否仍存在，若存在则继续卸载
+        auto* svc = ctx.configLoader->GetServiceByName(record.serviceName);
+        if (svc == nullptr) {
+            SLOG_INFO << "Uninstall recovery: service not found, already removed: " << record.serviceName;
+            return MakeSuccess();
+        }
+        SLOG_INFO << "Uninstall was interrupted, retrying: " << record.serviceName;
+        return service_operations::UninstallServiceWithCleanup(ctx, record.serviceName);
+    }
+
+    REGISTER_COMMAND_HANDLER(ScmCommand::UNINSTALL, UninstallHandler)
 
 }  // namespace qifeng::scm
