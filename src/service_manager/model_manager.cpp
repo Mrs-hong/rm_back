@@ -2,15 +2,16 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 
-#include "service_manger/model_manager.h"
+#include "service_manager/model_manager.h"
 
 #include "common/config.h"
-#include "common/utils.h"
 #include "common/utils/file.h"
+#include "common/utils/path.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/file_manager.h"
-#include "service_manger/service_context.h"
-#include "service_manger/service_manager.h"
+#include "service_manager/file_manager.h"
+#include "service_manager/service_context.h"
+#include "service_manager/service_manager.h"
+#include "service_manager/service_utils.h"
 
 #include <chrono>
 #include <filesystem>
@@ -45,7 +46,7 @@ namespace qifeng::scm {
 
         // 确保模型目录存在（惰性创建，与 nginx 目录处理风格一致）
         auto mkdirRet = utils::CreateDirectory(configInfo.modelDir);
-        if (!mkdirRet.IsDefalutSuccess()) {
+        if (!mkdirRet.IsDefaultSuccess()) {
             return MakeError("Failed to create model_dir: " + mkdirRet.msg);
         }
 
@@ -55,10 +56,10 @@ namespace qifeng::scm {
         std::string modelName;
         std::string preparedSrcDir;  // 最终用于移动到 modelDir 的源目录
         std::string tempDir;         // tar 解压临时目录（非空时需要清理）
-        if (mServiceManager.IsTarPackage(srcPath)) {
+        if (service_utils::IsTarPackage(srcPath)) {
             tempDir = utils::GenerateTempDir(mCtx.fileManager->GetCurDirConfig().tempDir);
             auto extractRet = mServiceManager.ExtractSoftwareTar(srcPath, tempDir);
-            if (!extractRet.IsDefalutSuccess()) {
+            if (!extractRet.IsDefaultSuccess()) {
                 mServiceManager.CleanupTempDirectory(tempDir);
                 return MakeError("Failed to extract model tar: " + extractRet.msg);
             }
@@ -77,7 +78,7 @@ namespace qifeng::scm {
         }
 
         auto nameRet = ValidateModelName(modelName);
-        if (!nameRet.IsDefalutSuccess()) {
+        if (!nameRet.IsDefaultSuccess()) {
             mServiceManager.CleanupTempDirectory(tempDir);
             return nameRet;
         }
@@ -90,7 +91,7 @@ namespace qifeng::scm {
         auto dependentServices = GetModelDependentServices();
         std::map<std::string, bool> preStates;
         auto stopRet = StopServicesWithStateRecord(dependentServices, preStates);
-        if (!stopRet.IsDefalutSuccess()) {
+        if (!stopRet.IsDefaultSuccess()) {
             // 停止失败直接返回，不修改模型文件
             mServiceManager.CleanupTempDirectory(tempDir);
             return MakeError("Failed to stop model-dependent services: " + stopRet.msg);
@@ -113,7 +114,7 @@ namespace qifeng::scm {
 
         // 5. 复制新模型到 model_dir/<name>（使用拷贝而非移动，避免验证失败回退时用户源目录丢失）
         auto moveRet = utils::CopyDirectory(preparedSrcDir, dstPath);
-        if (!moveRet.IsDefalutSuccess()) {
+        if (!moveRet.IsDefaultSuccess()) {
             // 回退：恢复备份
             if (hadExistingModel) {
                 std::error_code ec;
@@ -127,7 +128,7 @@ namespace qifeng::scm {
 
         // 6. 启动依赖服务并按各自 keep_alive_time_sec 验证持续运行
         auto verifyRet = StartServicesAndWaitRunning(dependentServices);
-        if (!verifyRet.IsDefalutSuccess()) {
+        if (!verifyRet.IsDefaultSuccess()) {
             SLOG_ERROR << "Model verification failed: " << verifyRet.msg << ", rolling back model";
             // 回退模型：删除新模型，恢复备份
             utils::ForceDeleteDirectory(dstPath);
@@ -179,17 +180,17 @@ namespace qifeng::scm {
         }
 
         auto mkdirRet = utils::CreateDirectory(configInfo.modelDir);
-        if (!mkdirRet.IsDefalutSuccess()) {
+        if (!mkdirRet.IsDefaultSuccess()) {
             return MakeError("Failed to create model_dir: " + mkdirRet.msg);
         }
 
         // 解析模型名并准备源目录
         std::string preparedSrcDir;
         std::string tempDir;
-        if (mServiceManager.IsTarPackage(srcPath)) {
+        if (service_utils::IsTarPackage(srcPath)) {
             tempDir = utils::GenerateTempDir(mCtx.fileManager->GetCurDirConfig().tempDir);
             auto extractRet = mServiceManager.ExtractSoftwareTar(srcPath, tempDir);
-            if (!extractRet.IsDefalutSuccess()) {
+            if (!extractRet.IsDefaultSuccess()) {
                 mServiceManager.CleanupTempDirectory(tempDir);
                 return MakeError("Failed to extract model tar: " + extractRet.msg);
             }
@@ -207,7 +208,7 @@ namespace qifeng::scm {
         }
 
         auto nameRet = ValidateModelName(modelName);
-        if (!nameRet.IsDefalutSuccess()) {
+        if (!nameRet.IsDefaultSuccess()) {
             mServiceManager.CleanupTempDirectory(tempDir);
             return nameRet;
         }
@@ -220,7 +221,7 @@ namespace qifeng::scm {
         auto dependentServices = GetModelDependentServices(excludeService);
         std::map<std::string, bool> preStates;
         auto stopRet = StopServicesWithStateRecord(dependentServices, preStates);
-        if (!stopRet.IsDefalutSuccess()) {
+        if (!stopRet.IsDefaultSuccess()) {
             mServiceManager.CleanupTempDirectory(tempDir);
             return MakeError("Failed to stop model-dependent services: " + stopRet.msg);
         }
@@ -242,7 +243,7 @@ namespace qifeng::scm {
 
         // 复制新模型到 model_dir/<name>（使用拷贝而非移动，避免验证失败回退时用户源目录丢失）
         auto moveRet = utils::CopyDirectory(preparedSrcDir, dstPath);
-        if (!moveRet.IsDefalutSuccess()) {
+        if (!moveRet.IsDefaultSuccess()) {
             if (hadExistingModel) {
                 std::error_code ec;
                 fs::rename(backupPath, dstPath, ec);
@@ -255,7 +256,7 @@ namespace qifeng::scm {
 
         // 启动依赖服务并验证
         auto verifyRet = StartServicesAndWaitRunning(dependentServices);
-        if (!verifyRet.IsDefalutSuccess()) {
+        if (!verifyRet.IsDefaultSuccess()) {
             SLOG_ERROR << "Model verification failed: " << verifyRet.msg << ", rolling back model";
             utils::ForceDeleteDirectory(dstPath);
             if (hadExistingModel) {
@@ -284,7 +285,7 @@ namespace qifeng::scm {
             return MakeSuccess();
         }
         auto ret = utils::ForceDeleteDirectory(backupPath);
-        if (!ret.IsDefalutSuccess()) {
+        if (!ret.IsDefaultSuccess()) {
             return MakeError("Failed to clean model backup: " + ret.msg);
         }
         SLOG_INFO << "Model backup cleaned: " << modelName;
@@ -302,7 +303,7 @@ namespace qifeng::scm {
         // 删除新安装的模型
         if (fs::exists(dstPath)) {
             auto delRet = utils::ForceDeleteDirectory(dstPath);
-            if (!delRet.IsDefalutSuccess()) {
+            if (!delRet.IsDefaultSuccess()) {
                 SLOG_ERROR << "Failed to delete new model: " << delRet.msg;
             }
         }
@@ -320,10 +321,11 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     ResultMsg ModelManager::ClearModel(const std::string &modelName) {
         // 1. 前置校验
         auto nameRet = ValidateModelName(modelName);
-        if (!nameRet.IsDefalutSuccess()) {
+        if (!nameRet.IsDefaultSuccess()) {
             return nameRet;
         }
         const auto &configInfo = mCtx.configLoader->GetConfigInfo();
@@ -343,7 +345,7 @@ namespace qifeng::scm {
         auto dependentServices = GetModelDependentServices();
         std::map<std::string, bool> preStates;
         auto stopRet = StopServicesWithStateRecord(dependentServices, preStates);
-        if (!stopRet.IsDefalutSuccess()) {
+        if (!stopRet.IsDefaultSuccess()) {
             return MakeError("Failed to stop model-dependent services: " + stopRet.msg);
         }
 
@@ -360,7 +362,7 @@ namespace qifeng::scm {
 
         // 4. 启动依赖服务并按各自 keep_alive_time_sec 验证持续运行
         auto verifyRet = StartServicesAndWaitRunning(dependentServices);
-        if (!verifyRet.IsDefalutSuccess()) {
+        if (!verifyRet.IsDefaultSuccess()) {
             SLOG_ERROR << "Model clear verification failed: " << verifyRet.msg << ", rolling back";
             // 回退：恢复模型名
             std::error_code renameEc;
@@ -403,7 +405,7 @@ namespace qifeng::scm {
             preStates[name] = wasRunning;
             if (wasRunning) {
                 auto stopRet = mServiceManager.StopService(name);
-                if (!stopRet.IsDefalutSuccess()) {
+                if (!stopRet.IsDefaultSuccess()) {
                     // 停止失败：已停止的服务保持原状态记录，直接返回错误
                     return MakeError("Failed to stop service " + name + ": " + stopRet.msg);
                 }
@@ -419,7 +421,7 @@ namespace qifeng::scm {
             if (kv.second) {
                 // 原本在运行，尝试启动
                 auto startRet = mServiceManager.StartService(kv.first);
-                if (!startRet.IsDefalutSuccess()) {
+                if (!startRet.IsDefaultSuccess()) {
                     SLOG_WARN << "Failed to restore service " << kv.first << " to running state: " << startRet.msg;
                 }
             }
@@ -432,7 +434,7 @@ namespace qifeng::scm {
         // 每个服务独立验证：启动后等待 keepAliveTimeSec 秒，再检查是否仍活跃
         for (const auto &name : serviceNames) {
             auto startRet = mServiceManager.StartService(name);
-            if (!startRet.IsDefalutSuccess()) {
+            if (!startRet.IsDefaultSuccess()) {
                 return MakeError("Failed to start service " + name + ": " + startRet.msg);
             }
 

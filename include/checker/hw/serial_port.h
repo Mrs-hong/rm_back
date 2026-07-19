@@ -28,6 +28,8 @@ public:
 
     SerialPort(const SerialPort &) = delete;
     SerialPort &operator=(const SerialPort &) = delete;
+    SerialPort(SerialPort &&) = delete;
+    SerialPort &operator=(SerialPort &&) = delete;
 
     /**
      * @brief 检查串口是否已打开

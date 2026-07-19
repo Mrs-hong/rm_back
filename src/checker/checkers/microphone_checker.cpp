@@ -24,6 +24,7 @@ namespace qifeng::scm {
         cfg.channels = j.isMember("channels") && j["channels"].isInt() ? j["channels"].asInt() : cfg.channels;
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     CheckResult MicrophoneChecker::Run() {
         CheckResult r(Name());
         auto t0 = std::chrono::steady_clock::now();

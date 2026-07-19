@@ -87,6 +87,7 @@ namespace qifeng::scm {
         }
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     CheckResult DiskChecker::Run() {
         CheckResult r(Name());
         auto t0 = std::chrono::steady_clock::now();

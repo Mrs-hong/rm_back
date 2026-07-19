@@ -32,6 +32,8 @@ public:
 
     Gpio(const Gpio &) = delete;
     Gpio &operator=(const Gpio &) = delete;
+    Gpio(Gpio &&) = delete;
+    Gpio &operator=(Gpio &&) = delete;
 
     /**
      * @brief 检查引脚是否已打开

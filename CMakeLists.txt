@@ -136,7 +136,6 @@ elseif(PLATFORM_LINUX)
         -Wl,-z,now
         -Wl,-z,relro
         -Wl,-z,noexecstack
-        -Wl,--no-as-needed        # 保留所有间接 .so 依赖（框架 DT_NEEDED 传递链需要）
     )
     
     # 架构优化 - 使用通用的x86-64架构确保兼容性
@@ -204,37 +203,14 @@ endif()
 
 # 依赖公共库
 find_package(OpenMP REQUIRED)
-find_package(Threads REQUIRED)
 
-# 手动配置 qifeng_framework 导入目标（临时替代 find_package，因 arm 包缺少 cmake 配置文件）
-# 收集 include/ 下所有一级子目录作为 include 路径，确保 jsoncpp、drogon 等子模块头文件可被找到
-set(QIFENG_FRAMEWORK_INCLUDE_DIRS "${QIFENG_FRAMEWORK_INSTALL_DIR}/include")
-file(GLOB FW_INC_SUBDIRS LIST_DIRECTORIES true "${QIFENG_FRAMEWORK_INSTALL_DIR}/include/*")
-foreach(D ${FW_INC_SUBDIRS})
-    if(IS_DIRECTORY "${D}")
-        list(APPEND QIFENG_FRAMEWORK_INCLUDE_DIRS "${D}")
-    endif()
-endforeach()
-
-add_library(qifeng_framework::qifeng_framework UNKNOWN IMPORTED)
-# libqifeng.so 的 DT_NEEDED 传递依赖（CMake IMPORTED 目标默认不传递，需显式列出）
-set(_FW_DT_NEEDED_LIBS
-    "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/yamlcpp/libyaml-cpp.so"
-    "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/qifeng_framework/libgpiod.so.2"
-    "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/qifeng_framework/libasound.so.2"
-    "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/qifeng_framework/libcurl.so.4"
-    "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/soci/libsoci_core.so"
-)
-set_target_properties(qifeng_framework::qifeng_framework PROPERTIES
-    IMPORTED_LOCATION "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/qifeng_framework/libqifeng.so"
-    INTERFACE_INCLUDE_DIRECTORIES "${QIFENG_FRAMEWORK_INCLUDE_DIRS}"
-    INTERFACE_LINK_LIBRARIES "${_FW_DT_NEEDED_LIBS}"
-)
+set(qifeng_framework_DIR "${CMAKE_SOURCE_DIR}/third_part/qifeng_framework/install/lib/cmake/qifeng_framework")
+find_package(qifeng_framework REQUIRED)
 
 # 设置 RPATH：构建时优先查找 qifeng_framework 自带的库，再查找 build/lib/；
-# 安装后: 系统 Sophon SDK 优先 → 框架自带回退
+# 安装后通过 /usr/lib/qifeng-scm 查找发布时携带的库
 set(CMAKE_BUILD_RPATH "$ORIGIN/../lib;${QIFENG_FRAMEWORK_INSTALL_DIR}/lib")
-set(CMAKE_INSTALL_RPATH "/opt/sophon/libsophon-current/lib;/usr/lib/qifeng-scm")
+set(CMAKE_INSTALL_RPATH "/usr/lib/qifeng-scm")
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH FALSE)
 
 # --- checker 可选系统库探测（必须在 add_subdirectory(src) 之前）----------------
@@ -249,13 +225,13 @@ set(BM_SDK_ROOT "/opt/sophon/libsophon-current" CACHE PATH "Sophon SDK system fa
 set(CHECKER_HAS_BM_SDK 0)
 set(SOPHON_USE_BUNDLED FALSE)
 if(WITH_BM1684_SDK)
-  # ARM: 框架自带 Sophon SDK 优先（libqifeng.so 预编译时使用此版本，ABI 必须一致）
-  # x86: 框架不自带 Sophon，直接使用系统版本
+  # 优先使用 qifeng_framework 自带的 Sophon SDK（ARM 架构完整）；
+  # x86 环境通常不完整，回退到系统 /opt/sophon。
   set(_BM_SDK_INCLUDE_SEARCH_PATHS "")
   set(_BM_SDK_LIB_SEARCH_PATHS "")
   if(ARCH_ARM)
     list(APPEND _BM_SDK_INCLUDE_SEARCH_PATHS "${QIFENG_FRAMEWORK_INSTALL_DIR}/include/sophon")
-    list(APPEND _BM_SDK_LIB_SEARCH_PATHS "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib/sophon")
+    list(APPEND _BM_SDK_LIB_SEARCH_PATHS "${QIFENG_FRAMEWORK_INSTALL_DIR}/lib")
   endif()
   list(APPEND _BM_SDK_INCLUDE_SEARCH_PATHS "${BM_SDK_ROOT}/include" "/opt/sophon/libsophon-current/include")
   list(APPEND _BM_SDK_LIB_SEARCH_PATHS "${BM_SDK_ROOT}/lib" "/opt/sophon/libsophon-current/lib")
@@ -283,12 +259,6 @@ if(WITH_BM1684_SDK)
     endif()
   else()
     message(WARNING "Sophon SDK not found, TPU/model checkers will be skipped at runtime")
-  endif()
-
-  # libqifeng.so 内部依赖 Sophon SDK 库，追加到框架传递链接
-  if(CHECKER_HAS_BM_SDK)
-      target_link_libraries(qifeng_framework::qifeng_framework INTERFACE
-          "${BM_LIB_BMLIB}" "${BM_LIB_BMRT}" "${BM_LIB_BMCV}")
   endif()
 
   unset(_BM_SDK_INCLUDE_SEARCH_PATHS)
@@ -363,28 +333,23 @@ install(TARGETS qifeng_scmd qifeng_scmctl
 )
 
 # 安装参考配置文件到系统配置目录
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/config/scmd.yaml
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/.config/scmd.yaml
     DESTINATION /etc/qifeng-scm
 )
 
 # 安装自检配置文件
-install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/config/selftest.json
+install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/.config/selftest.json
     DESTINATION /etc/qifeng-scm
 )
 
-# 安装自检模型文件（随包安装到 /etc/qifeng-scm，卸载时与其它配置一并移除）
+# 安装自检模型文件
 install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/model/fsmn_fp32_.bmodel
-    DESTINATION /etc/qifeng-scm
+    DESTINATION /opt/sophon/selftest
 )
 
 # 安装 systemd 服务单元
 install(FILES ${CMAKE_SOURCE_DIR}/debian/qifeng-scmd.service
     DESTINATION /lib/systemd/system
-)
-
-# 新需求3.1：安装 logrotate 轮转配置（5M 截断 + rotate 1 + copytruncate）
-install(FILES ${CMAKE_SOURCE_DIR}/debian/logrotate.d/qifeng-scm
-    DESTINATION /etc/logrotate.d
 )
 
 # 安装 ld.so.conf.d 配置
@@ -451,23 +416,11 @@ set(CPACK_PACKAGE_CONTACT "support@qifengscm.com")
 set(CPACK_PACKAGE_VERSION_MAJOR "${PROJECT_VERSION_MAJOR}")
 set(CPACK_PACKAGE_VERSION_MINOR "${PROJECT_VERSION_MINOR}")
 set(CPACK_PACKAGE_VERSION_PATCH "${PROJECT_VERSION_PATCH}")
-
-# 显式设置 CPACK_PACKAGE_VERSION（必须在 CPACK_DEBIAN_FILE_NAME 之前）
-# 修复：原代码此处 CPACK_PACKAGE_VERSION 尚未被 include(CPack) 计算，值为空，
-#       导致文件名出现双横杠 "qifeng-scm--ubuntu-arm64.deb"
-# CI 可通过环境变量 CI_PACKAGE_VERSION 注入完整版本号（如 0.0.2.B0716.12345）
-if(DEFINED ENV{CI_PACKAGE_VERSION})
-    set(CPACK_PACKAGE_VERSION "$ENV{CI_PACKAGE_VERSION}")
-else()
-    set(CPACK_PACKAGE_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
-endif()
-
 set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "qifeng-scm")
 set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.28), libstdc++6 (>= 9), libgcc-s1 (>= 9), libsystemd0 (>= 244)")
 set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
 set(CPACK_DEBIAN_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${OS_NAME}-${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
 set(CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
-    "${CMAKE_SOURCE_DIR}/debian/preinst"
     "${CMAKE_SOURCE_DIR}/debian/postinst"
     "${CMAKE_SOURCE_DIR}/debian/prerm"
     "${CMAKE_SOURCE_DIR}/debian/postrm"

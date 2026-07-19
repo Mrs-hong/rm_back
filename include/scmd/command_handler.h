@@ -6,7 +6,7 @@
 
 #include "common/types.h"
 #include "ipc/data_def.h"
-#include "service_manger/key_recoder.h"
+#include "service_manager/key_recoder.h"
 
 #include <functional>
 #include <memory>
@@ -39,7 +39,14 @@ namespace qifeng::scm {
      */
     class ICommandHandler {
     public:
+        ICommandHandler() = default;
         virtual ~ICommandHandler() = default;
+
+        // 多态接口禁止拷贝与移动，避免对象切片
+        ICommandHandler(const ICommandHandler&) = delete;
+        ICommandHandler& operator=(const ICommandHandler&) = delete;
+        ICommandHandler(ICommandHandler&&) = delete;
+        ICommandHandler& operator=(ICommandHandler&&) = delete;
 
         /**
          * @brief 获取该处理器负责的命令类型

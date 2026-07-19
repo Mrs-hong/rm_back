@@ -40,12 +40,13 @@ namespace qifeng::scm::utils {
         const char* monthStr = (mon >= 0 && mon < 12) ? MonthAbbr[static_cast<size_t>(mon)] : "???";
         std::ostringstream oss;
         oss << monthStr << " " << std::setw(2) << std::setfill('0') << timeInfo.tm_mday << " " << std::setw(2)
-            << std::setfill('0') << timeInfo.tm_hour << ":" << std::setw(2) << std::setfill('0') << timeInfo.tm_min << ":"
-            << std::setw(2) << std::setfill('0') << timeInfo.tm_sec;
+            << std::setfill('0') << timeInfo.tm_hour << ":" << std::setw(2) << std::setfill('0') << timeInfo.tm_min
+            << ":" << std::setw(2) << std::setfill('0') << timeInfo.tm_sec;
         return oss.str();
     }
 
-    std::vector<std::string> ReadJournalLastN(const std::string& unitName, int count) {
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
+    std::vector<std::string> ReadJournalLastN(const std::string &unitName, int count) {
         if (unitName.empty()) {
             return {};
         }
@@ -146,15 +147,15 @@ namespace qifeng::scm::utils {
         return entries;
     }
 
-    std::string JoinJournalLines(const std::vector<std::string>& lines) {
+    std::string JoinJournalLines(const std::vector<std::string> &lines) {
         std::string output;
-        for (const auto& line : lines) {
+        for (const auto &line : lines) {
             output += line + "\n";
         }
         return output;
     }
 
-    std::vector<std::string> ReadFileLastNLines(const std::string& filePath, int count) {
+    std::vector<std::string> ReadFileLastNLines(const std::string &filePath, int count) {
         std::vector<std::string> lines;
         std::ifstream file(filePath);
         if (!file.is_open()) {
@@ -174,7 +175,7 @@ namespace qifeng::scm::utils {
         return lines;
     }
 
-    bool AppendToFile(const std::string& filePath, const std::string& content) {
+    bool AppendToFile(const std::string &filePath, const std::string &content) {
         // 确保父目录存在
         std::filesystem::path parentPath = std::filesystem::path(filePath).parent_path();
         if (!parentPath.empty() && !std::filesystem::exists(parentPath)) {

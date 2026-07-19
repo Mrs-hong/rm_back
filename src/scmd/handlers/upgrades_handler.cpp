@@ -9,9 +9,9 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
-#include "service_manger/upgrade_service.h"
+#include "service_manager/key_recoder.h"
+#include "service_manager/service_context.h"
+#include "service_manager/upgrade_service.h"
 
 namespace qifeng::scm {
 
@@ -37,8 +37,8 @@ namespace qifeng::scm {
         auto result = ctx.upgradeService->PerformIntegratedUpgrade(params->serviceName, params->tarDir);
         response.code = result.code;
         response.message = result.msg;
-        recorder.UpdateResult(result.IsDefalutSuccess() ? 0 : 1);
-        if (result.IsDefalutSuccess()) {
+        recorder.UpdateResult(result.IsDefaultSuccess() ? 0 : 1);
+        if (result.IsDefaultSuccess()) {
             recorder.Clear();
         }
         return response;

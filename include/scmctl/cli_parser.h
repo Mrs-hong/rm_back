@@ -13,15 +13,15 @@ namespace qifeng::scm {
      * @details 使用 qifeng_framework 提供的 CLI11 解析命令行参数，根据 ipc/commd.md 定义命令，
      * 若符合则生成 ScmRequest，否则通过 ResultMsg 返回错误信息
      */
-    class CliPaser {
+    class CliParser {
     public:
-        CliPaser() = default;
-        ~CliPaser() = default;
+        CliParser() = default;
+        ~CliParser() = default;
 
-        CliPaser(const CliPaser &) = delete;
-        CliPaser &operator=(const CliPaser &) = delete;
-        CliPaser(CliPaser &&) = delete;
-        CliPaser &operator=(CliPaser &&) = delete;
+        CliParser(const CliParser &) = delete;
+        CliParser &operator=(const CliParser &) = delete;
+        CliParser(CliParser &&) = delete;
+        CliParser &operator=(CliParser &&) = delete;
 
         /**
          * @brief 解析命令行参数

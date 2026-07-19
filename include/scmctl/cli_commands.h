@@ -6,7 +6,11 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 
+#include <functional>
+#include <memory>
 #include <string>
+#include <utility>
+#include <vector>
 
 using CLI::App;
 
@@ -52,6 +56,44 @@ namespace qifeng::scm {
          *         code=2: 未命中该子命令
          */
         virtual ResultMsg BuildRequest(CLI::App &app, ScmRequest &req) = 0;
+    };
+
+    /**
+     * @brief CLI 子命令注册表（单例）
+     * @details 各 *Command 实现 cpp 末尾通过 REGISTER_CLI_COMMAND 宏在静态初始化期
+     *          自注册工厂函数，运行期由 CliParser 调用 BuildAll 统一构造所有命令实例。
+     *          消除 CliParser::Parse 中手工 emplace_back 列举所有命令的脚手架代码，
+     *          与服务端 HandlerRegistry/REGISTER_COMMAND_HANDLER 模式对称。
+     */
+    class CliCommandRegistry {
+    public:
+        /**
+         * @brief 命令工厂函数类型：无参构造一个 CliCommand 实例
+         */
+        using Factory = std::function<std::unique_ptr<CliCommand>()>;
+
+        /**
+         * @brief 获取单例实例
+         * @return CliCommandRegistry 单例引用
+         */
+        static CliCommandRegistry &Instance();
+
+        /**
+         * @brief 注册命令工厂函数
+         * @param name 命令类名（用于日志诊断，不参与命令分发）
+         * @param factory 工厂函数，返回一个新的 CliCommand 实例
+         */
+        void Register(const char* name, Factory factory);
+
+        /**
+         * @brief 按注册顺序构造所有已注册命令
+         * @return 已构造的 CliCommand 实例列表
+         */
+        std::vector<std::unique_ptr<CliCommand>> BuildAll() const;
+
+    private:
+        CliCommandRegistry() = default;
+        std::vector<std::pair<std::string, Factory>> mFactories;
     };
 
     class InstallCommand : public CliCommand {
@@ -260,7 +302,7 @@ namespace qifeng::scm {
     private:
         bool mWait {false};  // -wait 等待状态
         bool mNow {false};   // -now 恢复正常
-        bool mBack {false};   // -back 全部无效
+        bool mBack {false};  // -back 全部无效
     };
 
     /**
@@ -296,3 +338,24 @@ namespace qifeng::scm {
     };
 
 }  // namespace qifeng::scm
+
+/**
+ * @brief 自注册宏：在 *Command 实现 cpp 末尾使用，将命令工厂注册到 CliCommandRegistry
+ * @details 利用静态对象的初始化期副作用完成注册，避免 CliParser::Parse 集中列举所有命令。
+ *          CommandClass 必须提供无参构造函数并实现 CliCommand 接口。
+ *          静态对象置于匿名命名空间内，满足 misc-use-internal-linkage 与
+ *          cppcoreguidelines-avoid-non-const-global-variables 的内部链接要求。
+ * @param CommandClass 命令类名
+ */
+#define REGISTER_CLI_COMMAND(CommandClass)                                                                            \
+    namespace {                                                                                                       \
+        struct CommandClass##_AutoReg {                                                                               \
+            CommandClass##_AutoReg() {                                                                                \
+                ::qifeng::scm::CliCommandRegistry::Instance().Register(                                               \
+                    #CommandClass,                                                                                    \
+                    []() -> std::unique_ptr<::qifeng::scm::CliCommand> { return std::make_unique<CommandClass>(); }); \
+            }                                                                                                         \
+        };                                                                                                            \
+        /* NOLINTNEXTLINE(cert-err58-cpp, cppcoreguidelines-avoid-non-const-global-variables) */                      \
+        static const CommandClass##_AutoReg g_##CommandClass##_auto_reg;                                              \
+    }

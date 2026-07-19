@@ -44,6 +44,7 @@ namespace qifeng::scm {
 
     }  // namespace
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     void PcbaChecker::ParseConfig(const Json::Value &j, PcbaConfig &cfg) {
         cfg.exe_command = j.isMember("exe_command") && j["exe_command"].isString()
                               ? j["exe_command"].asString()

@@ -3,6 +3,8 @@
  */
 #include "scmctl/cli_commands.h"
 
+#include "qifeng_framework/common/logger.h"
+
 #include <filesystem>
 
 namespace qifeng::scm {
@@ -27,7 +29,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req.data = InstallRequest{mServiceName, absDir};
+        req.data = InstallRequest {mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -48,7 +50,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = StartRequest{mServiceName};
+        req.data = StartRequest {mServiceName};
         return MakeSuccess();
     }
 
@@ -69,7 +71,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = StopRequest{mServiceName};
+        req.data = StopRequest {mServiceName};
         return MakeSuccess();
     }
 
@@ -92,11 +94,11 @@ namespace qifeng::scm {
             return ResultMsg(2, "");
         }
         if (mAll) {
-            req.data = RestartAllRequest{};
+            req.data = RestartAllRequest {};
             return MakeSuccess();
         }
         // 无 --name 且无 -a 时，操作 scmd 自身（发送空 serviceName）
-        req.data = RestartRequest{mServiceName};
+        req.data = RestartRequest {mServiceName};
         return MakeSuccess();
     }
 
@@ -120,7 +122,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req.data = UpgradeRequest{mServiceName, absDir};
+        req.data = UpgradeRequest {mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -145,7 +147,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径，空值保持为空
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req.data = UpgradesRequest{mServiceName, absDir};
+        req.data = UpgradesRequest {mServiceName, absDir};
         return MakeSuccess();
     }
 
@@ -165,7 +167,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = ListRequest{};
+        req.data = ListRequest {};
         return MakeSuccess();
     }
 
@@ -187,7 +189,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = InfoRequest{mServiceName, mShowError};
+        req.data = InfoRequest {mServiceName, mShowError};
         return MakeSuccess();
     }
 
@@ -209,7 +211,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = LogRequest{mLogType, mLogCount};
+        req.data = LogRequest {mLogType, mLogCount};
         return MakeSuccess();
     }
 
@@ -230,7 +232,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = UninstallRequest{mServiceName};
+        req.data = UninstallRequest {mServiceName};
         return MakeSuccess();
     }
 
@@ -253,13 +255,13 @@ namespace qifeng::scm {
             return ResultMsg(2, "");
         }
         if (mAll) {
-            req.data = ReloadAllRequest{};
+            req.data = ReloadAllRequest {};
             return MakeSuccess();
         }
         if (mServiceName.empty()) {
             return MakeError("reload requires --name or -a flag");
         }
-        req.data = ReloadRequest{mServiceName};
+        req.data = ReloadRequest {mServiceName};
         return MakeSuccess();
     }
 
@@ -279,7 +281,7 @@ namespace qifeng::scm {
         if (!app.got_subcommand(Name())) {
             return ResultMsg(2, "");
         }
-        req.data = KillRequest{};
+        req.data = KillRequest {};
         return MakeSuccess();
     }
 
@@ -303,7 +305,7 @@ namespace qifeng::scm {
             return ResultMsg(2, "");
         }
         // mServiceName 为空时表示查 scmd 自身，由 scmd 端 SlogHandler 处理
-        req.data = SlogRequest{mServiceName, mLogCount};
+        req.data = SlogRequest {mServiceName, mLogCount};
         return MakeSuccess();
     }
 
@@ -326,7 +328,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径，便于 scmd 端定位文件
         std::string absPath = mConfigPath.empty() ? mConfigPath : std::filesystem::absolute(mConfigPath).string();
-        req.data = CheckRequest{absPath};
+        req.data = CheckRequest {absPath};
         return MakeSuccess();
     }
 
@@ -349,7 +351,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径
         std::string absDir = mDir.empty() ? mDir : std::filesystem::absolute(mDir).string();
-        req.data = InitNginxRequest{absDir};
+        req.data = InitNginxRequest {absDir};
         return MakeSuccess();
     }
 
@@ -389,7 +391,7 @@ namespace qifeng::scm {
             mode = NginxResetMode::NORMAL;
         }
 
-        req.data = ResetNginxRequest{mode};
+        req.data = ResetNginxRequest {mode};
         return MakeSuccess();
     }
 
@@ -413,7 +415,7 @@ namespace qifeng::scm {
         }
         // 将相对路径转换为绝对路径，便于 scmd 端定位文件
         std::string absPath = mSrcPath.empty() ? mSrcPath : std::filesystem::absolute(mSrcPath).string();
-        req.data = AddModelRequest{absPath};
+        req.data = AddModelRequest {absPath};
         return MakeSuccess();
     }
 
@@ -437,8 +439,57 @@ namespace qifeng::scm {
         if (mModelName.empty()) {
             return MakeError("clear_model requires --name");
         }
-        req.data = ClearModelRequest{mModelName};
+        req.data = ClearModelRequest {mModelName};
         return MakeSuccess();
     }
+
+    // -------------------- CliCommandRegistry 实现 --------------------
+    CliCommandRegistry &CliCommandRegistry::Instance() {
+        // Meyers 单例：C++11 起局部静态变量线程安全初始化
+        static CliCommandRegistry Instance;
+        return Instance;
+    }
+
+    void CliCommandRegistry::Register(const char* name, Factory factory) {
+        if (factory == nullptr) {
+            SLOG_ERROR << "Attempted to register null factory for command: " << (name != nullptr ? name : "<null>");
+            return;
+        }
+        mFactories.emplace_back(name != nullptr ? name : "", std::move(factory));
+    }
+
+    std::vector<std::unique_ptr<CliCommand>> CliCommandRegistry::BuildAll() const {
+        std::vector<std::unique_ptr<CliCommand>> commands;
+        commands.reserve(mFactories.size());
+        for (const auto &[name, factory] : mFactories) {
+            auto command = factory();
+            if (command == nullptr) {
+                SLOG_ERROR << "Factory returned null command for: " << name;
+                continue;
+            }
+            commands.push_back(std::move(command));
+        }
+        return commands;
+    }
+
+    // -------------------- 命令自注册（顺序与原 CliParser::Parse 一致）--------------------
+    REGISTER_CLI_COMMAND(InstallCommand)
+    REGISTER_CLI_COMMAND(StartCommand)
+    REGISTER_CLI_COMMAND(StopCommand)
+    REGISTER_CLI_COMMAND(RestartCommand)
+    REGISTER_CLI_COMMAND(ReloadCommand)
+    REGISTER_CLI_COMMAND(UpgradeCommand)
+    REGISTER_CLI_COMMAND(UpgradesCommand)
+    REGISTER_CLI_COMMAND(ListCommand)
+    REGISTER_CLI_COMMAND(InfoCommand)
+    REGISTER_CLI_COMMAND(LogCommand)
+    REGISTER_CLI_COMMAND(UninstallCommand)
+    REGISTER_CLI_COMMAND(KillCommand)
+    REGISTER_CLI_COMMAND(SlogCommand)
+    REGISTER_CLI_COMMAND(CheckCommand)
+    REGISTER_CLI_COMMAND(InitNginxCommand)
+    REGISTER_CLI_COMMAND(ResetNginxCommand)
+    REGISTER_CLI_COMMAND(AddModelCommand)
+    REGISTER_CLI_COMMAND(ClearModelCommand)
 
 }  // namespace qifeng::scm

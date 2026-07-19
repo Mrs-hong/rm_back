@@ -2,13 +2,15 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 
-#include "service_manger/database_service.h"
+#include "service_manager/database_service.h"
 
 #include "common/config.h"
-#include "common/utils.h"
+#include "common/utils/file.h"
+#include "common/utils/password.h"
+#include "common/utils/path.h"
 #include "common/utils/yaml_resolve.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/file_manager.h"
+#include "service_manager/file_manager.h"
 #include "service_tool/tool_mariadb.h"
 #include "service_tool/tools_def.h"
 
@@ -36,13 +38,13 @@ namespace qifeng::scm {
             std::string dbPassword = utils::GenerateRandomPassword(12);
             SLOG_DEBUG << "start create " << serviceName << " db user password file ";
             ResultMsg res = CreateDbUserPassword(*svc, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
+            if (!res.IsDefaultSuccess()) {
                 SLOG_WARN << "Write db user password error, do clear  ";
                 ClearDbUserPasswordFile(*svc);
                 return res;
             }
             res = CreateDatabaseUser(svc->dbInfo.dbType, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
+            if (!res.IsDefaultSuccess()) {
                 SLOG_WARN << "Create database user error, do clear  ";
                 ClearDbUserPasswordFile(*svc);
                 return res;
@@ -52,7 +54,7 @@ namespace qifeng::scm {
             // sqlDir 是当前服务的相对路径，基于当前服务目录解析为绝对路径
             std::string absSqlDir = utils::GetAbsolutePath(utils::JoinPath(svc->currentServiceDir, svc->dbInfo.sqlDir));
             res = ExecuteDbInitScripts(svc->dbInfo.dbType, absSqlDir, dbUserName, dbPassword);
-            if (!res.IsDefalutSuccess()) {
+            if (!res.IsDefaultSuccess()) {
                 // 执行脚本失败，删除用户
                 SLOG_WARN << "Failed to execute database init scripts for service: " << serviceName
                           << ", deleting user: " << dbUserName;
@@ -64,7 +66,7 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
-    std::string DatabaseService::GetDependentDatabaseServiceName(const std::string& serviceName) {
+    std::string DatabaseService::GetDependentDatabaseServiceName(const std::string &serviceName) {
         auto svc = mCtx.configLoader->GetServiceByName(serviceName);
         if (svc == nullptr) {
             return "";
@@ -79,15 +81,14 @@ namespace qifeng::scm {
         return dbServiceName;
     }
 
-    ResultMsg DatabaseService::CreateDbUserPassword(const ServiceDefinition& serviceDefinition,
-                                                    const std::string& dbUserName, const std::string& dbPassword) {
-        std::string actualFilePath =
-            utils::JoinPath(serviceDefinition.currentServiceDir, serviceDefinition.dbInfo.outputDir);
+    ResultMsg DatabaseService::CreateDbUserPassword(const ServiceDefinition &svc, const std::string &dbUserName,
+                                                    const std::string &dbPassword) {
+        std::string actualFilePath = utils::JoinPath(svc.currentServiceDir, svc.dbInfo.outputDir);
         auto res = utils::CreateDirectory(actualFilePath);
-        if (!res.IsDefalutSuccess()) {
+        if (!res.IsDefaultSuccess()) {
             return MakeError("Write db user password error when create directory failed: " + actualFilePath);
         }
-        std::string dbPassFile = utils::JoinPath(actualFilePath, serviceDefinition.serviceName);
+        std::string dbPassFile = utils::JoinPath(actualFilePath, svc.serviceName);
         std::ofstream ofs(dbPassFile, std::ios::trunc);
         if (!ofs.is_open()) {
             return MakeError("Write db user password error when failed to open file: " + dbPassFile);
@@ -96,19 +97,18 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
-    ResultMsg DatabaseService::ClearDbUserPasswordFile(const ServiceDefinition& serviceDefinition) {
-        std::string actualFilePath =
-            utils::JoinPath(serviceDefinition.currentServiceDir, serviceDefinition.dbInfo.outputDir);
-        std::string dbPassFile = utils::JoinPath(actualFilePath, serviceDefinition.serviceName);
+    ResultMsg DatabaseService::ClearDbUserPasswordFile(const ServiceDefinition &svc) {
+        std::string actualFilePath = utils::JoinPath(svc.currentServiceDir, svc.dbInfo.outputDir);
+        std::string dbPassFile = utils::JoinPath(actualFilePath, svc.serviceName);
         auto res = utils::RemoveFile(dbPassFile);
-        if (!res.IsDefalutSuccess()) {
+        if (!res.IsDefaultSuccess()) {
             return MakeError("Clear db user password file error when remove file failed: " + dbPassFile);
         }
         return MakeSuccess();
     }
 
-    ResultMsg DatabaseService::CreateDatabaseUser(const DatabaseType& dbType, const std::string& username,
-                                                  const std::string& password) {
+    ResultMsg DatabaseService::CreateDatabaseUser(const DatabaseType &dbType, const std::string &username,
+                                                  const std::string &password) {
         if (dbType == DatabaseType::MYSQL) {
             tool::MariadbDef dbDef;
             tool::Mariadb mariadb(tool::MariadbDef {});
@@ -117,8 +117,8 @@ namespace qifeng::scm {
         return MakeError("Unsupported database service ");
     }
 
-    ResultMsg DatabaseService::DeleteDatabaseUser(const DatabaseType& dbType, const std::string& username,
-                                                  const std::string& password) {
+    ResultMsg DatabaseService::DeleteDatabaseUser(const DatabaseType &dbType, const std::string &username,
+                                                  const std::string &password) {
         if (dbType == DatabaseType::MYSQL) {
             tool::Mariadb mariadb(tool::MariadbDef {});
             return mariadb.DeleteUserAndDatabase(username, password);
@@ -127,21 +127,21 @@ namespace qifeng::scm {
     }
 
     // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-    ResultMsg DatabaseService::ExecuteDbInitScripts(const DatabaseType& dbType, const std::string& sqlDir,
-                                                    const std::string& dbUserName, const std::string& dbPassword) {
+    ResultMsg DatabaseService::ExecuteDbInitScripts(const DatabaseType &dbType, const std::string &sqlDir,
+                                                    const std::string &dbUserName, const std::string &dbPassword) {
         if (dbType == DatabaseType::MYSQL) {
             tool::Mariadb mariadb(tool::MariadbDef {});
             // 获得sqlDir下全部以.sql结尾的脚本绝对路径
             std::vector<std::string> sqlFiles;
             ResultMsg res = utils::GetAllFilesInDir(sqlFiles, sqlDir, ".sql");
-            if (!res.IsDefalutSuccess()) {
+            if (!res.IsDefaultSuccess()) {
                 return MakeError("Get all sql files error: " + res.msg);
             }
             std::sort(sqlFiles.begin(), sqlFiles.end());
-            for (const auto& sqlFile : sqlFiles) {
+            for (const auto &sqlFile : sqlFiles) {
                 SLOG_INFO << "Executing SQL file: " << sqlFile;
                 res = mariadb.ExecuteSqlFileByUser(dbUserName, dbPassword, sqlFile);
-                if (!res.IsDefalutSuccess()) {
+                if (!res.IsDefaultSuccess()) {
                     return MakeError("Execute SQL file: " + sqlFile + " error: " + res.msg);
                 }
             }
@@ -151,7 +151,7 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
-    ResultMsg DatabaseService::ClearDatabaseData(const ServiceDefinition& svc) {
+    ResultMsg DatabaseService::ClearDatabaseData(const ServiceDefinition &svc) {
         // 从密码文件读取用户密码，用于以用户身份发现所有可访问数据库
         std::string password;
         std::string dbPassFile =
@@ -170,14 +170,14 @@ namespace qifeng::scm {
     }
 
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
-    ResultMsg DatabaseService::BackupServiceDatabase(const std::string& serviceName) {
+    ResultMsg DatabaseService::BackupServiceDatabase(const std::string &serviceName) {
         auto* svc = mCtx.configLoader->GetServiceByName(serviceName);
         if (svc == nullptr) {
             return MakeSuccess();
         }
         // 检查依赖是否包含 mariadb/mysql
         bool dependsMariadb = false;
-        for (const auto& dep : svc->dependencies) {
+        for (const auto &dep : svc->dependencies) {
             if (tool::IsMariadbService(dep.first)) {
                 dependsMariadb = true;
                 break;
@@ -197,14 +197,14 @@ namespace qifeng::scm {
         std::string backupRoot = mCtx.fileManager->GetCurDirConfig().backupDir;
         std::string dbBackupDir = utils::JoinPath(backupRoot, serviceName, "db_backup");
         auto ret = utils::CreateDirectory(dbBackupDir);
-        if (!ret.IsDefalutSuccess()) {
+        if (!ret.IsDefaultSuccess()) {
             return MakeError("Failed to create db_backup dir: " + ret.msg);
         }
 
         // 使用服务名作为 DB 用户名（与 InitServiceDatabase 约定一致）
         tool::Mariadb mariadb(tool::MariadbDef {});
         auto backupResult = mariadb.BackupUserDatabases(serviceName, dbBackupDir);
-        if (!backupResult.IsDefalutSuccess()) {
+        if (!backupResult.IsDefaultSuccess()) {
             return MakeError("Failed to backup databases: " + backupResult.msg);
         }
         SLOG_INFO << "Database backup completed for service: " << serviceName << ", databases: " << backupResult.msg;
@@ -212,7 +212,7 @@ namespace qifeng::scm {
     }
 
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
-    ResultMsg DatabaseService::ExecuteUpgradeScripts(const std::string& serviceName) {
+    ResultMsg DatabaseService::ExecuteUpgradeScripts(const std::string &serviceName) {
         auto* svc = mCtx.configLoader->GetServiceByName(serviceName);
         if (svc == nullptr) {
             return MakeError("Service not found: " + serviceName);
@@ -267,16 +267,16 @@ namespace qifeng::scm {
         // 执行 .sql 脚本（按字母序），统一以服务账号身份执行
         std::vector<std::string> sqlFiles;
         auto res = utils::GetAllFilesInDir(sqlFiles, absSqlDir, ".sql");
-        if (!res.IsDefalutSuccess()) {
+        if (!res.IsDefaultSuccess()) {
             return MakeError("Get sql files error: " + res.msg);
         }
         std::sort(sqlFiles.begin(), sqlFiles.end());
 
         tool::Mariadb mariadb(tool::MariadbDef {});
-        for (const auto& sqlFile : sqlFiles) {
+        for (const auto &sqlFile : sqlFiles) {
             SLOG_INFO << "Executing upgrade SQL file: " << sqlFile << " as user: " << dbUser;
             res = mariadb.ExecuteSqlFileByUser(dbUser, dbPassword, sqlFile);
-            if (!res.IsDefalutSuccess()) {
+            if (!res.IsDefaultSuccess()) {
                 return MakeError("Execute SQL file " + sqlFile + " failed: " + res.msg);
             }
         }
@@ -285,7 +285,7 @@ namespace qifeng::scm {
     }
 
     // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
-    ResultMsg DatabaseService::RollbackServiceDatabase(const std::string& serviceName) {
+    ResultMsg DatabaseService::RollbackServiceDatabase(const std::string &serviceName) {
         std::string backupRoot = mCtx.fileManager->GetCurDirConfig().backupDir;
         std::string dbBackupDir = utils::JoinPath(backupRoot, serviceName, "db_backup");
         if (!std::filesystem::exists(dbBackupDir)) {
@@ -293,7 +293,7 @@ namespace qifeng::scm {
         }
         tool::Mariadb mariadb(tool::MariadbDef {});
         auto result = mariadb.RestoreUserDatabases(dbBackupDir);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             return MakeError("Failed to rollback databases: " + result.msg);
         }
         SLOG_INFO << "Database rollback completed for service: " << serviceName;

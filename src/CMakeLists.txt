@@ -34,8 +34,8 @@ configure_file(
 # 获得common 的所有.cpp
 file(GLOB_RECURSE COMMON_SOURCES "common/*.cpp")
 
-# 获得service_manger 的所有.cpp
-file(GLOB_RECURSE SERVICE_MANAGER_SOURCES "service_manger/*.cpp")
+# 获得service_manager 的所有.cpp
+file(GLOB_RECURSE SERVICE_MANAGER_SOURCES "service_manager/*.cpp")
 
 # 获得scmd 的所有.cpp
 file(GLOB_RECURSE SCMD_SOURCES "scmd/*.cpp")

@@ -110,16 +110,16 @@ namespace qifeng {
          */
         struct ConfigInfo {
             // 日志
-            LogLevel logLevel;       // 日志级别
-            uint32_t logFileSizeMB;  // 日志文件大小（MB）
-            uint32_t logFileCount;   // 日志文件数量
+            LogLevel logLevel {LogLevel::INFO};   // 日志级别
+            uint32_t logFileSizeMB {50};          // 日志文件大小（MB）
+            uint32_t logFileCount {7};            // 日志文件数量
 
             // uds配置
             std::string udsSocketPath;  // uds socket路径
             int udsSocketMode {0666};   // uds socket文件权限（默认0666允许所有用户连接）
 
             // 操作超时配置
-            uint32_t optTimeoutSec;  // 启动、停止、安装、卸载、升级超时时间（秒）
+            uint32_t optTimeoutSec {10};  // 启动、停止、安装、卸载、升级超时时间（秒）
 
             // 根目录，所有子目录基于此派生
             std::string rootDir;

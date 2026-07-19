@@ -11,7 +11,7 @@
 namespace qifeng::scm {
     /**
      * @brief SCMD 控制客户端
-     * @details CliPaser解析命令行参数后，使用UDS功能块与scmd通信，并将结果输出到终端
+     * @details CliParser解析命令行参数后，使用UDS功能块与scmd通信，并将结果输出到终端
      */
     class ScmCtlClient {
     public:

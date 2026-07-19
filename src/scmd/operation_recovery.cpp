@@ -6,8 +6,8 @@
 
 #include "qifeng_framework/common/logger.h"
 #include "scmd/command_dispatcher.h"
-#include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
+#include "service_manager/key_recoder.h"
+#include "service_manager/service_context.h"
 
 #include <iostream>
 
@@ -54,7 +54,7 @@ namespace qifeng::scm {
 
         ResultMsg recoverResult = mDispatcher.Recover(record, mContext);
 
-        if (recoverResult.IsDefalutSuccess()) {
+        if (recoverResult.IsDefaultSuccess()) {
             SLOG_INFO << "Recovery completed successfully for: " << record.optName;
             std::cout << "[scmd] 操作恢复成功: " << record.optName << std::endl;
             // 恢复成功后标记为已完成(result=0)，不立即清除记录

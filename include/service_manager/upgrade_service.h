@@ -7,7 +7,7 @@
 #include <string>
 
 namespace qifeng::scm {
-    class ServiceContext;
+    struct ServiceContext;
     class ServiceManager;
     class ModelManager;
     class NginxManager;

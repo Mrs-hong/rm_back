@@ -13,322 +13,162 @@ namespace qifeng::scm {
     namespace {
 
         // 命令枚举与字符串名称的映射表
-        constexpr std::size_t kCommandCount = 21;
+        constexpr std::size_t CommandCount = 21;
         using CommandNamePair = std::pair<ScmCommand, const char*>;
-        constexpr std::array<CommandNamePair, kCommandCount> kCommandNameMap = {
-            {{ScmCommand::VERSION, "VERSION"},
-             {ScmCommand::INSTALL, "INSTALL"},
-             {ScmCommand::START, "START"},
-             {ScmCommand::STOP, "STOP"},
-             {ScmCommand::RESTART, "RESTART"},
-             {ScmCommand::RESTART_ALL, "RESTART_ALL"},
-             {ScmCommand::UPGRADE, "UPGRADE"},
-             {ScmCommand::LIST, "LIST"},
-             {ScmCommand::INFO, "INFO"},
-             {ScmCommand::LOG, "LOG"},
-             {ScmCommand::UNINSTALL, "UNINSTALL"},
-             {ScmCommand::RELOAD, "RELOAD"},
-             {ScmCommand::RELOAD_ALL, "RELOAD_ALL"},
-             {ScmCommand::KILL, "KILL"},
-             {ScmCommand::SLOG, "SLOG"},
-             {ScmCommand::CHECK, "CHECK"},
-             {ScmCommand::INIT_NGINX, "INIT_NGINX"},
-             {ScmCommand::RESET_NGINX, "RESET_NGINX"},
-             {ScmCommand::ADD_MODEL, "ADD_MODEL"},
-             {ScmCommand::CLEAR_MODEL, "CLEAR_MODEL"},
-             {ScmCommand::UPGRADES, "UPGRADES"}}};
+        constexpr std::array<CommandNamePair, CommandCount> CommandNameMap = {{{ScmCommand::VERSION, "VERSION"},
+                                                                               {ScmCommand::INSTALL, "INSTALL"},
+                                                                               {ScmCommand::START, "START"},
+                                                                               {ScmCommand::STOP, "STOP"},
+                                                                               {ScmCommand::RESTART, "RESTART"},
+                                                                               {ScmCommand::RESTART_ALL, "RESTART_ALL"},
+                                                                               {ScmCommand::UPGRADE, "UPGRADE"},
+                                                                               {ScmCommand::LIST, "LIST"},
+                                                                               {ScmCommand::INFO, "INFO"},
+                                                                               {ScmCommand::LOG, "LOG"},
+                                                                               {ScmCommand::UNINSTALL, "UNINSTALL"},
+                                                                               {ScmCommand::RELOAD, "RELOAD"},
+                                                                               {ScmCommand::RELOAD_ALL, "RELOAD_ALL"},
+                                                                               {ScmCommand::KILL, "KILL"},
+                                                                               {ScmCommand::SLOG, "SLOG"},
+                                                                               {ScmCommand::CHECK, "CHECK"},
+                                                                               {ScmCommand::INIT_NGINX, "INIT_NGINX"},
+                                                                               {ScmCommand::RESET_NGINX, "RESET_NGINX"},
+                                                                               {ScmCommand::ADD_MODEL, "ADD_MODEL"},
+                                                                               {ScmCommand::CLEAR_MODEL, "CLEAR_MODEL"},
+                                                                               {ScmCommand::UPGRADES, "UPGRADES"}}};
 
-        // 各命令参数结构体的 JSON 序列化辅助函数
-        Json::Value ParamsToJson(const VersionRequest & /*request*/) {
-            return Json::Value(Json::objectValue);
+        // =========================================================================
+        // 基于 ScmRequestTraits 的模板化序列化/反序列化
+        // 替代原 21 个 ParamsToJson 重载 + 21 个 ParamsFromJson 重载
+        // =========================================================================
+
+        // 字段写入 JSON：枚举类型转 int，其余类型由 Json::Value 原生支持
+        template <typename MemberType>
+        void WriteField(Json::Value &obj, const char* key, const MemberType &value) {
+            if constexpr (std::is_enum_v<MemberType>) {
+                obj[key] = static_cast<int>(value);
+            } else {
+                obj[key] = value;
+            }
         }
 
-        Json::Value ParamsToJson(const InstallRequest &request) {
+        // 从 JSON 节点读取单个字段：类型匹配则赋值并返回 true，否则返回 false（不赋值）
+        template <typename MemberType>
+        bool ReadJsonTo(MemberType &member, const Json::Value &node) {
+            if constexpr (std::is_same_v<MemberType, std::string>) {
+                if (!node.isString()) {
+                    return false;
+                }
+                member = node.asString();
+                return true;
+            } else if constexpr (std::is_same_v<MemberType, bool>) {
+                if (!node.isBool()) {
+                    return false;
+                }
+                member = node.asBool();
+                return true;
+            } else if constexpr (std::is_same_v<MemberType, int>) {
+                if (!node.isInt()) {
+                    return false;
+                }
+                member = node.asInt();
+                return true;
+            } else if constexpr (std::is_enum_v<MemberType>) {
+                if (!node.isInt()) {
+                    return false;
+                }
+                member = static_cast<MemberType>(node.asInt());
+                return true;
+            }
+            return false;  // 不支持的成员类型
+        }
+
+        // 字段从 JSON 读取：必填缺失/类型不匹配返回 false，可选缺失/类型不匹配跳过返回 true
+        template <typename MemberType>
+        bool ReadField(MemberType &member, const Json::Value &obj, const char* key, bool required) {
+            if (!obj.isMember(key)) {
+                return !required;  // 必填缺失失败，可选缺失跳过
+            }
+            const Json::Value &node = obj[key];
+            // 类型匹配则赋值返回 true；必填类型不匹配返回 false，可选类型不匹配返回 true（跳过）
+            return ReadJsonTo(member, node) || !required;
+        }
+
+        // 模板版 ParamsToJson：遍历 ScmRequestTraits<T>::kFields 写入所有字段
+        template <typename T>
+        Json::Value ParamsToJson(const T &request) {
             Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            params["tarDir"] = request.tarDir;
+            constexpr auto fields = ScmRequestTraits<T>::kFields;
+            std::apply([&request,
+                        &params](const auto &... descs) { ((WriteField(params, descs.key, request.*descs.ptr)), ...); },
+                       fields);
             return params;
         }
 
-        Json::Value ParamsToJson(const StartRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            return params;
+        // 模板版 ParamsFromJson：遍历 kFields 读取所有字段，任一必填字段失败则整体失败
+        template <typename T>
+        bool ParamsFromJson(T &request, const Json::Value &params) {
+            constexpr auto fields = ScmRequestTraits<T>::kFields;
+            return std::apply(
+                [&request, &params](const auto &... descs) -> bool {
+                    return (... && ReadField(request.*descs.ptr, params, descs.key, descs.required));
+                },
+                fields);
         }
 
-        Json::Value ParamsToJson(const StopRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            return params;
-        }
+        // =========================================================================
+        // 反序列化分派查表：替代 ScmRequest::FromJson 中的 21-case switch
+        // 依赖 ScmCommand 枚举值与数组索引一一对应（variant 类型顺序与枚举顺序一致）
+        // =========================================================================
 
-        Json::Value ParamsToJson(const RestartRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            return params;
-        }
+        // 反序列化函数指针类型
+        using DeserializerFn = bool (*)(ScmRequest &, const Json::Value &);
 
-        Json::Value ParamsToJson(const RestartAllRequest & /*request*/) {
-            return Json::Value(Json::objectValue);
-        }
-
-        Json::Value ParamsToJson(const UpgradeRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            params["tarDir"] = request.tarDir;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const ListRequest & /*request*/) {
-            return Json::Value(Json::objectValue);
-        }
-
-        Json::Value ParamsToJson(const InfoRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            params["infoDetail"] = request.infoDetail;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const LogRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["logLevel"] = request.logLevel;
-            params["logCount"] = request.logCount;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const UninstallRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const ReloadRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const ReloadAllRequest & /*request*/) {
-            return Json::Value(Json::objectValue);
-        }
-
-        Json::Value ParamsToJson(const KillRequest & /*request*/) {
-            return Json::Value(Json::objectValue);
-        }
-
-        Json::Value ParamsToJson(const SlogRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            params["logCount"] = request.logCount;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const CheckRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["configPath"] = request.configPath;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const InitNginxRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["dirPath"] = request.dirPath;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const ResetNginxRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["mode"] = static_cast<int>(request.mode);
-            return params;
-        }
-
-        Json::Value ParamsToJson(const AddModelRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["srcPath"] = request.srcPath;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const ClearModelRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["modelName"] = request.modelName;
-            return params;
-        }
-
-        Json::Value ParamsToJson(const UpgradesRequest &request) {
-            Json::Value params(Json::objectValue);
-            params["serviceName"] = request.serviceName;
-            params["tarDir"] = request.tarDir;
-            return params;
-        }
-
-        // 从 JSON 反序列化各命令参数
-        bool ParamsFromJson(VersionRequest & /*request*/, const Json::Value & /*params*/) {
-            return true;
-        }
-
-        bool ParamsFromJson(InstallRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
+        // 单类型反序列化函数模板：构造对应请求类型并填充字段
+        template <typename T>
+        bool DeserializeRequest(ScmRequest &req, const Json::Value &params) {
+            T param;
+            if (!ParamsFromJson(param, params)) {
                 return false;
             }
-            request.serviceName = params["serviceName"].asString();
-            if (params.isMember("tarDir") && params["tarDir"].isString()) {
-                request.tarDir = params["tarDir"].asString();
-            }
+            req.data = std::move(param);
             return true;
         }
 
-        bool ParamsFromJson(StartRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            return true;
-        }
+// 构造反序列化函数指针
+#define SCM_DESERIALIZER(RequestType) &DeserializeRequest<RequestType>
 
-        bool ParamsFromJson(StopRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            return true;
-        }
+        // 命令枚举值 -> 反序列化函数 查表（索引 = static_cast<int>(ScmCommand)）
+        const std::array<DeserializerFn, CommandCount> Deserializers = {
+            SCM_DESERIALIZER(VersionRequest),     // VERSION = 0
+            SCM_DESERIALIZER(InstallRequest),     // INSTALL = 1
+            SCM_DESERIALIZER(StartRequest),       // START = 2
+            SCM_DESERIALIZER(StopRequest),        // STOP = 3
+            SCM_DESERIALIZER(RestartRequest),     // RESTART = 4
+            SCM_DESERIALIZER(RestartAllRequest),  // RESTART_ALL = 5
+            SCM_DESERIALIZER(UpgradeRequest),     // UPGRADE = 6
+            SCM_DESERIALIZER(ListRequest),        // LIST = 7
+            SCM_DESERIALIZER(InfoRequest),        // INFO = 8
+            SCM_DESERIALIZER(LogRequest),         // LOG = 9
+            SCM_DESERIALIZER(UninstallRequest),   // UNINSTALL = 10
+            SCM_DESERIALIZER(ReloadRequest),      // RELOAD = 11
+            SCM_DESERIALIZER(ReloadAllRequest),   // RELOAD_ALL = 12
+            SCM_DESERIALIZER(KillRequest),        // KILL = 13
+            SCM_DESERIALIZER(SlogRequest),        // SLOG = 14
+            SCM_DESERIALIZER(CheckRequest),       // CHECK = 15
+            SCM_DESERIALIZER(InitNginxRequest),   // INIT_NGINX = 16
+            SCM_DESERIALIZER(ResetNginxRequest),  // RESET_NGINX = 17
+            SCM_DESERIALIZER(AddModelRequest),    // ADD_MODEL = 18
+            SCM_DESERIALIZER(ClearModelRequest),  // CLEAR_MODEL = 19
+            SCM_DESERIALIZER(UpgradesRequest)     // UPGRADES = 20
+        };
 
-        bool ParamsFromJson(RestartRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            return true;
-        }
-
-        bool ParamsFromJson(RestartAllRequest & /*request*/, const Json::Value & /*params*/) {
-            return true;
-        }
-
-        bool ParamsFromJson(UpgradeRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            if (params.isMember("tarDir") && params["tarDir"].isString()) {
-                request.tarDir = params["tarDir"].asString();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(ListRequest & /*request*/, const Json::Value & /*params*/) {
-            return true;
-        }
-
-        bool ParamsFromJson(InfoRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            if (params.isMember("infoDetail") && params["infoDetail"].isBool()) {
-                request.infoDetail = params["infoDetail"].asBool();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(LogRequest &request, const Json::Value &params) {
-            if (params.isMember("logLevel") && params["logLevel"].isInt()) {
-                request.logLevel = params["logLevel"].asInt();
-            }
-            if (params.isMember("logCount") && params["logCount"].isInt()) {
-                request.logCount = params["logCount"].asInt();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(UninstallRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            return true;
-        }
-
-        bool ParamsFromJson(ReloadRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            return true;
-        }
-
-        bool ParamsFromJson(ReloadAllRequest & /*request*/, const Json::Value & /*params*/) {
-            return true;
-        }
-
-        bool ParamsFromJson(KillRequest & /*request*/, const Json::Value & /*params*/) {
-            return true;
-        }
-
-        bool ParamsFromJson(SlogRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            if (params.isMember("logCount") && params["logCount"].isInt()) {
-                request.logCount = params["logCount"].asInt();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(CheckRequest &request, const Json::Value &params) {
-            if (params.isMember("configPath") && params["configPath"].isString()) {
-                request.configPath = params["configPath"].asString();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(InitNginxRequest &request, const Json::Value &params) {
-            if (params.isMember("dirPath") && params["dirPath"].isString()) {
-                request.dirPath = params["dirPath"].asString();
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(ResetNginxRequest &request, const Json::Value &params) {
-            if (params.isMember("mode") && params["mode"].isInt()) {
-                request.mode = static_cast<NginxResetMode>(params["mode"].asInt());
-            }
-            return true;
-        }
-
-        bool ParamsFromJson(AddModelRequest &request, const Json::Value &params) {
-            if (!params.isMember("srcPath") || !params["srcPath"].isString()) {
-                return false;
-            }
-            request.srcPath = params["srcPath"].asString();
-            return true;
-        }
-
-        bool ParamsFromJson(ClearModelRequest &request, const Json::Value &params) {
-            if (!params.isMember("modelName") || !params["modelName"].isString()) {
-                return false;
-            }
-            request.modelName = params["modelName"].asString();
-            return true;
-        }
-
-        bool ParamsFromJson(UpgradesRequest &request, const Json::Value &params) {
-            if (!params.isMember("serviceName") || !params["serviceName"].isString()) {
-                return false;
-            }
-            request.serviceName = params["serviceName"].asString();
-            // tarDir 可选字段，缺失或非字符串时默认为空字符串
-            if (params.isMember("tarDir") && params["tarDir"].isString()) {
-                request.tarDir = params["tarDir"].asString();
-            }
-            return true;
-        }
+#undef SCM_DESERIALIZER
 
     }  // namespace
 
     const char* ScmCommandToString(ScmCommand cmd) {
-        for (const auto &pair : kCommandNameMap) {
+        for (const auto &pair : CommandNameMap) {
             if (pair.first == cmd) {
                 return pair.second;
             }
@@ -337,7 +177,7 @@ namespace qifeng::scm {
     }
 
     std::optional<ScmCommand> StringToScmCommand(const std::string &str) {
-        for (const auto &pair : kCommandNameMap) {
+        for (const auto &pair : CommandNameMap) {
             if (pair.second == str) {
                 return pair.first;
             }
@@ -365,157 +205,16 @@ namespace qifeng::scm {
             return std::nullopt;
         }
 
+        // 通过查表分派到对应类型的反序列化函数（替代 21-case switch）
+        // 依赖 ScmCommand 枚举值与 Deserializers 数组索引一一对应
+        int idx = static_cast<int>(cmd);
+        if (idx < 0 || idx >= static_cast<int>(Deserializers.size())) {
+            return std::nullopt;
+        }
+
         ScmRequest request;
-        switch (cmd) {
-            case ScmCommand::VERSION: {
-                VersionRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::INSTALL: {
-                InstallRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::START: {
-                StartRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::STOP: {
-                StopRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::RESTART: {
-                RestartRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::RESTART_ALL: {
-                RestartAllRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::UPGRADE: {
-                UpgradeRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::LIST: {
-                ListRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::INFO: {
-                InfoRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::LOG: {
-                LogRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::UNINSTALL: {
-                UninstallRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::RELOAD: {
-                ReloadRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::RELOAD_ALL: {
-                ReloadAllRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::KILL: {
-                KillRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::SLOG: {
-                SlogRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::CHECK: {
-                CheckRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::INIT_NGINX: {
-                InitNginxRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::RESET_NGINX: {
-                ResetNginxRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::ADD_MODEL: {
-                AddModelRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::CLEAR_MODEL: {
-                ClearModelRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            case ScmCommand::UPGRADES: {
-                UpgradesRequest param;
-                if (!ParamsFromJson(param, params))
-                    return std::nullopt;
-                request.data = param;
-                break;
-            }
-            default:
-                return std::nullopt;
+        if (!Deserializers[static_cast<std::size_t>(idx)](request, params)) {
+            return std::nullopt;
         }
 
         return request;

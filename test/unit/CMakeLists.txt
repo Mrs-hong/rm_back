@@ -102,7 +102,7 @@ set(DBUS_TEST_SOURCES
 
 # DBusManager 被测试的源文件
 set(DBUS_SOURCES_UNDER_TEST
-    ${CMAKE_SOURCE_DIR}/src/service_manger/dbus_manager.cpp
+    ${CMAKE_SOURCE_DIR}/src/service_manager/dbus_manager.cpp
     ${CMAKE_SOURCE_DIR}/src/common/types.cpp
 )
 

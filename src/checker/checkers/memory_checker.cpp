@@ -4,16 +4,15 @@
 
 #include "checker/checkers/memory_checker.h"
 
+#include "qifeng_framework/common/logger.h"
+
 #include <sys/sysinfo.h>
 
-#include <cstdio>
+#include <array>
 #include <chrono>
+#include <cstdio>
 #include <fstream>
 #include <string>
-
-#include <array>
-
-#include "qifeng_framework/common/logger.h"
 
 namespace qifeng::scm {
 

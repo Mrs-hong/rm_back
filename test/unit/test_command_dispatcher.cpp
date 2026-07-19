@@ -7,7 +7,7 @@
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "scmd/command_handler.h"
-#include "service_manger/key_recoder.h"
+#include "service_manager/key_recoder.h"
 
 #include <gtest/gtest.h>
 

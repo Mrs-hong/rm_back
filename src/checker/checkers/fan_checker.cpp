@@ -21,6 +21,7 @@ namespace qifeng::scm {
     namespace {
 
         // Read fan speed (RPM) from sysfs hwmon
+        // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
         int ReadFanSpeedFromSysfs(const FanConfig &cfg) {
             for (int hwmonIdx = 0; hwmonIdx < cfg.hwmon_max_index; ++hwmonIdx) {
                 for (int fanIdx = 1; fanIdx <= cfg.fan_max_index; ++fanIdx) {

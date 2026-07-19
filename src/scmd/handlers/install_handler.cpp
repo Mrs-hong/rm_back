@@ -10,8 +10,8 @@
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/service_operations.h"
-#include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
+#include "service_manager/key_recoder.h"
+#include "service_manager/service_context.h"
 
 namespace qifeng::scm {
 
@@ -53,7 +53,7 @@ namespace qifeng::scm {
             // 服务已部分安装，先卸载清理再重新安装
             SLOG_INFO << "Service partially installed, cleaning up: " << record.serviceName;
             auto cleanResult = service_operations::UninstallServiceWithCleanup(ctx, record.serviceName);
-            if (!cleanResult.IsDefalutSuccess()) {
+            if (!cleanResult.IsDefaultSuccess()) {
                 return cleanResult;
             }
             if (record.tarDir.empty()) {

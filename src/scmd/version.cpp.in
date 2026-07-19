@@ -9,12 +9,12 @@ namespace qifeng {
 namespace scm {
 
 const VersionInfo& GetVersionInfo() {
-    static VersionInfo info = {
+    static VersionInfo Info = {
         "@PROJECT_VERSION_MAJOR@.@PROJECT_VERSION_MINOR@.@PROJECT_VERSION_PATCH@",  // 版本号
         "@BUILD_TIMESTAMP@",  // 编译时间
         "@GIT_COMMIT@"        // Git commit hash
     };
-    return info;
+    return Info;
 }
 
 }  // namespace scm

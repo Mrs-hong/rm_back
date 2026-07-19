@@ -6,21 +6,20 @@
 
 #include "common/config.h"
 #include "common/types.h"
-#include "common/utils.h"
 #include "common/utils/journal.h"
+#include "common/utils/path.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/database_service.h"
-#include "service_manger/file_manager.h"
-#include "service_manger/service_manager.h"
+#include "service_manager/database_service.h"
+#include "service_manager/file_manager.h"
+#include "service_manager/service_manager.h"
 
 #include <fstream>
 #include <vector>
 
 namespace qifeng::scm::service_operations {
 
-    ResultMsg InstallServiceWithDb(const ServiceContext& ctx,
-                                    const std::string& serviceName,
-                                    const std::string& tarPath) {
+    ResultMsg InstallServiceWithDb(const ServiceContext &ctx, const std::string &serviceName,
+                                   const std::string &tarPath) {
         SLOG_INFO << "Installing service: " << serviceName << " from " << tarPath;
         auto result = ctx.serviceManager->InstallService(tarPath, serviceName);
         if (result.code != 0 && result.code != 1) {
@@ -46,7 +45,7 @@ namespace qifeng::scm::service_operations {
         }
 
         result = ctx.databaseService->InitServiceDatabase(actualServiceName);
-        if (!result.IsDefalutSuccess()) {
+        if (!result.IsDefaultSuccess()) {
             // 数据建库操作失败，回滚安装
             UninstallServiceWithCleanup(ctx, actualServiceName);
             return MakeError("install service " + actualServiceName + " failed: " + result.msg);
@@ -59,8 +58,7 @@ namespace qifeng::scm::service_operations {
         return MakeSuccess();
     }
 
-    ResultMsg UninstallServiceWithCleanup(const ServiceContext& ctx,
-                                           const std::string& serviceName) {
+    ResultMsg UninstallServiceWithCleanup(const ServiceContext &ctx, const std::string &serviceName) {
         SLOG_INFO << "Uninstalling service: " << serviceName;
         auto svc = ctx.configLoader->GetServiceByName(serviceName);
         if (svc == nullptr) {
@@ -83,22 +81,22 @@ namespace qifeng::scm::service_operations {
         return ret;
     }
 
-    ResultMsg RestartAllServices(const ServiceContext& ctx) {
+    ResultMsg RestartAllServices(const ServiceContext &ctx) {
         SLOG_INFO << "Restarting all services";
 
         // 先停止所有服务
         auto stopResult = ctx.serviceManager->StopAllServices();
-        if (!stopResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to stop: " << stopResult.msg;
         }
 
         // 再启动所有 autoStart 服务
         auto startResult = ctx.serviceManager->StartAllAutoStartServices();
-        if (!startResult.IsDefalutSuccess()) {
+        if (!startResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to start: " << startResult.msg;
         }
 
-        if (!stopResult.IsDefalutSuccess() || !startResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess() || !startResult.IsDefaultSuccess()) {
             return MakeWarning("Some services failed during restart");
         }
 
@@ -106,8 +104,8 @@ namespace qifeng::scm::service_operations {
         return MakeSuccess();
     }
 
-    ResultMsg GetOperationLog(const ServiceContext& ctx, int /*logLevel*/, int logCount) {
-        const auto& configInfo = ctx.configLoader->GetConfigInfo();
+    ResultMsg GetOperationLog(const ServiceContext &ctx, int /*logLevel*/, int logCount) {
+        const auto &configInfo = ctx.configLoader->GetConfigInfo();
         std::string logPath = utils::JoinPath(configInfo.logsDir, "scmd.log");
 
         std::ifstream logFile(logPath);
@@ -141,10 +139,10 @@ namespace qifeng::scm::service_operations {
         return result;
     }
 
-    ResultMsg GetServiceLog(const ServiceContext& ctx, const std::string& serviceName, int logCount) {
+    ResultMsg GetServiceLog(const ServiceContext &ctx, const std::string &serviceName, int logCount) {
         // 新需求3.1：slog 命令读取服务日志，优先读文件，回退 journal
         int count = logCount > 0 ? logCount : 10;
-        const auto& configInfo = ctx.configLoader->GetConfigInfo();
+        const auto &configInfo = ctx.configLoader->GetConfigInfo();
 
         // 确定日志文件路径和 journal unit 名
         std::string logFile;
@@ -165,14 +163,14 @@ namespace qifeng::scm::service_operations {
         // 1. 优先读取服务日志文件（StandardOutput 重定向 + journal 同步的内容）
         auto lines = qifeng::scm::utils::ReadFileLastNLines(logFile, count);
         if (!lines.empty()) {
-            return ResultMsg{0, qifeng::scm::utils::JoinJournalLines(lines)};
+            return ResultMsg {0, qifeng::scm::utils::JoinJournalLines(lines)};
         }
 
         // 2. 文件不存在或为空，回退读取 systemd journal
         SLOG_INFO << "Service log file empty or missing: " << logFile
                   << ", fall back to journal for unit: " << unitName;
         auto journalLines = qifeng::scm::utils::ReadJournalLastN(unitName, count);
-        return ResultMsg{0, qifeng::scm::utils::JoinJournalLines(journalLines)};
+        return ResultMsg {0, qifeng::scm::utils::JoinJournalLines(journalLines)};
     }
 
 }  // namespace qifeng::scm::service_operations

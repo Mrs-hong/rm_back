@@ -9,7 +9,7 @@
 #include <string>
 
 namespace qifeng::scm {
-    class ServiceContext;
+    struct ServiceContext;
     class ServiceManager;
 
     /**

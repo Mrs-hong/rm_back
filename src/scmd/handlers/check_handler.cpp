@@ -9,8 +9,8 @@
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
 #include "scmd/handler_registry.h"
-#include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
+#include "service_manager/key_recoder.h"
+#include "service_manager/service_context.h"
 
 namespace qifeng::scm {
 

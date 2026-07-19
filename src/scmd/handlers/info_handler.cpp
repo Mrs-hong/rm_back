@@ -2,17 +2,17 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 
-#include "scmd/handlers/info_handler.h"
 #include "scmd/handler_registry.h"
+#include "scmd/handlers/info_handler.h"
 
 #include "common/scmd_types.h"
 #include "common/service_error_info.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/key_recoder.h"
-#include "service_manger/service_context.h"
-#include "service_manger/service_manager.h"
+#include "service_manager/key_recoder.h"
+#include "service_manager/service_context.h"
+#include "service_manager/service_manager.h"
 
 #include <iomanip>
 #include <sstream>
@@ -24,9 +24,9 @@ namespace qifeng::scm {
         return ScmCommand::INFO;
     }
 
-    ScmResponse InfoHandler::Handle(const ScmRequest& request,
-                                    const ServiceContext& ctx,
-                                    KeyOperationRecorder& /*recorder*/) {
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
+    ScmResponse InfoHandler::Handle(const ScmRequest &request, const ServiceContext &ctx,
+                                    KeyOperationRecorder & /*recorder*/) {
         const auto* params = std::get_if<InfoRequest>(&request.data);
         if (params == nullptr || params->serviceName.empty()) {
             SLOG_WARN << "Info command missing service name";
@@ -39,7 +39,7 @@ namespace qifeng::scm {
         ScmResponse response;
         auto result = ctx.serviceManager->GetServiceStatus(params->serviceName);
         response.code = result.code;
-        if (result.IsDefalutSuccess()) {
+        if (result.IsDefaultSuccess()) {
             auto info = ctx.serviceManager->GetServiceRuntimeInfo(params->serviceName);
             if (info.pid > 0 || params->infoDetail) {
                 response.message = "success";

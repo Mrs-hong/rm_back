@@ -7,15 +7,15 @@
 #include "scmd/service_ctl.h"
 
 #include "common/config.h"
-#include "common/utils.h"
 #include "common/utils/journal.h"
+#include "common/utils/path.h"
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/database_service.h"
-#include "service_manger/file_manager.h"
-#include "service_manger/model_manager.h"
-#include "service_manger/nginx_manager.h"
-#include "service_manger/service_manager.h"
-#include "service_manger/upgrade_service.h"
+#include "service_manager/database_service.h"
+#include "service_manager/file_manager.h"
+#include "service_manager/model_manager.h"
+#include "service_manager/nginx_manager.h"
+#include "service_manager/service_manager.h"
+#include "service_manager/upgrade_service.h"
 
 #include <algorithm>
 #include <filesystem>
@@ -24,10 +24,11 @@
 
 namespace qifeng::scm {
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     ResultMsg ServiceControl::Init() {
         mConfigLoader = std::make_shared<ConfigLoader>();
         auto result = mConfigLoader->Initialize();
-        if (!result.IsDefalutSuccess() && result.code != 1) {
+        if (!result.IsDefaultSuccess() && result.code != 1) {
             return MakeError("Failed to initialize ConfigLoader: " + result.msg);
         }
 
@@ -59,14 +60,14 @@ namespace qifeng::scm {
         mModelManager = std::make_shared<ModelManager>(mContext, *mServiceManager);
         mContext.modelManager = mModelManager;
 
-        mUpgradeService = std::make_shared<UpgradeService>(mContext, *mServiceManager, *mModelManager,
-                                                           *mNginxManager, *mDatabaseService);
+        mUpgradeService = std::make_shared<UpgradeService>(mContext, *mServiceManager, *mModelManager, *mNginxManager,
+                                                           *mDatabaseService);
         mContext.upgradeService = mUpgradeService;
 
         // 升级兼容：启动时重新生成已安装服务的 .service 文件，
         // 应用新增的 StandardOutput/StandardError/SyslogIdentifier/LimitCORE 配置
         auto regenResult = mServiceManager->RegenerateAllServiceFiles();
-        if (!regenResult.IsDefalutSuccess()) {
+        if (!regenResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some service files failed to regenerate: " << regenResult.msg;
         }
 
@@ -76,7 +77,7 @@ namespace qifeng::scm {
         } else {
             SLOG_INFO << "Found " << allServices.size() << " installed service(s), starting auto-start services...";
             result = mServiceManager->StartAllAutoStartServices();
-            if (!result.IsDefalutSuccess()) {
+            if (!result.IsDefaultSuccess()) {
                 SLOG_WARN << "Some auto-start services failed: " << result.msg;
             }
         }
@@ -111,17 +112,17 @@ namespace qifeng::scm {
 
         // 先停止所有服务
         auto stopResult = mServiceManager->StopAllServices();
-        if (!stopResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to stop: " << stopResult.msg;
         }
 
         // 再启动所有autoStart服务
         auto startResult = mServiceManager->StartAllAutoStartServices();
-        if (!startResult.IsDefalutSuccess()) {
+        if (!startResult.IsDefaultSuccess()) {
             SLOG_WARN << "Some services failed to start: " << startResult.msg;
         }
 
-        if (!stopResult.IsDefalutSuccess() || !startResult.IsDefalutSuccess()) {
+        if (!stopResult.IsDefaultSuccess() || !startResult.IsDefaultSuccess()) {
             return MakeWarning("Some services failed during restart");
         }
 
@@ -349,8 +350,8 @@ namespace qifeng::scm {
         }
 
         // 2. 文件不存在或为空，回退读取 systemd journal
-        SLOG_INFO << "Service log file empty or missing: " << logFile << ", fall back to journal for unit: "
-                  << unitName;
+        SLOG_INFO << "Service log file empty or missing: " << logFile
+                  << ", fall back to journal for unit: " << unitName;
         auto journalLines = qifeng::scm::utils::ReadJournalLastN(unitName, count);
         return ResultMsg {0, qifeng::scm::utils::JoinJournalLines(journalLines)};
     }
@@ -386,7 +387,7 @@ namespace qifeng::scm {
         if (serviceName.empty()) {
             return;
         }
-        const auto *svc = mConfigLoader->GetServiceByName(serviceName);
+        const auto* svc = mConfigLoader->GetServiceByName(serviceName);
         if (svc == nullptr) {
             return;
         }

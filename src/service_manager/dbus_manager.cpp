@@ -3,7 +3,7 @@
  */
 
 #include "qifeng_framework/common/logger.h"
-#include "service_manger/dbus_manager.h"
+#include "service_manager/dbus_manager.h"
 
 #include <systemd/sd-bus.h>
 
@@ -133,6 +133,7 @@ namespace qifeng::scm {
         sd_bus_message* reply = nullptr;
 
         // 调用EnableUnitFiles方法：参数为单元名数组、是否运行时、是否强制
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         int ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
                                      "EnableUnitFiles", &error, &reply, "asbb",
                                      1,  // 数组长度
@@ -164,6 +165,7 @@ namespace qifeng::scm {
         sd_bus_message* reply = nullptr;
 
         // 调用DisableUnitFiles方法：参数为单元名数组、是否运行时
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         int ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
                                      "DisableUnitFiles", &error, &reply, "asb",
                                      1,  // 数组长度
@@ -184,6 +186,7 @@ namespace qifeng::scm {
         return ReloadDaemon();
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     ResultMsg DBusManager::ReloadDaemon() {
         if (!IsConnected()) {
             return MakeError("DBus is not connected");
@@ -193,6 +196,7 @@ namespace qifeng::scm {
         sd_bus_message* reply = nullptr;
 
         // 调用Reload方法：无参数
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         int ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface, "Reload",
                                      &error, &reply, "");
 
@@ -221,6 +225,7 @@ namespace qifeng::scm {
 
                 error = SD_BUS_ERROR_NULL;
                 reply = nullptr;
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
                 ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
                                          "Reload", &error, &reply, "");
                 if (ret < 0) {
@@ -238,6 +243,7 @@ namespace qifeng::scm {
         return MakeSuccess();
     }
 
+    // NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
     ResultMsg DBusManager::CallManagerMethod(const std::string &method, const std::string &serviceName,
                                              const std::string &mode) {
         if (!IsConnected()) {
@@ -250,6 +256,7 @@ namespace qifeng::scm {
 
         // 调用systemd Manager方法（StartUnit/StopUnit/RestartUnit）
         // 参数：单元名（string）、模式（string）
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         int ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
                                      method.c_str(), &error, &reply, "ss", unitName.c_str(), mode.c_str());
 
@@ -281,6 +288,7 @@ namespace qifeng::scm {
                 // 重试调用
                 error = SD_BUS_ERROR_NULL;
                 reply = nullptr;
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
                 ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface,
                                          method.c_str(), &error, &reply, "ss", unitName.c_str(), mode.c_str());
                 if (ret < 0) {
@@ -306,6 +314,7 @@ namespace qifeng::scm {
         // 调用LoadUnit方法获取服务单元的DBus对象路径
         // LoadUnit与GetUnit的区别：当单元未加载时，LoadUnit会自动加载单元文件；
         // GetUnit仅返回已加载的单元，停止后的服务可能已被卸载导致GetUnit失败
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         int ret = sd_bus_call_method(mBus, SystemdDestination, SystemdManagerPath, SystemdManagerInterface, "LoadUnit",
                                      &error, &reply, "s", unitName.c_str());
 
@@ -318,6 +327,7 @@ namespace qifeng::scm {
 
         // 读取返回的对象路径
         const char* path = nullptr;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         ret = sd_bus_message_read(reply, "o", &path);
         if (ret < 0) {
             SLOG_ERROR << "Failed to read unit path: " << std::strerror(-ret);
@@ -349,6 +359,7 @@ namespace qifeng::scm {
 
         // 读取属性值
         const char* value = nullptr;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         ret = sd_bus_message_read(reply, "s", &value);
         if (ret < 0) {
             sd_bus_message_unref(reply);
@@ -379,6 +390,7 @@ namespace qifeng::scm {
 
         // 读取属性值
         uint32_t value = 0;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         ret = sd_bus_message_read(reply, "u", &value);
         if (ret < 0) {
             sd_bus_message_unref(reply);
@@ -409,6 +421,7 @@ namespace qifeng::scm {
 
         // 读取属性值
         uint64_t value = 0;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         ret = sd_bus_message_read(reply, "t", &value);
         if (ret < 0) {
             sd_bus_message_unref(reply);
@@ -527,7 +540,7 @@ namespace qifeng::scm {
     }
 
     ResultMsg DBusManager::GetInt32Property(const std::string &objectPath, const std::string &interface,
-                                             const std::string &property) {
+                                            const std::string &property) {
         sd_bus_error error = SD_BUS_ERROR_NULL;
         sd_bus_message* reply = nullptr;
 
@@ -543,6 +556,7 @@ namespace qifeng::scm {
 
         // 读取属性值
         int32_t value = 0;
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-vararg, cert-dcl50-cpp)
         ret = sd_bus_message_read(reply, "i", &value);
         if (ret < 0) {
             sd_bus_message_unref(reply);

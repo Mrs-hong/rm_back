@@ -181,7 +181,7 @@ namespace qifeng::scm::utils {
      */
     inline std::string ReadInitSqlDir(const std::string &yamlPath) {
         YamlResolve resolver;
-        if (!resolver.Init(yamlPath).IsDefalutSuccess()) {
+        if (!resolver.Init(yamlPath).IsDefaultSuccess()) {
             return "";
         }
         return resolver.GetNodeValue<std::string>("initDB_sql_dir", "");
@@ -194,7 +194,7 @@ namespace qifeng::scm::utils {
      */
     inline std::string ReadServiceName(const std::string &yamlPath) {
         YamlResolve resolver;
-        if (!resolver.Init(yamlPath).IsDefalutSuccess()) {
+        if (!resolver.Init(yamlPath).IsDefaultSuccess()) {
             return "";
         }
         return resolver.GetNodeValue<std::string>("serviceName", "");
@@ -207,7 +207,7 @@ namespace qifeng::scm::utils {
      */
     inline std::string ReadVersion(const std::string &yamlPath) {
         YamlResolve resolver;
-        if (!resolver.Init(yamlPath).IsDefalutSuccess()) {
+        if (!resolver.Init(yamlPath).IsDefaultSuccess()) {
             return "";
         }
         return resolver.GetNodeValue<std::string>("version", "");

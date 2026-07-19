@@ -5,7 +5,7 @@
 #pragma once
 
 #include "common/types.h"
-#include "service_manger/service_context.h"
+#include "service_manager/service_context.h"
 
 #include <string>
 

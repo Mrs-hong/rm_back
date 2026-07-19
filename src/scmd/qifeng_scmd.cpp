@@ -3,7 +3,7 @@
  */
 
 #include "common/config.h"
-#include "common/utils.h"
+#include "common/utils/path.h"
 #include "common/version.hpp"
 #include "scmd/scmd_server.h"
 #include "scmd/self_check_service.h"
@@ -50,6 +50,7 @@ namespace {
     }
 }  // namespace
 
+// NOLINTNEXTLINE(readability-function-size, readability-function-cognitive-complexity)
 int main() {
     const auto &versionInfo = qifeng::scm::GetVersionInfo();
     std::cout << "qf_scmd version " << versionInfo.version << " (build: " << versionInfo.buildTime
@@ -58,7 +59,7 @@ int main() {
     // 1. 创建ServiceControl并初始化
     auto serviceControl = std::make_shared<qifeng::scm::ServiceControl>();
     auto result = serviceControl->Init();
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         std::cerr << "[scmd] 初始化失败: " << result.msg << std::endl;
         return 1;
     }
@@ -75,11 +76,13 @@ int main() {
     // 此处 freopen 保证手动启动 scmd 时输出也能被记录。
     std::string scmdSelfLogFile =
         qifeng::scm::utils::JoinPath(qifeng::scm::utils::JoinPath(configInfo.logsDir, "qifeng-scm"), "qifeng-scm.log");
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory, clang-analyzer-cplusplus.InnerPointer)
     if (freopen(scmdSelfLogFile.c_str(), "a", stdout) != nullptr) {
         setvbuf(stdout, nullptr, _IOLBF, 0);  // 行缓冲，确保输出及时落盘
     } else {
         std::cerr << "[scmd] Warning: failed to redirect stdout to " << scmdSelfLogFile << std::endl;
     }
+    // NOLINTNEXTLINE(cppcoreguidelines-owning-memory, clang-analyzer-cplusplus.InnerPointer)
     if (freopen(scmdSelfLogFile.c_str(), "a", stderr) != nullptr) {
         setvbuf(stderr, nullptr, _IOLBF, 0);
     }
@@ -106,7 +109,7 @@ int main() {
     // 7. 清理
     gServer = nullptr;
 
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         std::cerr << "[scmd] 服务异常退出: " << result.msg << std::endl;
         return 1;
     }

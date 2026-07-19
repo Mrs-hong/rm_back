@@ -42,18 +42,22 @@ namespace qifeng::scm {
 
         size_t DtypeSizeBytes(bm_data_type_t dtype) {
             switch (dtype) {
-                case BM_FLOAT32:  return 4;
-                case BM_FLOAT16:  return 2;
-                case BM_INT8:     return 1;
-                case BM_UINT8:    return 1;
-                case BM_INT16:    return 2;
-                case BM_UINT16:   return 2;
-                case BM_INT32:    return 4;
-                case BM_UINT32:   return 4;
-                case BM_BFLOAT16: return 2;
-                case BM_INT4:     return 1;
-                case BM_UINT4:    return 1;
-                default:          return 4;
+                case BM_FLOAT32:
+                case BM_INT32:
+                case BM_UINT32:
+                    return 4;
+                case BM_FLOAT16:
+                case BM_INT16:
+                case BM_UINT16:
+                case BM_BFLOAT16:
+                    return 2;
+                case BM_INT8:
+                case BM_UINT8:
+                case BM_INT4:
+                case BM_UINT4:
+                    return 1;
+                default:
+                    return 4;
             }
         }
 
@@ -66,9 +70,8 @@ namespace qifeng::scm {
         auto t0 = std::chrono::steady_clock::now();
 
         auto elapsed = [&]() {
-            return static_cast<int>(std::chrono::duration_cast<std::chrono::milliseconds>(
-                                        std::chrono::steady_clock::now() - t0)
-                                        .count());
+            return static_cast<int>(
+                std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count());
         };
 
 #if !defined(CHECKER_HAS_BM_SDK) || !CHECKER_HAS_BM_SDK
@@ -131,6 +134,7 @@ namespace qifeng::scm {
             r.status = Status::FAIL;
             r.message = "no network in bmodel";
             r.elapsed_ms = elapsed();
+            // NOLINTNEXTLINE(cppcoreguidelines-no-malloc, cppcoreguidelines-owning-memory)
             free(networkNames);
             return r;
         }
@@ -145,6 +149,7 @@ namespace qifeng::scm {
             r.message = "model loaded: " + firstName + " (no net info, skip inference)";
             r.elapsed_ms = elapsed();
             SLOG_WARN << "[model_inference] bmrt_get_network_info returned null for: " << firstName;
+            // NOLINTNEXTLINE(cppcoreguidelines-no-malloc, cppcoreguidelines-owning-memory)
             free(networkNames);
             return r;
         }
@@ -185,10 +190,9 @@ namespace qifeng::scm {
         }
 
         // 7) 执行推理
-        bool launched = bmrt_launch_data(rt, firstName.c_str(),
-                                          inputDataPtrs.data(), inputShapes.data(), inputNum,
-                                          outputDataPtrs.data(), outputShapes.data(), outputNum,
-                                          false);  // user_mem=false
+        bool launched = bmrt_launch_data(rt, firstName.c_str(), inputDataPtrs.data(), inputShapes.data(), inputNum,
+                                         outputDataPtrs.data(), outputShapes.data(), outputNum,
+                                         false);  // user_mem=false
         int syncRet = -1;
         if (launched) {
             syncRet = bm_thread_sync(handle);
@@ -203,6 +207,7 @@ namespace qifeng::scm {
         r.elapsed_ms = elapsed();
         SLOG_INFO << "[model_inference] " << r.message << " (" << r.elapsed_ms << "ms)";
 
+        // NOLINTNEXTLINE(cppcoreguidelines-no-malloc, cppcoreguidelines-owning-memory)
         free(networkNames);
         return r;
 #endif

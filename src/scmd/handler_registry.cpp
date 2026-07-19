@@ -8,10 +8,10 @@
 
 namespace qifeng::scm {
 
-    HandlerRegistry& HandlerRegistry::Instance() {
+    HandlerRegistry &HandlerRegistry::Instance() {
         // Meyers 单例：C++11 起局部静态变量线程安全初始化
-        static HandlerRegistry instance;
-        return instance;
+        static HandlerRegistry Instance;
+        return Instance;
     }
 
     void HandlerRegistry::Register(ScmCommand cmd, HandlerFactory factory) {
@@ -22,10 +22,10 @@ namespace qifeng::scm {
         mFactories.emplace_back(cmd, std::move(factory));
     }
 
-    std::vector<std::unique_ptr<ICommandHandler>> HandlerRegistry::BuildAll(const HandlerContext& ctx) const {
+    std::vector<std::unique_ptr<ICommandHandler>> HandlerRegistry::BuildAll(const HandlerContext &ctx) const {
         std::vector<std::unique_ptr<ICommandHandler>> handlers;
         handlers.reserve(mFactories.size());
-        for (const auto& [cmd, factory] : mFactories) {
+        for (const auto &[cmd, factory] : mFactories) {
             auto handler = factory(ctx);
             if (handler == nullptr) {
                 SLOG_ERROR << "Factory returned null handler for command: " << ScmCommandToString(cmd);

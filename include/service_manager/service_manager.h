@@ -6,7 +6,7 @@
 #include "common/scmd_types.h"
 #include "common/types.h"
 #include "ipc/data_def.h"
-#include "service_manger/service_context.h"
+#include "service_manager/service_context.h"
 
 #include <memory>
 #include <string>
@@ -87,21 +87,38 @@ namespace qifeng::scm {
 
         /**
          * @brief 启动 scmd 自身（qifeng-scmd.service）
-         * @details scmd 正在处理请求即说明自身已在运行，直接返回成功
+         * @details scmd 正在处理请求即说明自身已在运行，直接返回成功。
+         *          客户端 `scmc start`（无 `-n` 参数）即触发此路径。
+         *          若 scmd 已停止，应通过 `systemctl start qifeng-scmd.service` 启动，
+         *          此方法不会主动拉起进程（自身已停止时无法被调用）。
          * @return ResultMsg 操作结果
          */
         ResultMsg StartScmdSelf();
 
         /**
          * @brief 停止 scmd 自身（qifeng-scmd.service）
-         * @details 通过 systemd DBus 停止自身守护进程
+         * @details 通过 systemd DBus 调用 StopUnit("qifeng-scmd.service") 停止自身守护进程。
+         *          客户端 `scmc stop`（无 `-n` 参数）即触发此路径。
+         * @par 权限要求
+         *          - scmd 进程需具备 systemd DBus StopUnit 权限（通常通过 polkit 策略授予）；
+         *          - 若 qifeng-scmd.service 配置了 Restart=always/on-failure，systemd 会立即拉起新实例，
+         *            旧实例的连接将断开，客户端会收到响应后再失联；
+         *          - 若需彻底停止，应先 `systemctl disable qifeng-scmd.service` 再 stop。
+         * @par 与 KILL 命令的区别
+         *          - `scmc stop`（无参数）经 systemd DBus，由 systemd 主动停止单元（可能被 Restart 策略拉起）；
+         *          - `scmc kill` 直接置 ScmServer 内部 mRunning=false 优雅退出，不经 systemd，
+         *            不会被 Restart 策略立即拉起（取决于 systemd 检测到进程退出的时机）。
          * @return ResultMsg 操作结果
          */
         ResultMsg StopScmdSelf();
 
         /**
          * @brief 重启 scmd 自身（qifeng-scmd.service）
-         * @details 通过 systemd DBus 重启自身守护进程
+         * @details 通过 systemd DBus 调用 RestartUnit("qifeng-scmd.service") 重启自身守护进程。
+         *          客户端 `scmc restart`（无 `-n` 参数）即触发此路径。
+         * @par 权限要求
+         *          - scmd 进程需具备 systemd DBus RestartUnit 权限（通常通过 polkit 策略授予）；
+         *          - 重启过程中当前连接会断开，客户端应在收到响应后等待若干秒再重连。
          * @return ResultMsg 操作结果
          */
         ResultMsg RestartScmdSelf();
@@ -254,19 +271,8 @@ namespace qifeng::scm {
          */
         std::vector<std::string> GetDependentServices(const std::string &serviceName);
 
-        /**
-         * @brief 判断升级输入是 tar 包还是已解压目录
-         * @param path 输入路径
-         * @return bool true 表示是 .tar.gz 包，false 表示目录
-         */
-        bool IsTarPackage(const std::string &path) const;
-
-        /**
-         * @brief 将服务名转换为 systemd 单元名（添加 scmd_ 前缀）
-         * @param serviceName 服务名称
-         * @return std::string systemd 单元名
-         */
-        static std::string ToSystemdUnitName(const std::string &serviceName);
+        // 注：ToSystemdUnitName / IsTarPackage 已提取为 service_utils 命名空间下的自由函数，
+        // 声明见 service_manager/service_utils.h（不依赖实例状态，供多模块复用）
 
         // === 上下文访问 ===
 

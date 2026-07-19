@@ -25,7 +25,7 @@ namespace qifeng::scm {
          * @brief 获取单例实例
          * @return HandlerRegistry 单例引用
          */
-        static HandlerRegistry& Instance();
+        static HandlerRegistry &Instance();
 
         /**
          * @brief 注册 handler 工厂函数
@@ -39,7 +39,7 @@ namespace qifeng::scm {
          * @param ctx 构造 handler 所需的运行期依赖上下文
          * @return 已构造的 handler 实例列表
          */
-        std::vector<std::unique_ptr<ICommandHandler>> BuildAll(const HandlerContext& ctx) const;
+        std::vector<std::unique_ptr<ICommandHandler>> BuildAll(const HandlerContext &ctx) const;
 
     private:
         HandlerRegistry() = default;
@@ -55,15 +55,17 @@ namespace qifeng::scm {
  * @param CmdEnum 该 handler 对应的 ScmCommand 枚举值
  * @param HandlerClass handler 类名
  */
-#define REGISTER_COMMAND_HANDLER(CmdEnum, HandlerClass) \
-    namespace { \
-        struct HandlerClass##_AutoReg { \
-            HandlerClass##_AutoReg() { \
-                ::qifeng::scm::HandlerRegistry::Instance().Register(CmdEnum, \
-                    [](const ::qifeng::scm::HandlerContext& ctx) -> std::unique_ptr<::qifeng::scm::ICommandHandler> { \
-                        return std::make_unique<HandlerClass>(ctx); \
-                    }); \
-            } \
-        }; \
-        static HandlerClass##_AutoReg g_##HandlerClass##_auto_reg; \
+#define REGISTER_COMMAND_HANDLER(CmdEnum, HandlerClass)                                                               \
+    namespace {                                                                                                       \
+        struct HandlerClass##_AutoReg {                                                                               \
+            HandlerClass##_AutoReg() {                                                                                \
+                ::qifeng::scm::HandlerRegistry::Instance().Register(                                                  \
+                    CmdEnum,                                                                                          \
+                    [](const ::qifeng::scm::HandlerContext &ctx) -> std::unique_ptr<::qifeng::scm::ICommandHandler> { \
+                        return std::make_unique<HandlerClass>(ctx);                                                   \
+                    });                                                                                               \
+            }                                                                                                         \
+        };                                                                                                            \
+        /* NOLINTNEXTLINE(cert-err58-cpp, cppcoreguidelines-avoid-non-const-global-variables) */                      \
+        static const HandlerClass##_AutoReg g_##HandlerClass##_auto_reg;                                              \
     }

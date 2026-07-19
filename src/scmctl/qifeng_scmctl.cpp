@@ -2,7 +2,7 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 
-#include "scmctl/cli_paser.h"
+#include "scmctl/cli_parser.h"
 #include "scmctl/scmctl_client.h"
 
 #include "common/scmd_def.h"
@@ -50,9 +50,9 @@ namespace {
 
 int main(int argc, char* argv[]) {
     // 1. 解析命令行参数
-    qifeng::scm::CliPaser parser;
+    qifeng::scm::CliParser parser;
     qifeng::scm::ResultMsg result = parser.Parse(argc, argv);
-    if (!result.IsDefalutSuccess()) {
+    if (!result.IsDefaultSuccess()) {
         if (result.code == 1) {
             std::cout << result.msg;
             return 0;

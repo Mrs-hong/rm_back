@@ -62,7 +62,7 @@ protected:
 TEST_F(MariadbTest, CreateUser_EmptyUsername) {
     Mariadb mariadb(def_);
     auto result = mariadb.CreateUser("", "password");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("Username"), std::string::npos);
 }
 
@@ -71,7 +71,7 @@ TEST_F(MariadbTest, CreateUser_EmptyUsername) {
 TEST_F(MariadbTest, DeleteUserAndDatabase_EmptyUsername) {
     Mariadb mariadb(def_);
     auto result = mariadb.DeleteUserAndDatabase("");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("Username"), std::string::npos);
 }
 
@@ -80,14 +80,14 @@ TEST_F(MariadbTest, DeleteUserAndDatabase_EmptyUsername) {
 TEST_F(MariadbTest, ExecuteSqlFile_EmptyPath) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFile("");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("SQL file path"), std::string::npos);
 }
 
 TEST_F(MariadbTest, ExecuteSqlFile_NonExistentFile) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFile("/nonexistent/path/test.sql");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("does not exist"), std::string::npos);
 }
 
@@ -96,21 +96,21 @@ TEST_F(MariadbTest, ExecuteSqlFile_NonExistentFile) {
 TEST_F(MariadbTest, ExecuteSqlFileByUser_EmptyUsername) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFileByUser("", "password", "/tmp/test.sql");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("Username"), std::string::npos);
 }
 
 TEST_F(MariadbTest, ExecuteSqlFileByUser_EmptyPath) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFileByUser("testuser", "password", "");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("SQL file path"), std::string::npos);
 }
 
 TEST_F(MariadbTest, ExecuteSqlFileByUser_NonExistentFile) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFileByUser("testuser", "password", "/nonexistent/path/test.sql");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
     EXPECT_NE(result.msg.find("does not exist"), std::string::npos);
 }
 
@@ -127,7 +127,7 @@ TEST_F(MariadbTest, ExecuteSqlFile_FileExistsButDbNotRunning) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFile(sqlFile);
     // 文件存在但数据库未运行，执行应失败
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
 }
 
 TEST_F(MariadbTest, ExecuteSqlFileByUser_FileExistsButDbNotRunning) {
@@ -139,7 +139,7 @@ TEST_F(MariadbTest, ExecuteSqlFileByUser_FileExistsButDbNotRunning) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFileByUser("testuser", "password", sqlFile);
     // 文件存在但数据库未运行，执行应失败
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
 }
 
 // ============================================================================
@@ -150,7 +150,7 @@ TEST_F(MariadbTest, GetVersion_ReturnStructure) {
     Mariadb mariadb(def_);
     auto result = mariadb.GetVersion();
     // 无论系统是否安装 mysql/mariadb 客户端，返回结构应正确
-    if (result.IsDefalutSuccess()) {
+    if (result.IsDefaultSuccess()) {
         EXPECT_EQ(result.code, 0);
         EXPECT_FALSE(result.msg.empty());
         // 版本号应包含数字
@@ -174,13 +174,13 @@ TEST_F(MariadbTest, GetVersion_ReturnStructure) {
 TEST_F(MariadbTest, CreateUser_EmptyUsernameWithEmptyPassword) {
     Mariadb mariadb(def_);
     auto result = mariadb.CreateUser("", "");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
 }
 
 TEST_F(MariadbTest, ExecuteSqlFileByUser_EmptyUsernameAndPath) {
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFileByUser("", "", "");
-    EXPECT_FALSE(result.IsDefalutSuccess());
+    EXPECT_FALSE(result.IsDefaultSuccess());
 }
 
 TEST_F(MariadbTest, CustomPortConfig) {
@@ -226,7 +226,7 @@ protected:
 TEST_F(MariadbIntegrationTest, DISABLED_GetVersion) {
     Mariadb mariadb(def_);
     auto result = mariadb.GetVersion();
-    ASSERT_TRUE(result.IsDefalutSuccess()) << "GetVersion: " << result.msg;
+    ASSERT_TRUE(result.IsDefaultSuccess()) << "GetVersion: " << result.msg;
     EXPECT_FALSE(result.msg.empty());
 }
 
@@ -235,11 +235,11 @@ TEST_F(MariadbIntegrationTest, DISABLED_CreateAndDeleteUser) {
 
     // 创建用户
     auto result = mariadb.CreateUser("scm_test_user", "ScmTest@2024!");
-    ASSERT_TRUE(result.IsDefalutSuccess()) << "CreateUser: " << result.msg;
+    ASSERT_TRUE(result.IsDefaultSuccess()) << "CreateUser: " << result.msg;
 
     // 删除用户及其数据库
     result = mariadb.DeleteUserAndDatabase("scm_test_user");
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "DeleteUserAndDatabase: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "DeleteUserAndDatabase: " << result.msg;
 }
 
 TEST_F(MariadbIntegrationTest, DISABLED_ExecuteSqlFile) {
@@ -250,7 +250,7 @@ TEST_F(MariadbIntegrationTest, DISABLED_ExecuteSqlFile) {
 
     Mariadb mariadb(def_);
     auto result = mariadb.ExecuteSqlFile(sqlFile);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "ExecuteSqlFile: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "ExecuteSqlFile: " << result.msg;
 }
 
 TEST_F(MariadbIntegrationTest, DISABLED_ExecuteSqlFileByUser) {
@@ -258,7 +258,7 @@ TEST_F(MariadbIntegrationTest, DISABLED_ExecuteSqlFileByUser) {
 
     // 先创建测试用户
     auto result = mariadb.CreateUser("scm_file_user", "ScmFile@2024!");
-    ASSERT_TRUE(result.IsDefalutSuccess()) << "CreateUser: " << result.msg;
+    ASSERT_TRUE(result.IsDefaultSuccess()) << "CreateUser: " << result.msg;
 
     // 创建 SQL 文件
     std::string sqlDir = TEST_TMP_BASE + "/sql";
@@ -268,11 +268,11 @@ TEST_F(MariadbIntegrationTest, DISABLED_ExecuteSqlFileByUser) {
 
     // 以用户身份执行 SQL 文件
     result = mariadb.ExecuteSqlFileByUser("scm_file_user", "ScmFile@2024!", sqlFile);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "ExecuteSqlFileByUser: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "ExecuteSqlFileByUser: " << result.msg;
 
     // 清理：删除用户及数据库
     result = mariadb.DeleteUserAndDatabase("scm_file_user");
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "DeleteUserAndDatabase: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "DeleteUserAndDatabase: " << result.msg;
 }
 
 TEST_F(MariadbIntegrationTest, DISABLED_DeleteUserAndDatabase_WithUserDatabase) {
@@ -280,7 +280,7 @@ TEST_F(MariadbIntegrationTest, DISABLED_DeleteUserAndDatabase_WithUserDatabase) 
 
     // 创建用户
     auto result = mariadb.CreateUser("scm_db_user", "ScmDb@2024!");
-    ASSERT_TRUE(result.IsDefalutSuccess()) << "CreateUser: " << result.msg;
+    ASSERT_TRUE(result.IsDefaultSuccess()) << "CreateUser: " << result.msg;
 
     // 创建以用户名为前缀的数据库
     std::string sqlDir = TEST_TMP_BASE + "/sql";
@@ -291,9 +291,9 @@ TEST_F(MariadbIntegrationTest, DISABLED_DeleteUserAndDatabase_WithUserDatabase) 
                                    "GRANT ALL PRIVILEGES ON scm_db_user_app.* TO 'scm_db_user'@'127.0.0.1';\n"
                                    "FLUSH PRIVILEGES;\n");
     result = mariadb.ExecuteSqlFile(sqlFile);
-    ASSERT_TRUE(result.IsDefalutSuccess()) << "ExecuteSqlFile: " << result.msg;
+    ASSERT_TRUE(result.IsDefaultSuccess()) << "ExecuteSqlFile: " << result.msg;
 
     // 删除用户及其数据库
     result = mariadb.DeleteUserAndDatabase("scm_db_user");
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "DeleteUserAndDatabase: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "DeleteUserAndDatabase: " << result.msg;
 }

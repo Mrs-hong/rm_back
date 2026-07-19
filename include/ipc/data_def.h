@@ -7,7 +7,9 @@
 #include <json/json.h>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "common/utils/json_utils.h"
@@ -165,9 +167,77 @@ namespace qifeng::scm {
         std::string tarDir;       // 外部升级素材目录/tar包路径（空表示使用服务内部soft_dir）
     };
 
+    // =========================================================================
+    // 请求字段反射基础设施
+    // 通过 ScmFieldDesc + ScmRequestTraits 实现统一的序列化/反序列化，
+    // 消除每个命令手写的 ParamsToJson/ParamsFromJson 重载。
+    // =========================================================================
+
+    /**
+     * @brief 字段描述：成员指针 + json key + 是否必填
+     * @details 反序列化时：
+     *          - required=true：字段缺失或类型不匹配视为反序列化失败
+     *          - required=false：字段缺失或类型不匹配时跳过（保留成员默认值）
+     */
+    template <typename ClassType, typename MemberType>
+    struct ScmFieldDesc {
+        MemberType ClassType::*ptr;  // 成员指针
+        const char* key;             // json 键名
+        bool required;               // 是否必填
+    };
+
+    /**
+     * @brief 请求类型特征（主模板不定义，强制每个请求类型显式特化）
+     * @details 每个特化需提供：
+     *          - kCommand：对应的 ScmCommand 枚举值
+     *          - kFields：字段描述 tuple（ScmFieldDesc 的列表，可为空 tuple）
+     */
+    template <typename T>
+    struct ScmRequestTraits;
+
+    /**
+     * @brief 声明 ScmRequestTraits 特化
+     * @param RequestType 请求结构体类型
+     * @param CmdEnum 对应的 ScmCommand 枚举值
+     * @param ... 逗号分隔的 SCM_FIELD 列表
+     * @note 使用时需在末尾加分号；无字段请求请使用 SCM_DEFINE_REQUEST_EMPTY
+     */
+    #define SCM_DEFINE_REQUEST(RequestType, CmdEnum, ...) \
+        template <> \
+        struct ScmRequestTraits<RequestType> { \
+            static constexpr ScmCommand kCommand = CmdEnum; \
+            static constexpr auto kFields = std::make_tuple(__VA_ARGS__); \
+        }
+
+    /**
+     * @brief 为无字段的请求结构体声明 ScmRequestTraits 特化
+     * @param RequestType 请求结构体类型
+     * @param CmdEnum 对应的 ScmCommand 枚举值
+     * @note 用于 VersionRequest/KillRequest 等无参数请求，避免可变参数宏空调用
+     */
+    #define SCM_DEFINE_REQUEST_EMPTY(RequestType, CmdEnum) \
+        template <> \
+        struct ScmRequestTraits<RequestType> { \
+            static constexpr ScmCommand kCommand = CmdEnum; \
+            static constexpr auto kFields = std::make_tuple(); \
+        }
+
+    /**
+     * @brief 构造一个 ScmFieldDesc 字段描述
+     * @param Class 请求结构体类型
+     * @param Member 成员名
+     * @param Key json 键名（字符串字面量）
+     * @param Required 是否必填
+     */
+    #define SCM_FIELD(Class, Member, Key, Required) \
+        ScmFieldDesc<Class, decltype(std::declval<Class>().Member)>{&Class::Member, Key, Required}
+
     /**
      * @brief 命令请求参数联合体
      * 每个命令对应一种参数类型，避免所有命令字段混用
+     * @note variant 类型顺序与 ScmCommand 枚举值顺序保持一致，
+     *       因此 variant::index() 与 static_cast<int>(ScmCommand) 一一对应，
+     *       反序列化时可用枚举值直接作为查表索引。
      */
     using ScmRequestData = std::variant<
         VersionRequest,
@@ -193,6 +263,56 @@ namespace qifeng::scm {
         UpgradesRequest
     >;
 
+    // =========================================================================
+    // 21 个请求类型的 ScmRequestTraits 特化
+    // 顺序与 ScmCommand 枚举值、ScmRequestData variant 类型顺序保持一致。
+    // =========================================================================
+
+    // 无字段的请求：kFields 为空 tuple
+    SCM_DEFINE_REQUEST_EMPTY(VersionRequest, ScmCommand::VERSION);
+    SCM_DEFINE_REQUEST(InstallRequest, ScmCommand::INSTALL,
+        SCM_FIELD(InstallRequest, serviceName, "serviceName", true),
+        SCM_FIELD(InstallRequest, tarDir, "tarDir", false));
+    SCM_DEFINE_REQUEST(StartRequest, ScmCommand::START,
+        SCM_FIELD(StartRequest, serviceName, "serviceName", true));
+    SCM_DEFINE_REQUEST(StopRequest, ScmCommand::STOP,
+        SCM_FIELD(StopRequest, serviceName, "serviceName", true));
+    SCM_DEFINE_REQUEST(RestartRequest, ScmCommand::RESTART,
+        SCM_FIELD(RestartRequest, serviceName, "serviceName", true));
+    SCM_DEFINE_REQUEST_EMPTY(RestartAllRequest, ScmCommand::RESTART_ALL);
+    SCM_DEFINE_REQUEST(UpgradeRequest, ScmCommand::UPGRADE,
+        SCM_FIELD(UpgradeRequest, serviceName, "serviceName", true),
+        SCM_FIELD(UpgradeRequest, tarDir, "tarDir", false));
+    SCM_DEFINE_REQUEST_EMPTY(ListRequest, ScmCommand::LIST);
+    SCM_DEFINE_REQUEST(InfoRequest, ScmCommand::INFO,
+        SCM_FIELD(InfoRequest, serviceName, "serviceName", true),
+        SCM_FIELD(InfoRequest, infoDetail, "infoDetail", false));
+    SCM_DEFINE_REQUEST(LogRequest, ScmCommand::LOG,
+        SCM_FIELD(LogRequest, logLevel, "logLevel", false),
+        SCM_FIELD(LogRequest, logCount, "logCount", false));
+    SCM_DEFINE_REQUEST(UninstallRequest, ScmCommand::UNINSTALL,
+        SCM_FIELD(UninstallRequest, serviceName, "serviceName", true));
+    SCM_DEFINE_REQUEST(ReloadRequest, ScmCommand::RELOAD,
+        SCM_FIELD(ReloadRequest, serviceName, "serviceName", true));
+    SCM_DEFINE_REQUEST_EMPTY(ReloadAllRequest, ScmCommand::RELOAD_ALL);
+    SCM_DEFINE_REQUEST_EMPTY(KillRequest, ScmCommand::KILL);
+    SCM_DEFINE_REQUEST(SlogRequest, ScmCommand::SLOG,
+        SCM_FIELD(SlogRequest, serviceName, "serviceName", true),
+        SCM_FIELD(SlogRequest, logCount, "logCount", false));
+    SCM_DEFINE_REQUEST(CheckRequest, ScmCommand::CHECK,
+        SCM_FIELD(CheckRequest, configPath, "configPath", false));
+    SCM_DEFINE_REQUEST(InitNginxRequest, ScmCommand::INIT_NGINX,
+        SCM_FIELD(InitNginxRequest, dirPath, "dirPath", false));
+    SCM_DEFINE_REQUEST(ResetNginxRequest, ScmCommand::RESET_NGINX,
+        SCM_FIELD(ResetNginxRequest, mode, "mode", false));
+    SCM_DEFINE_REQUEST(AddModelRequest, ScmCommand::ADD_MODEL,
+        SCM_FIELD(AddModelRequest, srcPath, "srcPath", true));
+    SCM_DEFINE_REQUEST(ClearModelRequest, ScmCommand::CLEAR_MODEL,
+        SCM_FIELD(ClearModelRequest, modelName, "modelName", true));
+    SCM_DEFINE_REQUEST(UpgradesRequest, ScmCommand::UPGRADES,
+        SCM_FIELD(UpgradesRequest, serviceName, "serviceName", true),
+        SCM_FIELD(UpgradesRequest, tarDir, "tarDir", false));
+
     /**
      * @brief scmctl请求结构体
      * 定义scmctl发送给scmd的请求数据
@@ -203,32 +323,12 @@ namespace qifeng::scm {
         /**
          * @brief 根据当前参数推导命令类型
          * @return 对应的 ScmCommand 枚举值
+         * @note 通过 ScmRequestTraits<T>::kCommand 查表，替代手写 if constexpr 链
          */
         ScmCommand Command() const {
             return std::visit([](const auto& param) -> ScmCommand {
                 using T = std::decay_t<decltype(param)>;
-                if constexpr (std::is_same_v<T, VersionRequest>) return ScmCommand::VERSION;
-                if constexpr (std::is_same_v<T, InstallRequest>) return ScmCommand::INSTALL;
-                if constexpr (std::is_same_v<T, StartRequest>) return ScmCommand::START;
-                if constexpr (std::is_same_v<T, StopRequest>) return ScmCommand::STOP;
-                if constexpr (std::is_same_v<T, RestartRequest>) return ScmCommand::RESTART;
-                if constexpr (std::is_same_v<T, RestartAllRequest>) return ScmCommand::RESTART_ALL;
-                if constexpr (std::is_same_v<T, UpgradeRequest>) return ScmCommand::UPGRADE;
-                if constexpr (std::is_same_v<T, ListRequest>) return ScmCommand::LIST;
-                if constexpr (std::is_same_v<T, InfoRequest>) return ScmCommand::INFO;
-                if constexpr (std::is_same_v<T, LogRequest>) return ScmCommand::LOG;
-                if constexpr (std::is_same_v<T, UninstallRequest>) return ScmCommand::UNINSTALL;
-                if constexpr (std::is_same_v<T, ReloadRequest>) return ScmCommand::RELOAD;
-                if constexpr (std::is_same_v<T, ReloadAllRequest>) return ScmCommand::RELOAD_ALL;
-                if constexpr (std::is_same_v<T, KillRequest>) return ScmCommand::KILL;
-                if constexpr (std::is_same_v<T, SlogRequest>) return ScmCommand::SLOG;
-                if constexpr (std::is_same_v<T, CheckRequest>) return ScmCommand::CHECK;
-                if constexpr (std::is_same_v<T, InitNginxRequest>) return ScmCommand::INIT_NGINX;
-                if constexpr (std::is_same_v<T, ResetNginxRequest>) return ScmCommand::RESET_NGINX;
-                if constexpr (std::is_same_v<T, AddModelRequest>) return ScmCommand::ADD_MODEL;
-                if constexpr (std::is_same_v<T, ClearModelRequest>) return ScmCommand::CLEAR_MODEL;
-                if constexpr (std::is_same_v<T, UpgradesRequest>) return ScmCommand::UPGRADES;
-                return ScmCommand::VERSION;  // 不会到达
+                return ScmRequestTraits<T>::kCommand;
             }, data);
         }
 

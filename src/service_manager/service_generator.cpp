@@ -2,8 +2,9 @@
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
 #include "common/scmd_types.h"
-#include "common/utils.h"
-#include "service_manger/service_generator.h"
+#include "common/utils/path.h"
+#include "common/utils/user.h"
+#include "service_manager/service_generator.h"
 #include "service_tool/tools_def.h"
 #include <filesystem>
 #include <sstream>
@@ -177,7 +178,7 @@ namespace qifeng::scm {
         try {
             // 参数校验
             auto validateRet = ValidateParams(serviceDef);
-            if (!validateRet.IsDefalutSuccess()) {
+            if (!validateRet.IsDefaultSuccess()) {
                 return validateRet;
             }
 

@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2026-2026 Qifeng Shunshi Co., Ltd. All rights reserved.
  */
-#include "service_manger/dbus_manager.h"
+#include "service_manager/dbus_manager.h"
 
 #include <gtest/gtest.h>
 
@@ -25,7 +25,7 @@ namespace {
     void WaitForActiveState(DBusManager &mgr, const std::string &serviceName, const std::string &expectedState) {
         for (int i = 0; i < MaxPollCount; ++i) {
             auto result = mgr.GetUnitActiveState(serviceName);
-            if (result.IsDefalutSuccess() && result.msg == expectedState) {
+            if (result.IsDefaultSuccess() && result.msg == expectedState) {
                 return;
             }
             // 查询失败（单元未加载等）也视为过渡状态，继续轮询
@@ -74,7 +74,7 @@ TEST(DBusManagerReadOnly, GetUnitActiveStateRunning) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.GetUnitActiveState(RunningService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitActiveState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitActiveState failed: " << result.msg;
     EXPECT_EQ(result.msg, "active") << "Expected 'active', got: " << result.msg;
 }
 
@@ -84,7 +84,7 @@ TEST(DBusManagerReadOnly, GetUnitSubStateRunning) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.GetUnitSubState(RunningService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitSubState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitSubState failed: " << result.msg;
     EXPECT_EQ(result.msg, "running") << "Expected 'running', got: " << result.msg;
 }
 
@@ -94,7 +94,7 @@ TEST(DBusManagerReadOnly, GetServiceMainPID) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.GetServiceMainPID(RunningService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetServiceMainPID failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetServiceMainPID failed: " << result.msg;
     int pid = std::stoi(result.msg);
     EXPECT_GT(pid, 0) << "MainPID should be > 0 for running service, got: " << result.msg;
 }
@@ -107,7 +107,7 @@ TEST(DBusManagerReadOnly, GetStateNonexistentUnit) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.GetUnitActiveState("nonexistent_service_xyz");
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitActiveState should succeed (stub unit)";
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitActiveState should succeed (stub unit)";
     EXPECT_EQ(result.msg, "inactive") << "Nonexistent service should be 'inactive', got: " << result.msg;
 }
 
@@ -118,7 +118,7 @@ TEST(DBusManagerReadOnly, GetPIDNonexistentUnit) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.GetServiceMainPID("nonexistent_service_xyz");
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetServiceMainPID should succeed (stub unit)";
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetServiceMainPID should succeed (stub unit)";
     EXPECT_EQ(result.msg, "0") << "Nonexistent service MainPID should be 0, got: " << result.msg;
 }
 
@@ -144,7 +144,7 @@ TEST(DBusManagerReadWrite, StartUnit) {
     WaitForActiveState(mgr, TestService, "inactive");
 
     auto result = mgr.StartUnit(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "StartUnit failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "StartUnit failed: " << result.msg;
 
     // 等待服务启动完成
     WaitForActiveState(mgr, TestService, "active");
@@ -160,7 +160,7 @@ TEST(DBusManagerReadWrite, StopUnit) {
     WaitForActiveState(mgr, TestService, "active");
 
     auto result = mgr.StopUnit(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "StopUnit failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "StopUnit failed: " << result.msg;
 
     // 等待服务停止完成
     WaitForActiveState(mgr, TestService, "inactive");
@@ -176,7 +176,7 @@ TEST(DBusManagerReadWrite, RestartUnit) {
     WaitForActiveState(mgr, TestService, "active");
 
     auto result = mgr.RestartUnit(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "RestartUnit failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "RestartUnit failed: " << result.msg;
 
     // 等待服务重启完成
     WaitForActiveState(mgr, TestService, "active");
@@ -192,7 +192,7 @@ TEST(DBusManagerReadWrite, GetUnitActiveStateRunning) {
     WaitForActiveState(mgr, TestService, "active");
 
     auto result = mgr.GetUnitActiveState(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitActiveState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitActiveState failed: " << result.msg;
     EXPECT_EQ(result.msg, "active") << "Expected 'active', got: " << result.msg;
 }
 
@@ -206,7 +206,7 @@ TEST(DBusManagerReadWrite, GetUnitActiveStateStopped) {
     WaitForActiveState(mgr, TestService, "inactive");
 
     auto result = mgr.GetUnitActiveState(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitActiveState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitActiveState failed: " << result.msg;
     EXPECT_EQ(result.msg, "inactive") << "Expected 'inactive', got: " << result.msg;
 }
 
@@ -220,7 +220,7 @@ TEST(DBusManagerReadWrite, GetUnitSubStateRunning) {
     WaitForActiveState(mgr, TestService, "active");
 
     auto result = mgr.GetUnitSubState(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitSubState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitSubState failed: " << result.msg;
     EXPECT_EQ(result.msg, "running") << "Expected 'running', got: " << result.msg;
 }
 
@@ -234,7 +234,7 @@ TEST(DBusManagerReadWrite, GetUnitSubStateStopped) {
     WaitForActiveState(mgr, TestService, "inactive");
 
     auto result = mgr.GetUnitSubState(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetUnitSubState failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetUnitSubState failed: " << result.msg;
     EXPECT_EQ(result.msg, "dead") << "Expected 'dead', got: " << result.msg;
 }
 
@@ -248,7 +248,7 @@ TEST(DBusManagerReadWrite, GetServiceMainPID) {
     WaitForActiveState(mgr, TestService, "active");
 
     auto result = mgr.GetServiceMainPID(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "GetServiceMainPID failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "GetServiceMainPID failed: " << result.msg;
     int pid = std::stoi(result.msg);
     EXPECT_GT(pid, 0) << "MainPID should be > 0 for running service, got: " << result.msg;
 }
@@ -259,7 +259,7 @@ TEST(DBusManagerReadWrite, EnableUnit) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.EnableUnit(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "EnableUnit failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "EnableUnit failed: " << result.msg;
 }
 
 // ---------- DisableUnit() ----------
@@ -268,7 +268,7 @@ TEST(DBusManagerReadWrite, DisableUnit) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.DisableUnit(TestService);
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "DisableUnit failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "DisableUnit failed: " << result.msg;
 }
 
 // ---------- ReloadDaemon() ----------
@@ -277,7 +277,7 @@ TEST(DBusManagerReadWrite, ReloadDaemon) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.ReloadDaemon();
-    EXPECT_TRUE(result.IsDefalutSuccess()) << "ReloadDaemon failed: " << result.msg;
+    EXPECT_TRUE(result.IsDefaultSuccess()) << "ReloadDaemon failed: " << result.msg;
 }
 
 // ---------- 启动不存在的服务 — 错误处理 ----------
@@ -286,7 +286,7 @@ TEST(DBusManagerReadWrite, StartNonexistentUnit) {
     ASSERT_TRUE(mgr.IsConnected());
 
     auto result = mgr.StartUnit("nonexistent_service_xyz");
-    EXPECT_FALSE(result.IsDefalutSuccess()) << "StartUnit should fail for nonexistent service";
+    EXPECT_FALSE(result.IsDefaultSuccess()) << "StartUnit should fail for nonexistent service";
 }
 
 // ---------- 测试清理：停止并禁用测试服务 ----------
