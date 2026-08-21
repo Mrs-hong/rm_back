@@ -1,0 +1,107 @@
+# AAS 独立项目配置文件
+# 仅保留实时转写所需配置：general / models / dag / aas
+# 已移除：database / openai / websocket / auth / lms / lms_hm / asr.model（bmodel 空路径）
+
+general:
+  # debug
+  log_level: 1
+
+# 模型配置
+# 模型根目录：/home/lyh/data2/code/models/model_qifeng_ca
+#   - ASR/PUNC/SV/VAD/Qwen3-ASR hmm 模型位于 Qwen3ASR_1.7B_Paraformer/houmo_models/
+# 注意：aarch64 平台仅使用 .hmm（tcim）+ .onnx（onnxruntime），bmodel 路径留空
+models:
+  # 声学特征配置
+  asr_cmvn: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/paraformer/am.mvn"
+  vad_cmvn: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/vad/am.mvn"
+
+  # ASR模型配置（paraformer 实时线）
+  asr:
+    backbone: ""  # bmodel 未提供，aarch64 不使用
+    hmodel_encoder: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/paraformer/seaco_paraformer_large_encoder_w8a8_sefp.hmm"
+    hmodel_decoder: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/paraformer/seaco_paraformer_large_decoder_w8a8.hmm"
+    predictor: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/paraformer/seaco_paraformer_large_predictor.onnx"
+    tokenizer: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/paraformer/tokens.json"
+    hotword: ""
+    seg_dict: ""
+    bias_encoder: ""
+    tpu_id: 0
+    # 调试追踪：encoder/decoder/predictor 输入输出向量保存为 npy
+    trace_npy_dir: "./data/asr_trace"
+
+  # PUNC模型配置
+  punc:
+    tokenizer: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/punc/tokens.json"
+    bmodel: ""
+    hmodel: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/punc/ct-transformer_w8a8_sefp.hmm"
+    tpu_id: 0
+
+  sv:
+    bmodel: ""
+    hmodel: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/sv/campplus_cn_3dspeaker_w8a8_sefp.hmm"
+    tpu_id: 0
+    known_threshold: 0.6         # 已知说话人匹配阈值（cosine similarity）
+    tau_active: 0.5              # 激活阈值，activation 低于此值视为非活跃语音
+    rho_update: 0.3              # 更新阈值，activation 高于此值才允许更新聚类中心
+    delta_new: 0.7               # 新说话人创建阈值（cosine distance）
+    max_temp_speakers: 20       # 最大临时说话人总数（含已知+未知）
+    max_unknown_speakers: 20    # 陌生人最大数量
+    orphan_age_threshold_ms: 300000  # 孤儿清理时间阈值(ms)
+    min_hit_count: 3             # 最小命中次数
+    promotion_threshold: 10      # 提升为固定说话人的观察次数
+    fixed_update_ratio: 0.15     # 固定说话人慢更新系数（0~1）
+
+  # VAD模型配置
+  vad:
+    bmodel: ""
+    hmodel: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/vad/silero-vad.onnx"
+    # hmodel: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/vad/silero-vad_w8a8_sefp.hmm"
+    tpu_id: 0
+    silero_threshold: 0.3  # 语音概率阈值：越低越灵敏
+    silero_min_silence_ms: 300  # 语音段内静音容忍度(ms)
+    silero_min_speech_ms: 250  # 最短有效语音(ms)
+    silero_speech_pad_start_ms: 30  # 起点前补 x ms
+    silero_speech_pad_end_ms: 0  # 终点后补 x ms
+
+  aprep:
+    pool_size: 2
+    batch_size: 32
+    asr_seg_l: 15000
+    asr_lfr_m: 7
+    asr_lfr_n: 6
+    asr_cmvn: ""
+    vp_seg_l: 4000
+    vad_model: ""
+    vad_lfr_m: 5
+    vad_lfr_n: 1
+    vad_cmvn: ""
+
+  # Qwen3-ASR 离线推理模型配置（TCIM）—— qwen 路径 / HYBRID 精确线
+  qwen3_asr:
+    hmodel_encode: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/xh2_w8a16_30s/qwen3-asr-1.7b_encode.hmm"
+    hmodel_prefill: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/xh2_w8a16_30s/qwen3-asr-1.7b_prefill.hmm"
+    hmodel_decode: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/xh2_w8a16_30s/qwen3-asr-1.7b_decode.hmm"
+    embedding: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/xh2_w8a16_30s/quant_embedding.pt"
+    processor: "/home/lyh/data2/code/models/model_qifeng_ca/Qwen3ASR_1.7B_Paraformer/houmo_models/xh2_w8a16_30s/hf_config"
+    tpu_id: 0
+    # Qwen3-ForcedAligner-0.6B 对齐器（留空=降级模式：按 chunk 边界 + 文本字符均匀分布生成粗粒度时间戳）
+    aligner_hmodel: ""      # 对齐器 .hmm 模型路径，空=降级模式
+    aligner_processor: ""   # 对齐器分词器目录
+    aligner_tpu_id: 0
+
+dag:
+  compute_threads: 10
+
+aas:
+  sample_rate: 16000
+  channels: 1
+  bit_depth: 32
+  # ---- paraformer 路径（实时转写）----
+  paraformer_max_segment_ms: 15000   # ASR 单段输入上限（模型支持最长 15s）
+  paraformer_overlap_ms: 3000        # 段间重叠缓存，解决切断处头部/尾部识别错误
+  paraformer_merge_max_chars: 10     # 相邻段文字头尾重叠合并的最大字符数
+  # ---- qwen 路径（带时间戳转写）----
+  qwen_chunk_ms: 30000               # ASR 单段输入上限（模型支持最长 30s）
+  qwen_overlap_ms: 3000              # 段间重叠缓存，时间戳按重叠中点策略合并
+  # ---- 混合路径（HYBRID）----
+  hybrid_qwen_chunk_ms: 30000        # 精确线（qwen）累积触发时长
